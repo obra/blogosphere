@@ -186,9 +186,11 @@ this scale.
 - New images land in a local outbox and upload *in the same commit* as the entry that
   references them — no broken-image window on the live site.
 - HEIC → JPEG on import. Oversized images get a warn-and-downscale offer.
-- Rendering: editor and preview resolve `/assets/…` via a resolver — local cache hit →
+- Rendering: editor and preview resolve image refs via a resolver — local cache hit →
   disk; miss + online → fetch blob via API (works on the private repo), cache; miss +
-  offline → placeholder. Old posts backfill lazily as opened.
+  offline → placeholder. Old posts backfill lazily as opened. The resolver handles both
+  absolute `/assets/…` refs and relative refs (resolved against the entry's repo
+  directory — old posts co-locate images beside the markdown file).
 
 ## Link blog capture
 
