@@ -2,7 +2,7 @@
 // ABOUTME: snapshot, fast-forwards clean entries, and diff3-merges or conflicts dirty ones.
 import { ASSETS_ROOT } from "../model/types";
 import type { EntryRecord } from "../store/types";
-import { denormalize } from "./entry-fields";
+import { denormalize, fallbackFrom } from "./entry-fields";
 import { merge3 } from "./merge";
 import {
   clearConflictRemote,
@@ -57,7 +57,7 @@ async function fastForwardClean(
   buckets: ReconcileBuckets,
 ): Promise<void> {
   const text = await deps.github.getBlobText(newSha);
-  const fields = denormalize(deps.model, entry.path, text);
+  const fields = denormalize(deps.model, entry.path, text, fallbackFrom(entry));
   await deps.store.upsertEntry({
     ...entry,
     baseSha: newSha,
@@ -100,7 +100,7 @@ async function mergeAgainstRemote(
   }
 
   await deps.store.saveSnapshot(path, entry.workingContent, "pre-merge");
-  const fields = denormalize(deps.model, path, result.merged);
+  const fields = denormalize(deps.model, path, result.merged, fallbackFrom(entry));
   await deps.store.upsertEntry({
     ...entry,
     baseSha: remoteSha,

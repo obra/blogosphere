@@ -9,8 +9,15 @@ interface NewLinkDialogProps {
   fetchTitle: ((url: string) => Promise<string | null>) | null;
 }
 
+/** Prefills the URL field from the clipboard whenever the dialog opens, and
+ *  reports whether the *current* value came from that prefill (true) or was
+ *  since typed/edited by the user (false) — a swapped clipboard URL (e.g. a
+ *  malicious page's "Copy link" button) should be visually distinguishable
+ *  from one the user actually typed, not indistinguishable right up to the
+ *  "Fetch title"/"Add link" click. */
 function usePrefillFromClipboard(open: boolean, setUrl: (url: string) => void) {
   const services = useServices();
+  const [fromClipboard, setFromClipboard] = useState(false);
   useEffect(() => {
     if (!open) {
       return;
@@ -19,12 +26,17 @@ function usePrefillFromClipboard(open: boolean, setUrl: (url: string) => void) {
     services.shell.clipboardReadUrl().then((url) => {
       if (!cancelled && url) {
         setUrl(url);
+        setFromClipboard(true);
       }
     });
     return () => {
       cancelled = true;
     };
   }, [open, services, setUrl]);
+  function noteManualEdit() {
+    setFromClipboard(false);
+  }
+  return { fromClipboard, noteManualEdit };
 }
 
 function useFetchTitleHandler(
@@ -50,34 +62,48 @@ function useFetchTitleHandler(
   return { fetching, handleFetchTitle };
 }
 
-function NewLinkDialog(props: NewLinkDialogProps) {
-  const open = useAppStore((state) => state.newLinkDialogOpen);
+/** handleClose resets local fields and closes; handleSubmit only calls it
+ *  on success — a failed newLink() already reported why via a toast with a
+ *  retry, so closing (and clearing the user's input) on top of that would
+ *  silently discard a link that was never actually created. */
+function useCloseAndSubmit(
+  url: string,
+  title: string,
+  setUrl: (u: string) => void,
+  setTitle: (t: string) => void,
+) {
   const store = useAppStoreApi();
-  const [url, setUrl] = useState("");
-  const [title, setTitle] = useState("");
-  const urlFieldId = useId();
-  const titleFieldId = useId();
-
-  usePrefillFromClipboard(open, setUrl);
-  const { fetching, handleFetchTitle } = useFetchTitleHandler(props, url, setTitle);
-
-  if (!open) {
-    return null;
-  }
-
   function handleClose() {
     setUrl("");
     setTitle("");
     store.getState().closeNewLinkDialog();
   }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!(url.trim() && title.trim())) {
       return;
     }
-    await store.getState().newLink({ title: title.trim(), url: url.trim() });
-    handleClose();
+    const path = await store.getState().newLink({ title: title.trim(), url: url.trim() });
+    if (path !== null) {
+      handleClose();
+    }
+  }
+  return { handleClose, handleSubmit };
+}
+
+function NewLinkDialog(props: NewLinkDialogProps) {
+  const open = useAppStore((state) => state.newLinkDialogOpen);
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const urlFieldId = useId();
+  const titleFieldId = useId();
+
+  const { fromClipboard, noteManualEdit } = usePrefillFromClipboard(open, setUrl);
+  const { fetching, handleFetchTitle } = useFetchTitleHandler(props, url, setTitle);
+  const { handleClose, handleSubmit } = useCloseAndSubmit(url, title, setUrl, setTitle);
+
+  if (!open) {
+    return null;
   }
 
   return (
@@ -91,8 +117,14 @@ function NewLinkDialog(props: NewLinkDialogProps) {
               id={urlFieldId}
               type="url"
               value={url}
-              onChange={(event) => setUrl(event.currentTarget.value)}
+              onChange={(event) => {
+                setUrl(event.currentTarget.value);
+                noteManualEdit();
+              }}
             />
+            {fromClipboard ? (
+              <span className="entry-row-meta">Pasted from your clipboard</span>
+            ) : null}
           </div>
           <div className="dialog-field">
             <label htmlFor={titleFieldId}>Title</label>

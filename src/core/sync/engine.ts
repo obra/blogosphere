@@ -3,7 +3,7 @@
 import { GitHubError, type TreeEntry } from "../github/types";
 import { ASSETS_ROOT } from "../model/types";
 import type { EntryRecord } from "../store/types";
-import { denormalize, fetchCurrentRemote } from "./entry-fields";
+import { denormalize, fallbackFrom, fetchCurrentRemote } from "./entry-fields";
 import { SyncError } from "./errors";
 import {
   clearConflictRemote,
@@ -151,7 +151,7 @@ async function runResolveConflict(
       // accepting the deletion.
       await deps.store.removeEntry(path);
     } else {
-      const fields = denormalize(deps.model, path, remote.text);
+      const fields = denormalize(deps.model, path, remote.text, fallbackFrom(entry));
       await deps.store.upsertEntry({
         ...entry,
         baseSha: remote.sha,
@@ -167,7 +167,7 @@ async function runResolveConflict(
       });
     }
   } else {
-    const fields = denormalize(deps.model, path, resolution.content);
+    const fields = denormalize(deps.model, path, resolution.content, fallbackFrom(entry));
     await deps.store.upsertEntry({
       ...entry,
       workingContent: resolution.content,

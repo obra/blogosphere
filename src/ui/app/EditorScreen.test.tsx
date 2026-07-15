@@ -110,6 +110,127 @@ it("Cancel closes the publish dialog without publishing", async () => {
   expect(screen.queryByLabelText("Publish date")).toBeNull();
 });
 
+it("picks up a same-path external content change (pull/merge/resolved conflict) without switching entries", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    draft: true,
+    title: "Original Title",
+  });
+  const { store, services } = await renderEditorFor(draft);
+
+  const titleInput = screen.getByLabelText("Title") as HTMLInputElement;
+  expect(titleInput.value).toBe("Original Title");
+
+  // Simulate what pull.ts's fastForwardClean/mergeAgainstRemote and
+  // engine.ts's runResolveConflict all do: write straight to the store,
+  // bypassing this component (and even the app-store's own edit()/commit
+  // path) entirely, then attachSync's subscription reloads the cache.
+  const externallyUpdated = services.model.applyEdits(draft.workingContent, [
+    { field: "title", value: "Resolved Elsewhere" },
+  ]);
+  if (!externallyUpdated.ok) {
+    throw new Error(externallyUpdated.error);
+  }
+  await act(async () => {
+    await services.store.upsertEntry({
+      ...draft,
+      workingContent: externallyUpdated.raw,
+      title: "Resolved Elsewhere",
+      dirty: false,
+    });
+    await store.getState().refresh();
+  });
+
+  expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Resolved Elsewhere");
+});
+
+it("does not clobber an in-progress local edit with a same-path external change landing mid-keystroke", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    draft: true,
+    title: "Original Title",
+  });
+  const { store, services } = await renderEditorFor(draft);
+
+  const titleInput = screen.getByLabelText("Title") as HTMLInputElement;
+  fireEvent.change(titleInput, { target: { value: "What I Am Typing Right Now" } });
+
+  // An unrelated external change (e.g. a background pull merging a
+  // different field) lands while the keystroke above is still "fresh" —
+  // the title the user is actively editing must not be reverted out from
+  // under them the instant it arrives.
+  const externallyChangedDate = services.model.applyEdits(draft.workingContent, [
+    { field: "date", value: "2026-02-02" },
+  ]);
+  if (!externallyChangedDate.ok) {
+    throw new Error(externallyChangedDate.error);
+  }
+  await act(async () => {
+    await services.store.upsertEntry({
+      ...draft,
+      workingContent: externallyChangedDate.raw,
+      date: "2026-02-02",
+    });
+    await store.getState().refresh();
+  });
+
+  expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+    "What I Am Typing Right Now",
+  );
+});
+
+it("Delete tombstones the entry once the user confirms", async () => {
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft", draft: true });
+  const fake = buildFakeServices({ seedEntries: [draft] });
+  const store = createAppStore(fake.services, { confirm: () => true });
+  render(
+    <ServicesProvider services={fake.services}>
+      <AppStoreProvider store={store}>
+        <EditorScreen />
+      </AppStoreProvider>
+    </ServicesProvider>,
+  );
+  await act(async () => {
+    await store.getState().refresh();
+    store.getState().select(draft.path);
+  });
+
+  await act(async () => {
+    fireEvent.click(screen.getByText("Delete"));
+    await Promise.resolve();
+  });
+
+  const saved = await fake.services.store.getEntry(draft.path);
+  expect(saved?.deleted).toBe(true);
+});
+
+it("Delete does nothing when the user declines the confirmation", async () => {
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft", draft: true });
+  const fake = buildFakeServices({ seedEntries: [draft] });
+  const store = createAppStore(fake.services, { confirm: () => false });
+  render(
+    <ServicesProvider services={fake.services}>
+      <AppStoreProvider store={store}>
+        <EditorScreen />
+      </AppStoreProvider>
+    </ServicesProvider>,
+  );
+  await act(async () => {
+    await store.getState().refresh();
+    store.getState().select(draft.path);
+  });
+
+  await act(async () => {
+    fireEvent.click(screen.getByText("Delete"));
+    await Promise.resolve();
+  });
+
+  const saved = await fake.services.store.getEntry(draft.path);
+  expect(saved?.deleted).toBe(false);
+});
+
 it("renders without an infinite-render loop when no sync is configured yet (no token)", async () => {
   // Regression test: useEditorScreenState's `isConflicted` selector read
   // `state.syncStatus?.conflicts ?? []`, a fresh array every call once

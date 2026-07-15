@@ -42,7 +42,7 @@ function buildNewRecord(
   };
 }
 
-async function createNew(
+async function createNewInner(
   ctx: ActionCtx,
   kind: CreatableKind,
   input: CreateNewInput,
@@ -63,15 +63,40 @@ async function createNew(
   return record.path;
 }
 
-function newPost(ctx: ActionCtx, input: NewEntryFields): Promise<string> {
+/** Unlike every other mutating action (publish/delete/rename/share), this
+ *  used to have no try/catch at all: a failing store write (disk full, a
+ *  locked DB, a real Tauri-sql hiccup) propagated as an unhandled rejection
+ *  with zero user-facing feedback — no toast, no retry, and for the
+ *  fire-and-forget Cmd-N/"+" callers, not even a console-visible failure. */
+async function createNew(
+  ctx: ActionCtx,
+  kind: CreatableKind,
+  input: CreateNewInput,
+): Promise<string | null> {
+  ctx.set((state) => ({ busy: { ...state.busy, creating: true } }));
+  try {
+    return await createNewInner(ctx, kind, input);
+  } catch {
+    ctx.get().addToast({
+      tone: "error",
+      message: `Couldn't create this ${kind}.`,
+      retry: () => createNew(ctx, kind, input),
+    });
+    return null;
+  } finally {
+    ctx.set((state) => ({ busy: { ...state.busy, creating: false } }));
+  }
+}
+
+function newPost(ctx: ActionCtx, input: NewEntryFields): Promise<string | null> {
   return createNew(ctx, "post", input);
 }
 
-function newDraft(ctx: ActionCtx, input: NewEntryFields): Promise<string> {
+function newDraft(ctx: ActionCtx, input: NewEntryFields): Promise<string | null> {
   return createNew(ctx, "draft", input);
 }
 
-function newLink(ctx: ActionCtx, input: NewLinkFields): Promise<string> {
+function newLink(ctx: ActionCtx, input: NewLinkFields): Promise<string | null> {
   return createNew(ctx, "link", input);
 }
 
@@ -102,6 +127,11 @@ async function publishDraftInner(
   path: string,
   opts: PublishOptions,
 ): Promise<void> {
+  // Force any still-debounced keystroke into the store first — otherwise a
+  // fast click-through (date defaults to today, so the dialog's submit is
+  // enabled immediately) can publish a stale pre-edit snapshot while the
+  // user's last few keystrokes are still sitting in the debounce timer.
+  await ctx.flush(path);
   const svc = ctx.get().services;
   const record = findEntryInCache(ctx.get, path) ?? (await svc.store.getEntry(path));
   if (!record) {
@@ -113,7 +143,12 @@ async function publishDraftInner(
     ctx.get().addToast({ tone: "error", message: plan.message });
     return;
   }
-  await applyRename(ctx, plan.record, plan.newPath, plan.raw);
+  const applied = await applyRename(ctx, plan.record, plan.newPath, plan.raw);
+  if (!applied) {
+    // applyRename already reported why (e.g. the target path collides with
+    // a different entry) — nothing was published, so no success toast.
+    return;
+  }
   ctx.get().addToast({ tone: "success", message: "Published." });
 }
 

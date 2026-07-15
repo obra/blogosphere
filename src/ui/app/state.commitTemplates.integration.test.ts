@@ -51,4 +51,44 @@ describe("commit message templates: app store -> sync engine", () => {
     expect(result.committed).toBe(true);
     expect(await commitMessageFor(remote, result)).toBe("Custom Post: Hello World");
   });
+
+  it("agrees with the sync engine's own default even when nothing was ever saved", async () => {
+    const harness = await createHarness();
+    const { remote, store, model, sync } = harness;
+    remote.initRepo({ "seed.txt": "seed" });
+    await sync.bootstrap();
+
+    // No setCommitTemplates call here — this is a fresh install with no
+    // commitMsgTemplates meta row yet. The app store's seeded default
+    // (AppData.commitTemplates, what Settings would display right now) and
+    // the sync engine's own fallback must be the exact same literal, not
+    // two independently hand-copied ones that could drift apart.
+    const services: Services = {
+      model,
+      store,
+      shell: createFakeShell(),
+      github: null,
+      sync,
+      repo: DEFAULT_REPO,
+    };
+    const appStore = createAppStore(services);
+
+    const created = model.newEntry({ kind: "post", title: "Hello World", date: "2026-01-10" });
+    await store.upsertEntry(
+      baseEntry({
+        path: created.path,
+        kind: "post",
+        workingContent: created.raw,
+        title: "Hello World",
+      }),
+    );
+
+    const result = await sync.push();
+
+    expect(result.committed).toBe(true);
+    const pushedMessage = await commitMessageFor(remote, result);
+    expect(pushedMessage).toBe(
+      appStore.getState().commitTemplates.newPost.replace("{title}", "Hello World"),
+    );
+  });
 });

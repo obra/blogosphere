@@ -130,3 +130,27 @@ export async function getConflictRemote(
 export async function clearConflictRemote(store: StoreApi, path: string): Promise<void> {
   await store.setMeta(conflictRemoteMetaKey(path), null);
 }
+
+/**
+ * Clear any unresolved-conflict bookkeeping for `path` — the same cleanup
+ * runResolveConflict does at its tail (engine.ts), factored out so any other
+ * code that tombstones a path (delete, rename-away) can call it too.
+ *
+ * Without this, a path that pull() flagged conflicted and is then deleted or
+ * renamed away — rather than resolved via resolveConflict — keeps blocking
+ * push forever: push()'s conflict-exclusion filter has no way to know the
+ * path no longer needs resolving, since nothing else ever removes it from
+ * the conflicts list once the path itself stops existing. Idempotent —
+ * calling this on a path with no conflict is a no-op.
+ */
+export async function discardConflictIfAny(store: StoreApi, path: string): Promise<void> {
+  const conflicts = await getConflictPaths(store);
+  if (!conflicts.includes(path)) {
+    return;
+  }
+  await setConflictPaths(
+    store,
+    conflicts.filter((conflictPath) => conflictPath !== path),
+  );
+  await clearConflictRemote(store, path);
+}

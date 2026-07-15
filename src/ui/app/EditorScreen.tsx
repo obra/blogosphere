@@ -31,6 +31,19 @@ function SecretLinkButton(props: { path: string; opaqueId: string | null }) {
   );
 }
 
+/** deleteEntry itself already owns confirmation, the busy flag, and a
+ *  retry-carrying error toast (state.editingActions.ts) — this button is
+ *  its only missing piece: before this, the action had no UI trigger
+ *  anywhere in the app, so there was no way to delete an entry at all. */
+function DeleteButton(props: { path: string }) {
+  const store = useAppStoreApi();
+  return (
+    <button type="button" className="btn" onClick={() => store.getState().deleteEntry(props.path)}>
+      Delete
+    </button>
+  );
+}
+
 function PublishSection(props: { path: string; opaqueId: string | null }) {
   const store = useAppStoreApi();
   const [open, setOpen] = useState(false);
@@ -67,6 +80,7 @@ function EditorToolbar(props: EditorToolbarProps) {
       <ModeToggle mode={props.mode} onChange={props.onModeChange} />
       <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
       <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
+      <DeleteButton path={props.record.path} />
     </div>
   );
 }

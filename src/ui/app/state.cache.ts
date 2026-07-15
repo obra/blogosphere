@@ -3,6 +3,8 @@
 // ABOUTME: fire-and-forget background sync trigger.
 import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
+import { denormalize } from "../../core/sync/entry-fields";
+import { discardConflictIfAny } from "../../core/sync/meta";
 import type { ActionCtx, GetState, SetState } from "./state.types";
 
 type DenormalizedFields = Pick<EntryRecord, "title" | "date" | "draft" | "opaqueId">;
@@ -29,23 +31,24 @@ function removeEntryFromCache(set: SetState, path: string): void {
 }
 
 /** Recompute denormalized display fields from freshly-edited raw text; falls
- *  back to the previous values on the rare case the edit made it unparsable. */
+ *  back to the previous values on the rare case the edit made it unparsable.
+ *  A thin adapter over core/sync/entry-fields.ts's denormalize() — the
+ *  single implementation of this fallback policy, shared with the sync
+ *  engine's own remote-driven writes (pull.ts, engine.ts), so this app-store
+ *  path and that one can no longer silently disagree on what "parse failed"
+ *  should do (see entry-fields.test.ts). */
 function withParsedFields(
   svc: Services,
   path: string,
   raw: string,
   fallback: DenormalizedFields,
 ): DenormalizedFields {
-  const parsed = svc.model.parseEntry(path, raw);
-  if (!parsed.ok) {
-    return fallback;
-  }
-  return {
-    title: parsed.entry.title,
-    date: parsed.entry.date,
-    draft: parsed.entry.draft,
-    opaqueId: parsed.entry.opaqueId,
-  };
+  // denormalize()'s fallback shape includes `kind`, which this wrapper's
+  // callers never look at (its own return type omits it, exactly as
+  // before) — kindForPath(path) is a safe placeholder either way.
+  const kind = svc.model.kindForPath(path) ?? "post";
+  const { title, date, draft, opaqueId } = denormalize(svc.model, path, raw, { kind, ...fallback });
+  return { title, date, draft, opaqueId };
 }
 
 /** Not awaited by callers on purpose — the sync-status subscription is the
@@ -96,22 +99,53 @@ async function persistRenamedPair(
     await svc.store.upsertEntry(tombstone);
     await svc.store.upsertEntry(updated);
   });
+  // The old path is being tombstoned out from under whatever conflict state
+  // it might have had — if it was flagged conflicted, that flag must be
+  // cleared here too, or it can never be cleared again (push()'s
+  // conflict-exclusion filter has no way to know a path that no longer
+  // exists doesn't need resolving).
+  await discardConflictIfAny(svc.store, record.path);
   ctx.set((state) => ({
     entries: [...state.entries.filter((entry) => entry.path !== record.path), updated],
     selectedPath: state.selectedPath === record.path ? updated.path : state.selectedPath,
   }));
 }
 
+/** True when `newPath` already belongs to a different, still-live entry —
+ *  i.e. renaming/publishing onto it would silently clobber that entry's
+ *  content (locally immediately, and on the next push). A tombstoned row is
+ *  not a collision: it's already on its way out. */
+async function pathTakenByAnotherEntry(
+  svc: Services,
+  record: EntryRecord,
+  newPath: string,
+): Promise<boolean> {
+  if (newPath === record.path) {
+    return false;
+  }
+  const collision = await svc.store.getEntry(newPath);
+  return collision !== null && !collision.deleted;
+}
+
 /** Shared rename plumbing for publishDraft + renameEntry: upsert the new path
  *  (with renamedFrom when the path actually changed) and tombstone the old
- *  one in the same store transaction. */
+ *  one in the same store transaction. Returns false (and leaves everything
+ *  untouched but for a toast) when newPath is already occupied by a
+ *  different entry, rather than silently overwriting it. */
 async function applyRename(
   ctx: ActionCtx,
   record: EntryRecord,
   newPath: string,
   newRaw: string,
-): Promise<void> {
+): Promise<boolean> {
   const svc = ctx.get().services;
+  if (await pathTakenByAnotherEntry(svc, record, newPath)) {
+    ctx.get().addToast({
+      tone: "error",
+      message: `Can't use that date and title — ${newPath} is already taken by another entry.`,
+    });
+    return false;
+  }
   const updated = buildRenamedRecord(ctx, record, newPath, newRaw);
   if (newPath === record.path) {
     await svc.store.upsertEntry(updated);
@@ -120,6 +154,7 @@ async function applyRename(
     await persistRenamedPair(ctx, record, updated);
   }
   maybeBackgroundSync(ctx.get);
+  return true;
 }
 
 export {

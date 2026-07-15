@@ -1,6 +1,6 @@
 // ABOUTME: Entry-list + editing actions: refresh/select/section/search, and
 // ABOUTME: the debounced autosave pipeline (edit/flushEdit/saveNow).
-import type { EditResult } from "../../core/model/types";
+import type { EditResult, FieldEdit } from "../../core/model/types";
 import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode, Section } from "../types";
@@ -14,7 +14,28 @@ import {
 import type { ActionCtx, EditChange } from "./state.types";
 import { editorModeMetaKey } from "./state.types";
 
-type PendingEdits = Map<string, { change: EditChange; timer: ReturnType<typeof setTimeout> }>;
+/** One path's accumulated-but-not-fully-flushed edit: a body replace and/or
+ *  a set of field edits (last edit per field wins), merged from however many
+ *  edit() calls land inside the debounce window. Never last-*kind*-wins
+ *  across the whole path — a title edit followed by a body edit (or a title
+ *  edit followed by a tags edit) accumulates both instead of the later call
+ *  discarding the earlier one. */
+interface PendingEntry {
+  body: string | null;
+  fieldEdits: Map<string, FieldEdit>;
+}
+
+interface PendingSlot extends PendingEntry {
+  timer: ReturnType<typeof setTimeout>;
+  /** Set whenever a change lands after the last commit attempt (immediate
+   *  or debounced); lets the debounce-fire callback skip a fully redundant
+   *  re-commit — and, on failure, a redundant duplicate error toast — once
+   *  a single-edit burst has already been handled by the immediate commit
+   *  `edit()` fires below. */
+  uncommitted: boolean;
+}
+
+type PendingEdits = Map<string, PendingSlot>;
 
 interface SearchDebouncer {
   call: (query: string) => void;
@@ -89,35 +110,58 @@ function setSearchQuery(ctx: ActionCtx, searchDebouncer: SearchDebouncer, query:
   searchDebouncer.call(query);
 }
 
-function applyEditToRaw(svc: Services, workingContent: string, change: EditChange): EditResult {
+function mergeChangeInto(entry: PendingEntry, change: EditChange): void {
   if (change.kind === "body") {
-    return svc.model.replaceBody(workingContent, change.body);
+    entry.body = change.body;
+  } else {
+    for (const fieldEdit of change.edits) {
+      entry.fieldEdits.set(fieldEdit.field, fieldEdit);
+    }
   }
-  return svc.model.applyEdits(workingContent, change.edits);
+}
+
+/** Applies the accumulated field edits, then the accumulated body replace
+ *  (order between the two doesn't matter: one touches only front matter,
+ *  the other only the body) — a single merged commit instead of whichever
+ *  one a naive "last change wins" scheme would keep. */
+function applyPendingToRaw(svc: Services, workingContent: string, entry: PendingEntry): EditResult {
+  const fieldEdits = [...entry.fieldEdits.values()];
+  const afterFields: EditResult =
+    fieldEdits.length > 0
+      ? svc.model.applyEdits(workingContent, fieldEdits)
+      : { ok: true, raw: workingContent };
+  if (!afterFields.ok || entry.body === null) {
+    return afterFields;
+  }
+  return svc.model.replaceBody(afterFields.raw, entry.body);
 }
 
 function reportEditFailure(
   ctx: ActionCtx,
   record: EntryRecord,
-  change: EditChange,
+  entry: PendingEntry,
   error: string,
 ): void {
   ctx.get().addToast({
     tone: "error",
     message: `Couldn't save "${record.title ?? record.path}": ${error}`,
-    retry: () => commitEdit(ctx, record.path, change),
+    retry: () => commitPending(ctx, record.path, entry, true),
   });
 }
 
-async function commitEditInner(ctx: ActionCtx, path: string, change: EditChange): Promise<void> {
+async function commitPendingInner(
+  ctx: ActionCtx,
+  path: string,
+  entry: PendingEntry,
+): Promise<void> {
   const svc = ctx.get().services;
   const record = findEntryInCache(ctx.get, path) ?? (await svc.store.getEntry(path));
   if (!record) {
     return;
   }
-  const editResult = applyEditToRaw(svc, record.workingContent, change);
+  const editResult = applyPendingToRaw(svc, record.workingContent, entry);
   if (!editResult.ok) {
-    reportEditFailure(ctx, record, change, editResult.error);
+    reportEditFailure(ctx, record, entry, editResult.error);
     return;
   }
   const updated: EntryRecord = {
@@ -129,41 +173,99 @@ async function commitEditInner(ctx: ActionCtx, path: string, change: EditChange)
   };
   await svc.store.upsertEntry(updated);
   replaceEntryInCache(ctx.set, updated);
-  maybeBackgroundSync(ctx.get);
 }
 
-async function commitEdit(ctx: ActionCtx, path: string, change: EditChange): Promise<void> {
+async function commitPending(
+  ctx: ActionCtx,
+  path: string,
+  entry: PendingEntry,
+  notifySync: boolean,
+): Promise<void> {
   try {
-    await commitEditInner(ctx, path, change);
+    await commitPendingInner(ctx, path, entry);
+    if (notifySync) {
+      maybeBackgroundSync(ctx.get);
+    }
   } catch {
     ctx.get().addToast({
       tone: "error",
       message: "Couldn't save your changes.",
-      retry: () => commitEdit(ctx, path, change),
+      retry: () => commitPending(ctx, path, entry, notifySync),
     });
   }
 }
 
+function onDebounceFire(ctx: ActionCtx, pending: PendingEdits, path: string): void {
+  const slot = pending.get(path);
+  pending.delete(path);
+  if (!slot) {
+    return;
+  }
+  if (slot.uncommitted) {
+    commitPending(ctx, path, slot, true);
+  } else {
+    // A single-edit burst: the immediate commit in edit() already captured
+    // and persisted it. Nothing new to write, but the network sync this
+    // debounce exists to gate still needs to fire.
+    maybeBackgroundSync(ctx.get);
+  }
+}
+
+function scheduleDebouncedCommit(
+  ctx: ActionCtx,
+  pending: PendingEdits,
+  path: string,
+): ReturnType<typeof setTimeout> {
+  return setTimeout(() => onDebounceFire(ctx, pending, path), ctx.deps.editDebounceMs);
+}
+
+/**
+ * Buffers `change` for `path`, committing it to the store no later than
+ * `editDebounceMs` after the last call for that path (see saveNow/flushEdit
+ * to force it sooner). The *first* edit() call in a fresh burst (no pending
+ * entry yet) also commits immediately, fire-and-forget, on top of the
+ * debounce rather than instead of it: without some immediate signal, a
+ * pull() racing in mid-burst finds a row whose *content* hasn't actually
+ * diverged from its last-synced base yet — even a bare `dirty: true` flag
+ * with stale content wouldn't help, since pull()'s diff3 merge only
+ * recognizes an overlap once "mine" has genuinely moved — so it would
+ * fast-forward or cleanly merge straight over an edit in flight, silently
+ * discarding a concurrent overlapping remote change with no conflict ever
+ * raised (see pull.ts's fastForwardClean, gated solely on `!entry.dirty`,
+ * and mergeAgainstRemote's diff3 call, which needs real divergence to
+ * detect anything). Every further keystroke in the same burst still only
+ * accumulates in the pending map and resets the timer — this fires once per
+ * burst, not once per keystroke.
+ */
 function edit(ctx: ActionCtx, pending: PendingEdits, path: string, change: EditChange): void {
   const existing = pending.get(path);
   if (existing) {
     clearTimeout(existing.timer);
+    mergeChangeInto(existing, change);
+    existing.uncommitted = true;
+    existing.timer = scheduleDebouncedCommit(ctx, pending, path);
+    return;
   }
-  const timer = setTimeout(() => {
-    pending.delete(path);
-    commitEdit(ctx, path, change);
-  }, ctx.deps.editDebounceMs);
-  pending.set(path, { change, timer });
+
+  const slot: PendingSlot = {
+    body: null,
+    fieldEdits: new Map(),
+    uncommitted: false,
+    timer: scheduleDebouncedCommit(ctx, pending, path),
+  };
+  mergeChangeInto(slot, change);
+  pending.set(path, slot);
+  commitPending(ctx, path, slot, false);
 }
 
 async function flushOne(ctx: ActionCtx, pending: PendingEdits, path: string): Promise<void> {
-  const entry = pending.get(path);
-  if (!entry) {
+  const slot = pending.get(path);
+  if (!slot) {
     return;
   }
-  clearTimeout(entry.timer);
+  clearTimeout(slot.timer);
   pending.delete(path);
-  await commitEdit(ctx, path, entry.change);
+  await commitPending(ctx, path, slot, true);
 }
 
 async function flushEdit(ctx: ActionCtx, pending: PendingEdits, path?: string): Promise<void> {

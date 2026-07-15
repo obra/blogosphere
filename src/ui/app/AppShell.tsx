@@ -1,12 +1,15 @@
 // ABOUTME: Composition root — three-pane layout (Sidebar/EntryList/Detail),
-// ABOUTME: global dialogs/toasts, app-wide keyboard shortcuts, and a
-// ABOUTME: debounced resync on window focus.
+// ABOUTME: global dialogs/toasts, app-wide keyboard shortcuts, a debounced
+// ABOUTME: resync on window focus, and a flush-before-quit safety net.
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect } from "react";
 import { ConflictHost } from "./ConflictHost";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
 import { NewLinkDialog } from "./NewLinkDialog";
+import { handleCloseRequested } from "./quitFlush";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
 import type { BoundAppStore } from "./state";
@@ -79,10 +82,44 @@ function useSyncOnFocus(store: BoundAppStore): void {
   }, [store]);
 }
 
+/**
+ * Flushes any debounced-but-not-yet-committed edit to SQLite before letting
+ * the window actually close. Without this, Cmd-Q / the close box during the
+ * debounce window (editDebounceMs after the last keystroke) kills the
+ * process with the edit still sitting in an in-process setTimeout — losing
+ * it outright, unlike every other quit timing (see state.entryActions.ts's
+ * edit()/flushEdit, and the spec's "crash/force-quit loses nothing"
+ * promise). A no-op outside Tauri (e.g. `vite dev`'s browser preview).
+ */
+function useFlushBeforeQuit(store: BoundAppStore): void {
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    const win = getCurrentWindow();
+    win
+      .onCloseRequested((event) => handleCloseRequested(store, event, win))
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [store]);
+}
+
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   useKeyboardShortcuts(store);
   useSyncOnFocus(store);
+  useFlushBeforeQuit(store);
 
   useEffect(() => {
     store.getState().init();

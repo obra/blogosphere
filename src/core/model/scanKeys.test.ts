@@ -165,10 +165,20 @@ describe("scanTopLevelKeys — unsupported shapes bail out", () => {
     expect(result.unscannableFrom).toBe(1);
   });
 
-  it("refuses a duplicate top-level key", () => {
+  it("refuses a duplicate top-level key, discarding the first occurrence's block too", () => {
+    // js-yaml throws on a duplicate top-level mapping key for the whole
+    // document, not just that one key — so the scanner must not leave the
+    // first occurrence confidently bounded (see applyEdits.test.ts's
+    // "refuses to edit any field once a duplicate key is present").
     const result = scan("title: a\ntitle: b\n");
-    expect(result.blocks.get("title")).toEqual({ start: 0, end: 0 });
+    expect(result.blocks.size).toBe(0);
     expect(result.unscannableFrom).toBe(1);
+  });
+
+  it("discards keys found before an earlier duplicate too", () => {
+    const result = scan("title: a\ndate: 2026-01-01\ntitle: b\n");
+    expect(result.blocks.size).toBe(0);
+    expect(result.unscannableFrom).toBe(2);
   });
 
   it("keeps everything found before the unscannable point", () => {
@@ -193,5 +203,33 @@ describe("scanTopLevelKeys — unknown keys and ordering", () => {
     const result = scan("");
     expect(result.blocks.size).toBe(0);
     expect(result.unscannableFrom).toBeNull();
+  });
+});
+
+describe("scanTopLevelKeys — blank lines between keys", () => {
+  it("skips a blank line between two top-level keys, bounding both sides", () => {
+    const result = scan("title: Hello\n\ndate: 2026-01-01\n");
+    expect(result.unscannableFrom).toBeNull();
+    expect(result.blocks.get("title")).toEqual({ start: 0, end: 0 });
+    expect(result.blocks.get("date")).toEqual({ start: 2, end: 2 });
+  });
+
+  it("skips more than one consecutive blank line", () => {
+    const result = scan("title: Hello\n\n\ndate: 2026-01-01\n");
+    expect(result.unscannableFrom).toBeNull();
+    expect(result.blocks.get("date")).toEqual({ start: 3, end: 3 });
+  });
+
+  it("skips a trailing blank line after the last key", () => {
+    const result = scan("title: Hello\n\n");
+    expect(result.unscannableFrom).toBeNull();
+    expect(result.blocks.get("title")).toEqual({ start: 0, end: 0 });
+  });
+
+  it("still refuses tab-indented content even when the line trims blank-ish", () => {
+    // A line containing only a tab is caught by the tab guard, not treated
+    // as blank — the tab check still runs first.
+    const result = scan("title: x\n\t\ndate: 2026-01-01\n");
+    expect(result.unscannableFrom).toBe(1);
   });
 });

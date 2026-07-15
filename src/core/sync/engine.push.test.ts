@@ -119,6 +119,64 @@ describe("push: edit", () => {
   });
 });
 
+describe("push: concurrent edit lands in the store mid-push", () => {
+  it("keeps the newer edit dirty instead of reverting it to the just-pushed snapshot", async () => {
+    const harness = await createHarness();
+    const { remote, store, sync, model, deps } = harness;
+    const post = model.newEntry({ kind: "post", title: "Original", date: "2026-01-05" });
+    remote.initRepo({ [post.path]: post.raw });
+    await sync.bootstrap();
+
+    const firstEdit = model.replaceBody(post.raw, "First edit.\n");
+    if (!firstEdit.ok) {
+      throw new Error(firstEdit.error);
+    }
+    const entry = await store.getEntry(post.path);
+    if (!entry) {
+      throw new Error("test setup");
+    }
+    await store.upsertEntry({ ...entry, workingContent: firstEdit.raw, dirty: true });
+
+    const secondEdit = model.replaceBody(
+      post.raw,
+      "Second edit, typed while the first was still pushing.\n",
+    );
+    if (!secondEdit.ok) {
+      throw new Error(secondEdit.error);
+    }
+
+    // Simulate the debounced autosave durably writing a newer edit to the
+    // store the instant this entry's blob upload starts — i.e. mid-push,
+    // well after runPush snapshotted `pushable` from listDirty().
+    const originalCreateBlob = deps.github.createBlob.bind(deps.github);
+    let injected = false;
+    deps.github.createBlob = async (content) => {
+      if (!injected) {
+        injected = true;
+        const midPush = await store.getEntry(post.path);
+        if (midPush) {
+          await store.upsertEntry({ ...midPush, workingContent: secondEdit.raw, dirty: true });
+        }
+      }
+      return originalCreateBlob(content);
+    };
+
+    const result = await sync.push();
+
+    expect(result.committed).toBe(true);
+    // Only the first edit's blob was ever sent to GitHub — the second edit
+    // arrived too late to ride along with this commit.
+    expect(remote.readFile(post.path)).toBe(firstEdit.raw);
+
+    // The second edit must survive locally, still dirty, so the next push
+    // cycle picks it up — not silently reverted to the pushed snapshot.
+    const finalRow = await store.getEntry(post.path);
+    expect(finalRow?.workingContent).toBe(secondEdit.raw);
+    expect(finalRow?.dirty).toBe(true);
+    expect(finalRow?.baseContent).toBe(firstEdit.raw);
+  });
+});
+
 describe("push: delete", () => {
   it("removes the file remotely and the row locally, using the delete template", async () => {
     const harness = await createHarness();

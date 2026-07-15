@@ -120,6 +120,71 @@ it("a second edit within the debounce window replaces the first (last write wins
   expect(saved?.workingContent).not.toContain("First");
 });
 
+it("a title edit followed by a body edit within the debounce window merges both instead of clobbering the title", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    title: "Original Title",
+  });
+  const { services } = buildFakeServices({ seedEntries: [draft] });
+  const store = createAppStore(services, { editDebounceMs: FAST_DEBOUNCE_MS });
+  await store.getState().refresh();
+
+  store
+    .getState()
+    .edit(draft.path, { kind: "fields", edits: [{ field: "title", value: "New Title" }] });
+  store.getState().edit(draft.path, { kind: "body", body: "New body text" });
+  await settle();
+
+  const saved = await services.store.getEntry(draft.path);
+  expect(saved?.title).toBe("New Title");
+  expect(saved?.workingContent).toContain("New body text");
+});
+
+it("a body edit followed by a title edit within the debounce window merges both instead of clobbering the body", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    title: "Original Title",
+  });
+  const { services } = buildFakeServices({ seedEntries: [draft] });
+  const store = createAppStore(services, { editDebounceMs: FAST_DEBOUNCE_MS });
+  await store.getState().refresh();
+
+  store.getState().edit(draft.path, { kind: "body", body: "New body text" });
+  store
+    .getState()
+    .edit(draft.path, { kind: "fields", edits: [{ field: "title", value: "New Title" }] });
+  await settle();
+
+  const saved = await services.store.getEntry(draft.path);
+  expect(saved?.title).toBe("New Title");
+  expect(saved?.workingContent).toContain("New body text");
+});
+
+it("edits to two different fields within the debounce window both survive", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    title: "Original Title",
+  });
+  const { services } = buildFakeServices({ seedEntries: [draft] });
+  const store = createAppStore(services, { editDebounceMs: FAST_DEBOUNCE_MS });
+  await store.getState().refresh();
+
+  store
+    .getState()
+    .edit(draft.path, { kind: "fields", edits: [{ field: "title", value: "New Title" }] });
+  store
+    .getState()
+    .edit(draft.path, { kind: "fields", edits: [{ field: "tags", value: ["a", "b"] }] });
+  await settle();
+
+  const saved = await services.store.getEntry(draft.path);
+  expect(saved?.title).toBe("New Title");
+  expect(saved?.workingContent).toContain('tags: ["a", "b"]');
+});
+
 it("flushEdit(path) applies a pending edit immediately, without waiting out the debounce", async () => {
   const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
   const { services } = buildFakeServices({ seedEntries: [draft] });

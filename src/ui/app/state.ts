@@ -111,7 +111,10 @@ function createAppStore(services: Services, overrides: Partial<AppStoreDeps> = {
   const syncBox = createSyncSubscriptionBox();
 
   const store = create<AppState>()((set, get) => {
-    const ctx: ActionCtx = { get, set, deps };
+    // `flush` closes over `ctx` itself (assigned below) — safe because
+    // nothing invokes it until well after this object literal finishes
+    // constructing.
+    const ctx: ActionCtx = { get, set, deps, flush: (path) => flushEdit(ctx, pendingEdits, path) };
     const searchDebouncer = createSearchDebouncer(ctx);
     return {
       ...initialAppData(services),

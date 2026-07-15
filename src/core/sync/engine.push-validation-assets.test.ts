@@ -77,6 +77,49 @@ describe("push: outbox asset", () => {
   });
 });
 
+describe("push: outbox asset for an entry deleted before it was ever pushed", () => {
+  it("skips uploading the asset and removes its outbox row instead of leaking it", async () => {
+    const harness = await createHarness();
+    const { remote, store, sync, model, setAssetBytes } = harness;
+    remote.initRepo({ "seed.txt": "seed" });
+    await sync.bootstrap();
+
+    const draft = model.newEntry({ kind: "draft", title: "Doomed Draft", date: "2026-01-05" });
+    const withImage = `${draft.raw}![alt](/assets/2026/01/pasted.png)\n`;
+    await store.upsertEntry(
+      baseEntry({
+        path: draft.path,
+        kind: "draft",
+        workingContent: withImage,
+        title: "Doomed Draft",
+      }),
+    );
+
+    const assetLocalPath = "/local/cache/pasted.png";
+    const assetRepoPath = "content/assets/2026/01/pasted.png";
+    setAssetBytes(assetLocalPath, "fake-png-bytes");
+    await store.addAsset({
+      repoPath: assetRepoPath,
+      localPath: assetLocalPath,
+      entryPath: draft.path,
+      createdAt: harness.clock.value,
+    });
+
+    // Deleted before the draft (or its image) was ever pushed.
+    const entry = await store.getEntry(draft.path);
+    if (!entry) {
+      throw new Error("test setup");
+    }
+    await store.upsertEntry({ ...entry, deleted: true, dirty: true });
+
+    const result = await sync.push();
+
+    expect(result.committed).toBe(true);
+    expect(remote.readFile(assetRepoPath)).toBeNull();
+    expect(await store.listAssetsFor([draft.path])).toEqual([]);
+  });
+});
+
 describe("push: commit message batching", () => {
   it("uses the generic Sync: N changes summary for multiple unrelated entries", async () => {
     const harness = await createHarness();

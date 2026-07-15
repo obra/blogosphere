@@ -1,24 +1,31 @@
 // ABOUTME: In-memory ModelApi-lite fake — good enough front-matter surgery to
 // ABOUTME: drive app-store tests realistically. Not the spec-faithful editor.
+// ABOUTME: Path/slug/date/permalink rules are NOT reimplemented here — they're
+// ABOUTME: imported straight from the real core/model/paths.ts, so a fake-only
+// ABOUTME: test can't silently exercise shapes (e.g. lowercase slugs) the real
+// ABOUTME: model would never produce.
 import {
-  CONTENT_ROOTS,
-  type EditResult,
-  type EntryKind,
-  type FieldEdit,
-  type ModelApi,
-  type NewEntryInput,
-  type ParsedEntry,
-  type ParseResult,
-  type PathParts,
-  type PublishOptions,
-  type PublishPlan,
-  type ValidationIssue,
+  isManagedPath,
+  kindForPath,
+  pathFor,
+  pathParts,
+  permalinkFor,
+  slugify,
+} from "../../../core/model/paths";
+import type {
+  EditResult,
+  FieldEdit,
+  ModelApi,
+  NewEntryInput,
+  ParsedEntry,
+  ParseResult,
+  PublishOptions,
+  PublishPlan,
+  ValidationIssue,
 } from "../../../core/model/types";
 
-const YEAR_LENGTH = 4;
 const KNOWN_FIELDS = new Set(["title", "date", "tags", "draft", "opaqueId", "url", "type"]);
 const FRONT_MATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
-const FILENAME_PATTERN = /^(?:.*\/)?(?:(\d{4})-(\d{2})-(\d{2})-)?([a-z0-9-]+)\.md$/;
 const FIELD_LINE_PATTERN = /^([a-zA-Z]+):\s*(.*)$/;
 
 interface SplitRaw {
@@ -71,65 +78,6 @@ function unquote(value: string): string {
     return JSON.parse(value) as string;
   }
   return value;
-}
-
-function kindForPath(path: string): EntryKind | null {
-  const roots = Object.entries(CONTENT_ROOTS) as [EntryKind, string][];
-  const hit = roots.find(([, root]) => path.startsWith(`${root}/`));
-  return hit ? hit[0] : null;
-}
-
-function isManagedPath(path: string): boolean {
-  return kindForPath(path) !== null;
-}
-
-function pathParts(path: string): PathParts | null {
-  const match = FILENAME_PATTERN.exec(path);
-  if (!match) {
-    return null;
-  }
-  const [, year, month, day, slug] = match;
-  if (slug === undefined) {
-    return null;
-  }
-  if (year !== undefined && month !== undefined && day !== undefined) {
-    return { year, date: `${year}-${month}-${day}`, slug };
-  }
-  return { year: "", date: null, slug };
-}
-
-function slugify(title: string): string {
-  const slug = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug === "" ? "untitled" : slug;
-}
-
-function pathFor(kind: EntryKind, date: string, slug: string): string {
-  const root = CONTENT_ROOTS[kind];
-  const filename = `${date}-${slug}.md`;
-  if (kind === "post" || kind === "release") {
-    return `${root}/${date.slice(0, YEAR_LENGTH)}/${filename}`;
-  }
-  return `${root}/${filename}`;
-}
-
-function permalinkFor(entry: ParsedEntry): string | null {
-  if (entry.opaqueId) {
-    return `/private/${entry.opaqueId}/`;
-  }
-  const parts = pathParts(entry.path);
-  const date = entry.date ?? parts?.date ?? null;
-  if (!(date && parts?.slug)) {
-    return null;
-  }
-  const [year, month, day] = date.split("-");
-  if (!(year && month && day)) {
-    return null;
-  }
-  return `/${year}/${month}/${day}/${parts.slug}/`;
 }
 
 function parseEntry(path: string, raw: string): ParseResult {
@@ -236,7 +184,8 @@ function newEntry(input: NewEntryInput): { path: string; raw: string } {
 }
 
 function planPublish(entry: ParsedEntry, opts: PublishOptions): PublishPlan {
-  const slug = pathParts(entry.path)?.slug ?? slugify(entry.title ?? "untitled");
+  const parts = pathParts(entry.path);
+  const slug = parts ? parts.slug : slugify(entry.title ?? "untitled");
   const newPath = pathFor("post", opts.date, slug);
   const edits: FieldEdit[] = [
     { field: "date", value: opts.date },

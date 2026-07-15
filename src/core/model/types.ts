@@ -114,7 +114,8 @@ export interface ModelApi {
   /** Build the conventional repo path for a kind/date/slug. */
   pathFor(kind: EntryKind, date: string, slug: string): string;
 
-  /** Lowercase, hyphenate, strip unsafe chars. Deterministic, total. */
+  /** Hyphenate, strip unsafe chars, preserve author-typed case (the real
+   *  corpus has slugs like "I-started-a-company"). Deterministic, total. */
   slugify(title: string): string;
 
   /** Site-relative permalink for an entry ("/YYYY/MM/DD/slug/" or "/private/{id}/"). */

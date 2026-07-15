@@ -3,7 +3,7 @@
 import type { EntryKind, FieldEdit, PublishOptions } from "../../core/model/types";
 import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
-import { META_COMMIT_TEMPLATES } from "../../core/sync/meta";
+import { DEFAULT_COMMIT_MESSAGE_TEMPLATES, META_COMMIT_TEMPLATES } from "../../core/sync/meta";
 import type {
   CommitMessageTemplates,
   ConflictResolution,
@@ -51,6 +51,7 @@ interface Toast {
 
 interface BusyFlags {
   refreshing: boolean;
+  creating: boolean;
   publishing: boolean;
   deleting: boolean;
   renaming: boolean;
@@ -60,6 +61,7 @@ interface BusyFlags {
 
 const INITIAL_BUSY: BusyFlags = {
   refreshing: false,
+  creating: false,
   publishing: false,
   deleting: false,
   renaming: false,
@@ -124,9 +126,11 @@ interface AppActions {
   flushEdit(path?: string): Promise<void>;
   saveNow(): Promise<void>;
 
-  newPost(input: NewEntryFields): Promise<string>;
-  newDraft(input: NewEntryFields): Promise<string>;
-  newLink(input: NewLinkFields): Promise<string>;
+  /** Resolves to the new entry's path, or null if creation failed (reported
+   *  via a toast with a retry — see state.creationActions.ts's createNew). */
+  newPost(input: NewEntryFields): Promise<string | null>;
+  newDraft(input: NewEntryFields): Promise<string | null>;
+  newLink(input: NewLinkFields): Promise<string | null>;
 
   publishDraft(path: string, opts: PublishOptions): Promise<void>;
   shareSecretLink(path: string): Promise<void>;
@@ -155,25 +159,33 @@ type CreatableKind = Extract<EntryKind, "post" | "draft" | "link">;
 type GetState = () => AppState;
 type SetState = (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void;
 
-/** Bundles the three things nearly every action needs, so action-function
+/** Bundles the things nearly every action needs, so action-function
  *  signatures stay within the 4-parameter budget instead of threading
- *  get/set/deps separately through every call. */
+ *  get/set/deps/pendingEdits separately through every call.
+ *
+ *  `flush` forces any debounced-but-not-yet-committed edit(s) for `path`
+ *  (or every pending path, if omitted) into the store immediately — bound
+ *  once in state.ts to the store's single PendingEdits map. Every action
+ *  that reads an entry's workingContent to build something durable from it
+ *  (publish, rename, delete, share-secret-link) MUST call this first, or it
+ *  risks silently working from a stale pre-edit snapshot while the user's
+ *  actual last keystrokes are still sitting in the debounce timer. */
 interface ActionCtx {
   get: GetState;
   set: SetState;
   deps: AppStoreDeps;
+  flush: (path?: string) => Promise<void>;
 }
 
 /** Hardcoded per spec: the live site origin, used to build "Copy secret link" URLs. */
 const SITE_ORIGIN = "https://blog.fsck.com";
 
-const DEFAULT_COMMIT_TEMPLATES: CommitMessageTemplates = {
-  newPost: "Post: {title}",
-  edit: "Edit: {title}",
-  newDraft: "Draft: {title}",
-  newLink: "Link: {title}",
-  delete: "Delete: {path}",
-};
+// Aliased (not redeclared) so the app store's seeded default and the sync
+// engine's own fallback (core/sync/meta.ts's loadCommitMessageTemplates)
+// can never again drift onto two independently hand-copied literals — the
+// same lesson META_COMMIT_TEMPLATES_KEY above already applies to the meta
+// *key*. See state.commitTemplates.integration.test.ts.
+const DEFAULT_COMMIT_TEMPLATES: CommitMessageTemplates = DEFAULT_COMMIT_MESSAGE_TEMPLATES;
 
 export type {
   ActionCtx,
