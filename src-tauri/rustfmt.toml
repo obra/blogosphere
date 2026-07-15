@@ -1,0 +1,2 @@
+# Intentionally empty: use rustfmt's stable defaults for the whole crate.
+# `cargo fmt` reads `edition` from Cargo.toml automatically.

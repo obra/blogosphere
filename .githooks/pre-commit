@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# ABOUTME: Pre-commit hook — auto-formats staged files, then gates the commit
+# ABOUTME: on typecheck + tests. Installed via `git config core.hooksPath .githooks`.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Snapshot the staged file list before Biome may rewrite any of them, so we
+# re-stage exactly what the developer intended to commit — nothing more.
+staged_files="$(git diff --name-only --cached --diff-filter=ACMR)"
+
+echo "[pre-commit] Formatting staged files with Biome..."
+if ! npx biome check --write --staged --no-errors-on-unmatched; then
+  echo "[pre-commit] FAILED: Biome found problems it couldn't fix automatically." >&2
+  echo "[pre-commit] Run 'npm run lint' to see details, fix them, and retry." >&2
+  exit 1
+fi
+
+if [ -n "$staged_files" ]; then
+  # xargs word-splits on whitespace/newlines; repo paths here don't contain
+  # either, so plain newline-separated input is fine.
+  echo "$staged_files" | xargs -I{} git add -- "{}"
+fi
+
+echo "[pre-commit] Typechecking..."
+if ! npm run typecheck; then
+  echo "[pre-commit] FAILED: typecheck failed. Fix the errors above and retry." >&2
+  exit 1
+fi
+
+echo "[pre-commit] Running tests..."
+if ! npm run test -- --run --silent; then
+  echo "[pre-commit] FAILED: tests failed. Fix them and retry." >&2
+  exit 1
+fi
+
+echo "[pre-commit] All checks passed."
