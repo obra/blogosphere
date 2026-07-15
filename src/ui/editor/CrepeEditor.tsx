@@ -134,9 +134,12 @@ function mountCrepe(crepe: Crepe, refs: CrepeRefs, isCancelled: () => boolean): 
       }
       refs.crepeRef.current = crepe;
       // Pick up a value change that happened while (async) creation was in flight.
+      // flush=true rebuilds editor state from scratch: observed (once, timing-
+      // dependent) that a non-flushed replace racing creation can leave a stale
+      // copy of the document rendered alongside the new one.
       if (refs.valueRef.current !== refs.lastKnownRef.current) {
         refs.lastKnownRef.current = refs.valueRef.current;
-        crepe.editor.action(replaceAll(refs.valueRef.current));
+        crepe.editor.action(replaceAll(refs.valueRef.current, true));
       }
     })
     .catch(() => undefined);
@@ -151,7 +154,8 @@ function useSyncCrepeValue(
     const crepe = crepeRef.current;
     if (crepe && value !== lastKnownRef.current) {
       lastKnownRef.current = value;
-      crepe.editor.action(replaceAll(value));
+      // flush=true: see mountCrepe — full state rebuild, never a partial splice.
+      crepe.editor.action(replaceAll(value, true));
     }
   }, [crepeRef, lastKnownRef, value]);
 }
