@@ -241,9 +241,12 @@ this scale.
 
 Set up before the first feature lands, enforced in CI on every push:
 
-- **Lint/format:** ESLint (typescript-eslint strict) + Prettier; `tsc --noEmit`;
-  `cargo clippy -D warnings` + `rustfmt --check` for the shell. Pre-commit hook runs
-  lint + typecheck + fast tests.
+- **Lint/format:** Biome as linter + formatter, configured aggressively (all rule
+  groups on, with a small documented deny-list of rules that fight the codebase);
+  `tsc --noEmit` with `strict` + `noUncheckedIndexedAccess` +
+  `exactOptionalPropertyTypes`; `cargo clippy` with pedantic warnings denied +
+  `rustfmt --check` for the shell. Pre-commit hook auto-formats staged files and runs
+  lint + typecheck + fast tests; nothing lands unformatted.
 - **Unit tests:** vitest across `core/*`. Sync engine tested as a state machine against
   recorded GitHub API fixtures (pull/push/merge/conflict/interrupted-push scenarios).
 - **Fuzzing / property tests:** fast-check from day 0 —

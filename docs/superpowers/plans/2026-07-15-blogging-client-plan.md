@@ -14,7 +14,7 @@ configs) are written once during scaffold and frozen for module agents.
 | # | Phase | Who | Gate |
 |---|---|---|---|
 | 0 | Plan + module contracts (types/interfaces) | main session | committed |
-| 1 | Scaffold: Tauri v2 + Vite + React + TS strict + ESLint/Prettier + vitest/fast-check + scripts; all deps installed | 1 sonnet agent | `tsc`, `eslint`, `vitest`, `vite build` pass on contracts-only tree |
+| 1 | Scaffold: Tauri v2 + Vite + React + TS strict + Biome (aggressive) + vitest/fast-check + scripts; all deps installed | 1 sonnet agent | `tsc`, `biome check`, `vitest`, `vite build` pass on contracts-only tree |
 | 2 | Module fan-out (parallel pipelines: implement → review → fix) | workflow, sonnet + haiku | each module: own tests pass, tsc+eslint clean |
 | 3 | Integration: DI wiring, app entry, cargo check, whole-suite green | 1 sonnet agent | all gates green |
 | 4 | Adversarial review (find → verify → fix) | workflow | confirmed findings fixed, suite green |
