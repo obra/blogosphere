@@ -1,0 +1,19 @@
+name: Nightly fuzz
+on:
+  schedule:
+    - cron: 43 3 * * *
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    name: fuzz
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm run fuzz

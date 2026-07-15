@@ -1,0 +1,212 @@
+/* ABOUTME: Sidebar, sync-status pill, and entry-list styles. Split out of
+   ABOUTME: app.css (which @imports this) purely to stay under the line cap. */
+
+/* ---------- Sidebar ---------- */
+
+.sidebar-brand {
+  font-weight: 600;
+  padding: 4px 6px 2px;
+}
+
+.sidebar-new-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.sidebar-sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-section-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar-section-button:hover {
+  background: var(--bg-hover);
+}
+
+.sidebar-section-button[aria-current="true"] {
+  background: var(--bg-selected);
+  font-weight: 600;
+}
+
+.sidebar-section-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Sync status pill ---------- */
+
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: 12px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.sync-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--text-faint);
+}
+
+.sync-pill[data-tone="ok"] .sync-pill-dot {
+  background: var(--success);
+}
+.sync-pill[data-tone="pending"] .sync-pill-dot {
+  background: var(--warning);
+}
+.sync-pill[data-tone="offline"] .sync-pill-dot {
+  background: var(--text-faint);
+}
+.sync-pill[data-tone="conflict"] .sync-pill-dot,
+.sync-pill[data-tone="error"] .sync-pill-dot {
+  background: var(--danger);
+}
+
+/* ---------- Entry list ---------- */
+
+.entry-list-search {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.entry-list-search input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.entry-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0 16px;
+}
+
+.entry-list-empty {
+  color: var(--text-muted);
+  padding: 16px;
+  text-align: center;
+}
+
+.entry-list-year {
+  padding: 10px 12px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.entry-list-month {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.entry-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.entry-row:hover {
+  background: var(--bg-hover);
+}
+
+.entry-row[aria-current="true"] {
+  background: var(--bg-selected);
+}
+
+.entry-row-badges {
+  display: flex;
+  gap: 4px;
+  padding-top: 3px;
+  flex-shrink: 0;
+}
+
+.entry-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.entry-row-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-row-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.dot-badge {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+.dot-badge[data-kind="dirty"] {
+  background: var(--warning);
+}
+
+.pill-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pill-badge[data-kind="draft"] {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.pill-badge[data-kind="conflict"] {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}

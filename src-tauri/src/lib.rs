@@ -1,5 +1,7 @@
 // ABOUTME: Tauri app entry point — registers platform plugins (sql, http, fs,
-// ABOUTME: clipboard-manager) and dev-only logging. No business logic here.
+// ABOUTME: clipboard-manager), the keychain commands, and dev-only logging.
+
+mod keychain;
 
 /// Runs the Tauri application. This is the process entry point.
 ///
@@ -14,6 +16,11 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .invoke_handler(tauri::generate_handler![
+            keychain::keychain_get,
+            keychain::keychain_set,
+            keychain::keychain_delete,
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

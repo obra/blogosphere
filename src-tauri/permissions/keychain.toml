@@ -1,0 +1,22 @@
+# ABOUTME: App-level ACL permissions for the keychain_get/set/delete commands
+# ABOUTME: (src/keychain.rs), granted to the main window via capabilities/default.json.
+
+[[permission]]
+identifier = "allow-keychain-get"
+description = "Enables the keychain_get command, which reads a secret from the OS keychain."
+commands.allow = ["keychain_get"]
+
+[[permission]]
+identifier = "allow-keychain-set"
+description = "Enables the keychain_set command, which writes a secret to the OS keychain."
+commands.allow = ["keychain_set"]
+
+[[permission]]
+identifier = "allow-keychain-delete"
+description = "Enables the keychain_delete command, which removes a secret from the OS keychain."
+commands.allow = ["keychain_delete"]
+
+[[set]]
+identifier = "keychain-access"
+description = "Allows invoking the keychain_get, keychain_set, and keychain_delete commands."
+permissions = ["allow-keychain-get", "allow-keychain-set", "allow-keychain-delete"]

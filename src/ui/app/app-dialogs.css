@@ -1,0 +1,218 @@
+/* ABOUTME: Buttons, dialogs (publish/settings/new-link), the conflict
+   ABOUTME: dialog, toasts, and settings screen. @imported by app.css. */
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  border-radius: 6px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+.btn-block {
+  width: 100%;
+  text-align: center;
+}
+
+/* ---------- Dialogs ---------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 20, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: var(--bg-raised);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 18px;
+  width: min(440px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.dialog-wide {
+  width: min(760px, 94vw);
+}
+
+.dialog h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.dialog-field label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dialog-field input[type="text"],
+.dialog-field input[type="date"],
+.dialog-field input[type="password"],
+.dialog-field input[type="url"] {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--bg-sunken);
+}
+
+.dialog-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.dialog-inline-row {
+  display: flex;
+  gap: 6px;
+}
+
+.dialog-inline-row input {
+  flex: 1;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------- Conflict dialog ---------- */
+
+.conflict-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.conflict-column h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.conflict-column textarea,
+.merge-editor {
+  width: 100%;
+  height: 260px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--bg-sunken);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* ---------- Toasts ---------- */
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  width: min(340px, calc(100vw - 32px));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-faint);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+
+.toast[data-tone="error"] {
+  border-left-color: var(--danger);
+}
+.toast[data-tone="success"] {
+  border-left-color: var(--success);
+}
+.toast[data-tone="info"] {
+  border-left-color: var(--accent);
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 12px;
+}
+
+.toast-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.toast-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* ---------- Settings ---------- */
+
+.settings-screen {
+  padding: 20px;
+  max-width: 520px;
+}
+
+.settings-screen h2 {
+  margin-top: 0;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-repo {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

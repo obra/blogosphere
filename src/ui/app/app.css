@@ -1,0 +1,117 @@
+/* ABOUTME: Hand-rolled styles for the app shell — design tokens, reset, and
+   ABOUTME: the three-pane layout. @imports the per-area partials below;
+   ABOUTME: this is the only stylesheet the integration agent needs to load. */
+
+@import "./app-sidebar.css";
+@import "./app-editor.css";
+@import "./app-dialogs.css";
+
+:root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --bg: #ffffff;
+  --bg-sunken: #f6f6f7;
+  --bg-raised: #ffffff;
+  --bg-hover: #eef0f2;
+  --bg-selected: #e4edfd;
+  --text: #1c1e21;
+  --text-muted: #6b7280;
+  --text-faint: #9aa1ab;
+  --border: #e2e4e8;
+  --border-strong: #cdd1d7;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --shadow: 0 8px 24px rgba(20, 22, 26, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1f;
+    --bg-sunken: #161719;
+    --bg-raised: #232427;
+    --bg-hover: #2b2d31;
+    --bg-selected: #1f3a66;
+    --text: #e7e8ea;
+    --text-muted: #9a9fa8;
+    --text-faint: #6b7078;
+    --border: #303236;
+    --border-strong: #3d3f45;
+    --accent: #5b8def;
+    --accent-text: #0b1220;
+    --danger: #f26363;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ---------- App shell: three panes ---------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 200px 280px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pane {
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.sidebar {
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px;
+  gap: 10px;
+}
+
+.entry-list-pane {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-pane {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}

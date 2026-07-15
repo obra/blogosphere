@@ -6,8 +6,13 @@
   "permissions": [
     "core:default",
     "sql:default",
-    "http:default",
-    "fs:default",
-    "clipboard-manager:default"
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://api.github.com/*" }]
+    },
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive",
+    "clipboard-manager:allow-read-text",
+    "keychain-access"
   ]
 }

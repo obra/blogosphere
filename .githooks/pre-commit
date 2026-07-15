@@ -9,8 +9,12 @@ cd "$(git rev-parse --show-toplevel)"
 # re-stage exactly what the developer intended to commit — nothing more.
 staged_files="$(git diff --name-only --cached --diff-filter=ACMR)"
 
-echo "[pre-commit] Formatting staged files with Biome..."
-if ! npx biome check --write --staged --no-errors-on-unmatched; then
+# Whole-repo scan, deliberately NOT --staged: Biome 2.5.4's staged/per-file mode
+# panics on files with large transitive import graphs (module_resolver.rs index
+# out of bounds) and its worker-thread panics don't fail the process. The
+# directory scan takes <150ms here and is panic-free.
+echo "[pre-commit] Formatting with Biome (whole repo)..."
+if ! npx biome check --write .; then
   echo "[pre-commit] FAILED: Biome found problems it couldn't fix automatically." >&2
   echo "[pre-commit] Run 'npm run lint' to see details, fix them, and retry." >&2
   exit 1

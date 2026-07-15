@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/node_modules", "!**/dist", "!src-tauri/target", "!inspo"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!src-tauri/target",
+      "!inspo",
+      "!src/ui/app/EntryList.test.tsx"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -22,17 +29,34 @@
   },
   "linter": {
     "enabled": true,
+    "domains": {
+      "react": "all",
+      "test": "all",
+      "solid": "none",
+      "qwik": "none",
+      "vue": "none",
+      "next": "none",
+      "project": "none"
+    },
     "rules": {
       "preset": "all",
       "style": {
         "useConsistentMethodSignatures": "off",
         "noTernary": "off",
         "useFilenamingConvention": "off",
-        "noJsxLiterals": "off"
+        "noJsxLiterals": "off",
+        "noHexColors": "off"
       },
       "correctness": {
         "useImportExtensions": "off",
         "noUnresolvedImports": "off"
+      },
+      "suspicious": {
+        "noReactSpecificProps": "off"
+      },
+      "performance": {
+        "noJsxPropsBind": "off",
+        "noBarrelFile": "off"
       }
     }
   },
@@ -94,7 +118,8 @@
       "linter": {
         "rules": {
           "style": {
-            "noProcessEnv": "off"
+            "noProcessEnv": "off",
+            "noMagicNumbers": "off"
           },
           "correctness": {
             "noNodejsModules": "off"
