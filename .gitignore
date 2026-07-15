@@ -1,0 +1,8 @@
+# Reference checkouts of other repos (blog, old client) — never committed here
+inspo/
+
+node_modules/
+dist/
+target/
+_site/
+.DS_Store
