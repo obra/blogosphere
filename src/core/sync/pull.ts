@@ -5,12 +5,14 @@ import type { EntryRecord } from "../store/types";
 import { denormalize } from "./entry-fields";
 import { merge3 } from "./merge";
 import {
+  clearConflictRemote,
   getConflictPaths,
   META_ASSETS_INDEX,
   META_LAST_REMOTE_COMMIT_SHA,
   META_LAST_ROOT_TREE_SHA,
   META_LAST_SYNC_AT,
   setConflictPaths,
+  stashConflictRemote,
 } from "./meta";
 import { blobPathsUnder, diffManagedTrees, type ManagedPathChange } from "./tree-diff";
 import type { PullResult, SyncDeps } from "./types";
@@ -88,6 +90,10 @@ async function mergeAgainstRemote(
   const result = merge3(base, entry.workingContent, remoteText);
 
   if (!result.ok) {
+    // baseContent/baseSha deliberately stay put (see ConflictRemote's doc
+    // comment in meta.ts) — stash the actual conflicting remote text so the
+    // UI has something better than the stale base to show as "theirs".
+    await stashConflictRemote(deps.store, path, { sha: remoteSha, text: remoteText });
     buckets.conflictPaths.add(path);
     buckets.conflicted.push(path);
     return;
@@ -108,6 +114,7 @@ async function mergeAgainstRemote(
     updatedAt: deps.now(),
   });
   buckets.conflictPaths.delete(path);
+  await clearConflictRemote(deps.store, path);
   buckets.merged.push(path);
 }
 
@@ -125,10 +132,13 @@ async function reconcileRemoteDeletion(
     // Both sides already agree it's gone; nothing left to reconcile or push.
     await deps.store.removeEntry(path);
     buckets.conflictPaths.delete(path);
+    await clearConflictRemote(deps.store, path);
     return;
   }
 
   if (entry.dirty) {
+    // The remote side of this conflict is a deletion — no blob, no text.
+    await stashConflictRemote(deps.store, path, { sha: null, text: "" });
     buckets.conflictPaths.add(path);
     buckets.conflicted.push(path);
     return;
@@ -176,6 +186,8 @@ async function reconcilePath(
   // Entry is dirty. A local delete-intent can't be reconciled against a
   // remote text edit by diff3 — that's a conflict of intent, not of content.
   if (entry.deleted) {
+    const remoteText = await deps.github.getBlobText(newSha);
+    await stashConflictRemote(deps.store, path, { sha: newSha, text: remoteText });
     buckets.conflictPaths.add(path);
     buckets.conflicted.push(path);
     return;
@@ -185,6 +197,7 @@ async function reconcilePath(
     // Remote is already at what our edit is based on; nothing changed for us,
     // and any earlier conflict flag (e.g. remote reverted) no longer applies.
     buckets.conflictPaths.delete(path);
+    await clearConflictRemote(deps.store, path);
     return;
   }
 

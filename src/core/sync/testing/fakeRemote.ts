@@ -67,7 +67,8 @@ export class FakeRemote implements GitHubApi {
   private pendingRace: (() => void) | null = null;
 
   /** When true, every method throws a GitHubError("network", ...) immediately. */
-  offline = false;
+  // biome-ignore lint/style/noInferrableTypes: load-bearing, not redundant — without it, noUnnecessaryConditions below infers the literal `false` (external `remote.offline = true` assignments aren't visible to it) and flags assertOnline() as dead code.
+  offline: boolean = false;
 
   private assertOnline(): void {
     if (this.offline) {

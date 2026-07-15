@@ -23,9 +23,23 @@ function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | nu
     ctx.set({ syncStatus: null });
     return;
   }
-  ctx.set({ syncStatus: sync.status() });
+  const initialStatus = sync.status();
+  ctx.set({ syncStatus: initialStatus });
+  let wasSyncing = initialStatus.state === "syncing";
   box.unsubscribe = sync.onStatus((status) => {
     ctx.set({ syncStatus: status });
+    // pull()/bootstrap() write straight to the store, bypassing the local
+    // entries cache — reload it whenever a sync round just finished
+    // (regardless of outcome) so remote-side changes actually show up
+    // instead of waiting for some unrelated action to call refresh().
+    const justFinished = wasSyncing && status.state !== "syncing";
+    wasSyncing = status.state === "syncing";
+    if (justFinished) {
+      // Not awaited: onStatus's callback type is synchronous, and refresh()
+      // already reports its own failures as a toast (see state.entryActions.ts)
+      // rather than rejecting, so there's nothing more to do with the result here.
+      refresh(ctx);
+    }
   });
 }
 

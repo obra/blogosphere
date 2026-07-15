@@ -91,8 +91,22 @@ describe("groupByYearMonth", () => {
     const groups = groupByYearMonth(entries);
 
     expect(groups.map((g) => g.key)).toEqual(["2026", "2025"]);
-    expect(groups[0]?.months.map((m) => m.key)).toEqual(["07", "01"]);
-    expect(groups[0]?.months[1]?.entries.map((e) => e.title)).toEqual(["jan late", "jan early"]);
+
+    // Destructured + explicitly guarded (rather than groups[0]?.months...)
+    // so tsc's noUncheckedIndexedAccess is satisfied by real narrowing, not
+    // just `?.` — which Biome's checker (it doesn't model that tsconfig
+    // option) would otherwise flag as unnecessary on an array index.
+    const [firstYear] = groups;
+    if (!firstYear) {
+      throw new Error("expected at least one year group");
+    }
+    expect(firstYear.months.map((m) => m.key)).toEqual(["07", "01"]);
+
+    const [, secondMonth] = firstYear.months;
+    if (!secondMonth) {
+      throw new Error("expected at least two month groups in the newest year");
+    }
+    expect(secondMonth.entries.map((e) => e.title)).toEqual(["jan late", "jan early"]);
   });
 
   it("puts undated entries in an Undated bucket sorted after real dates", () => {

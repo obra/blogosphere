@@ -14,7 +14,6 @@ const HMS_DIGITS = 6;
 const MIN_EXT_LENGTH = 1;
 const MAX_EXT_LENGTH = 4;
 const DIGIT_CHARS = [..."0123456789"];
-// biome-ignore lint/security/noSecrets: the literal lowercase alphabet, not a secret.
 const EXT_CHARS = [..."abcdefghijklmnopqrstuvwxyz"];
 
 function digitString(length: number) {

@@ -3,6 +3,20 @@
 import type { StoreApi } from "../store/types";
 import type { CommitMessageTemplates } from "./types";
 
+const META_CONFLICT_REMOTE_PREFIX = "conflictRemote:";
+
+function conflictRemoteMetaKey(path: string): string {
+  return `${META_CONFLICT_REMOTE_PREFIX}${path}`;
+}
+
+function isConflictRemote(value: unknown): value is ConflictRemote {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.text === "string" && (record.sha === null || typeof record.sha === "string");
+}
+
 // Key names match the examples named in StoreApi.getMeta's own doc comment
 // (store/types.ts) so a future Settings screen reads/writes the same slots.
 // biome-ignore lint/security/noSecrets: false positive — this is a store meta *key name*, not a secret value.
@@ -62,4 +76,57 @@ export async function loadCommitMessageTemplates(store: StoreApi): Promise<Commi
     // Fall through to the defaults below.
   }
   return DEFAULT_COMMIT_MESSAGE_TEMPLATES;
+}
+
+/**
+ * The remote content pull() found conflicting at detection time. `sha` is
+ * null when the remote side of the conflict is a deletion (no blob to point
+ * at); `text` is `""` in that case.
+ *
+ * Why this exists: EntryRecord.baseContent/baseSha are deliberately *not*
+ * advanced to the conflicting remote text when pull() detects an overlap
+ * (see engine.conflict.test.ts — base stays at the last common ancestor, so
+ * a three-way merge is still possible after the user picks a resolution).
+ * That means baseContent is never a faithful "theirs" for display purposes —
+ * it's the *old* shared base, not the new conflicting remote text. This
+ * stash is the seam that lets the UI show the real "theirs" without
+ * changing what baseContent means to the merge machinery.
+ */
+export interface ConflictRemote {
+  sha: string | null;
+  text: string;
+}
+
+/** Stash the remote {sha, text} a just-detected conflict is against. Called
+ *  by pull() at the moment it flags a path conflicted. */
+export async function stashConflictRemote(
+  store: StoreApi,
+  path: string,
+  remote: ConflictRemote,
+): Promise<void> {
+  await store.setMeta(conflictRemoteMetaKey(path), JSON.stringify(remote));
+}
+
+/** Read back a path's stashed conflicting remote content, if any. Corrupt/
+ *  foreign values read back as null rather than throwing. */
+export async function getConflictRemote(
+  store: StoreApi,
+  path: string,
+): Promise<ConflictRemote | null> {
+  const raw = await store.getMeta(conflictRemoteMetaKey(path));
+  if (raw === null) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isConflictRemote(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear a path's stash once its conflict is resolved (or turns out to no
+ *  longer apply). Idempotent — clearing an unstashed path is a no-op. */
+export async function clearConflictRemote(store: StoreApi, path: string): Promise<void> {
+  await store.setMeta(conflictRemoteMetaKey(path), null);
 }

@@ -129,6 +129,10 @@ interface AppStoreProviderProps {
   children: ReactNode;
   /** Test-only escape hatch: use a pre-built store instead of creating one. */
   store?: BoundAppStore;
+  /** Platform-specific side-effect overrides (e.g. the Tauri clipboard
+   *  writer) for a freshly-created store. Ignored when `store` is given —
+   *  read once, at store creation, same as `store` itself. */
+  deps?: Partial<AppStoreDeps>;
 }
 
 /** Creates (once) and provides the app store for the Services in context. */
@@ -136,7 +140,7 @@ function AppStoreProvider(props: AppStoreProviderProps) {
   const services = useServices();
   const storeRef = useRef<BoundAppStore | null>(null);
   if (!storeRef.current) {
-    storeRef.current = props.store ?? createAppStore(services);
+    storeRef.current = props.store ?? createAppStore(services, props.deps);
   }
   const activeStore = storeRef.current;
 

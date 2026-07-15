@@ -102,6 +102,21 @@ it("filters to search results after the debounce settles", async () => {
   expect(screen.getByText("Findable keyboard post")).not.toBeNull();
 });
 
+it("renders without an infinite-render loop when no sync is configured yet (no token)", async () => {
+  // Regression test: a selector reading `state.syncStatus?.conflicts ?? []`
+  // returns a fresh array every call once syncStatus is null (no token
+  // saved yet — the ordinary first-run state), which zustand's
+  // useSyncExternalStore reads as "changed" on every render and loops
+  // forever. See state.types.ts's EMPTY_CONFLICTS.
+  const entries = [makeEntry({ path: "a.md", kind: "draft", title: "No sync configured yet" })];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries, withSync: false });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  expect(screen.getByText("No sync configured yet")).not.toBeNull();
+});
+
 it("clicking a row selects that entry", async () => {
   const entries = [makeEntry({ path: "a.md", kind: "draft", title: "Pick me" })];
   const { store } = renderWithStore(<EntryList />, { seedEntries: entries });

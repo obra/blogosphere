@@ -6,6 +6,7 @@ import type { EntryRecord } from "../store/types";
 import { denormalize, fetchCurrentRemote } from "./entry-fields";
 import { SyncError } from "./errors";
 import {
+  clearConflictRemote,
   getConflictPaths,
   META_ASSETS_INDEX,
   META_LAST_REMOTE_COMMIT_SHA,
@@ -185,6 +186,7 @@ async function runResolveConflict(
     deps.store,
     conflicts.filter((conflictPath) => conflictPath !== path),
   );
+  await clearConflictRemote(deps.store, path);
 }
 
 async function runWithStatus<T>(status: StatusTracker, fn: () => Promise<T>): Promise<T> {

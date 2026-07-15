@@ -6,6 +6,7 @@ import type { EditorMode } from "../types";
 import { makeOnImage, makeResolveImage } from "./editorImageHandlers";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
+import { EMPTY_CONFLICTS } from "./state.types";
 
 interface ParsedView {
   title: string | null;
@@ -46,11 +47,17 @@ function useEditorScreenState(record: EntryRecord) {
   const services = useServices();
   const parsed = useParsedView(record);
   const handlers = useEditorCommitHandlers(record.path);
-  const [title, setTitleState] = useState(parsed?.title ?? "");
-  const [tags, setTagsState] = useState<string[]>(parsed?.tags ?? []);
-  const [body, setBodyState] = useState(parsed?.body ?? "");
+  // Ternaries on `parsed` narrowing it to non-null (rather than `parsed?.x
+  // ?? fallback`) so both type checkers agree there's nothing left to guard:
+  // tsc sees .tags/.body (non-nullable fields) need no `??`, and Biome's
+  // checker — which doesn't model tsconfig's noUncheckedIndexedAccess, only
+  // "is the receiver's own type nullable" — agrees, since after `parsed ?`
+  // the receiver plainly is ParsedView, not ParsedView | null.
+  const [title, setTitleState] = useState(parsed ? (parsed.title ?? "") : "");
+  const [tags, setTagsState] = useState<string[]>(parsed ? parsed.tags : []);
+  const [body, setBodyState] = useState(parsed ? parsed.body : "");
   const editorMode = useAppStore((state) => state.editorModes[record.path] ?? "wysiwyg");
-  const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? []);
+  const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
 
   function setTitle(value: string) {
     setTitleState(value);

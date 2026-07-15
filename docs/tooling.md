@@ -79,7 +79,15 @@ everywhere else:
   `style/noProcessEnv` + `correctness/noNodejsModules` off, for the
   `FUZZ_RUNS` convention below. `noProcessEnv` stays enforced for real
   application code, where reading `process.env` would be a bug — the webview
-  has no such global at runtime.
+  has no such global at runtime. `complexity/noExcessiveLinesPerFunction` off
+  — a `describe(...)` block's line count is the sum of every `it(...)` nested
+  inside it, not one function's real complexity; the rule stays on for
+  application code, where a long function is a real smell. `security/noSecrets`
+  off — its entropy heuristic false-positives on ordinary `describe`/`it`
+  title strings (e.g. `"groupByYearMonth"`, `"TagChipsEditor"`); real secret
+  literals (tokens, keys) showing up in test fixtures would still be a
+  problem, but this project has none and the rule can't tell "high-entropy
+  identifier" from "high-entropy credential."
 
 ## Clippy
 
@@ -107,6 +115,44 @@ diff3 merge are the likely candidates — add a narrowly-scoped
 block level, not a crate-level `#![allow(...)]`), with a one-line comment
 explaining why. Keep this list tiny and honest; don't pre-emptively allow
 anything that isn't actually blocking real, reasonable code.
+
+## Tauri capabilities (`src-tauri/capabilities/default.json`)
+
+- **`http:default` scope is `https://**`** (any HTTPS host), not just
+  `api.github.com`. It has to cover two unrelated needs: the GitHub API
+  client (`src/bootstrap/tauri.ts`) and the "+ Link" dialog's "Fetch title"
+  button (`src/bootstrap/fetchTitle.ts`), which GETs whatever third-party
+  page URL the user is linking to, to read its `og:title`/`<title>`. That
+  page can be on any host, so an allow-list can't be narrower than "any
+  HTTPS URL" without breaking the feature for most real links. Two things
+  keep this from being as broad as it sounds:
+  - The GitHub client doesn't actually use this capability at all — it calls
+    the platform's native `fetch` directly (api.github.com sends CORS
+    headers, so no ACL grant is needed there; see the comment in
+    `buildGithubAndSync`). This capability is exercised by the title-fetch
+    path only.
+  - The title fetch is a plain GET with a 5s timeout that only ever reads
+    the response as text and regexes out a title — it never executes
+    anything from the page, sends the response anywhere but into a text
+    field the user can edit before saving, or attaches credentials.
+  - **Method-level scoping was considered and isn't possible**: the
+    `tauri-plugin-http` scope schema (`Entry { url: UrlPattern }` in the
+    plugin's own `scope.rs`) only ever matches on URL, with no `method`
+    field to restrict to GET — so "GET-only" isn't expressible in the
+    capability file. That's enforced in application code instead
+    (`fetchPageTitle` always calls `tauriFetch` with `method: "GET"`).
+- **`clipboard-manager:allow-write-text`** was added alongside the
+  pre-existing `allow-read-text` — "Copy secret link" (draft opaqueId
+  sharing) writes to the clipboard via this plugin on the Tauri path; only
+  reading it (the "+ Link" URL prefill) was previously granted.
+- **`sql:allow-execute`** was added alongside `sql:default`. `sql:default`
+  only grants `allow-close`/`allow-load`/`allow-select` (tauri-plugin-sql's
+  own `permissions/default.toml` — reads and connection lifecycle only);
+  `execute` (every INSERT/UPDATE/DELETE, including schema creation) needs
+  its own explicit grant. Without it the app can *open* its SQLite database
+  but never *write* to it — `sql.execute not allowed` at the first
+  `CREATE TABLE`, caught by the `tauri dev` smoke test the first time the
+  app actually ran against the real plugin end to end.
 
 ## FUZZ_RUNS convention
 

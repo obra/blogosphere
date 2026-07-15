@@ -13,8 +13,8 @@ afterEach(() => {
   cleanup();
 });
 
-async function renderEditorFor(record: ReturnType<typeof makeEntry>) {
-  const fake = buildFakeServices({ seedEntries: [record] });
+async function renderEditorFor(record: ReturnType<typeof makeEntry>, withSync = true) {
+  const fake = buildFakeServices({ seedEntries: [record], withSync });
   const store = createAppStore(fake.services, { now: () => Date.parse("2026-07-15T09:00:00Z") });
   render(
     <ServicesProvider services={fake.services}>
@@ -108,4 +108,16 @@ it("Cancel closes the publish dialog without publishing", async () => {
   fireEvent.click(screen.getByText("Cancel"));
 
   expect(screen.queryByLabelText("Publish date")).toBeNull();
+});
+
+it("renders without an infinite-render loop when no sync is configured yet (no token)", async () => {
+  // Regression test: useEditorScreenState's `isConflicted` selector read
+  // `state.syncStatus?.conflicts ?? []`, a fresh array every call once
+  // syncStatus is null (no token saved yet — the ordinary first-run state),
+  // which zustand's useSyncExternalStore reads as "changed" on every render
+  // and loops forever. See state.types.ts's EMPTY_CONFLICTS.
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft", draft: true });
+  await renderEditorFor(draft, false);
+
+  expect(screen.getByLabelText("Title")).not.toBeNull();
 });

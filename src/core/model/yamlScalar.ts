@@ -88,7 +88,9 @@ export function renderFieldLine(edit: FieldEdit): string | null {
       if (edit.value === null) {
         return null;
       }
-      return `opaqueId: ${renderScalar(edit.value)}\n`;
+      // Always double-quoted, matching the real corpus convention
+      // (opaqueId: "903992fd-...") regardless of plain-scalar safety.
+      return `opaqueId: ${toDoubleQuoted(edit.value)}\n`;
     case "draft":
       if (edit.value === null) {
         return null;

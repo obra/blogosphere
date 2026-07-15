@@ -146,8 +146,8 @@ describe("renderFieldLine", () => {
     expect(renderFieldLine({ field: "type", value: "link" })).toBe("type: link\n");
   });
 
-  it("renders opaqueId set, and null as a removal signal", () => {
-    expect(renderFieldLine({ field: "opaqueId", value: "abc-123" })).toBe("opaqueId: abc-123\n");
+  it("renders opaqueId always double-quoted (matches the real corpus convention), and null as a removal signal", () => {
+    expect(renderFieldLine({ field: "opaqueId", value: "abc-123" })).toBe('opaqueId: "abc-123"\n');
     expect(renderFieldLine({ field: "opaqueId", value: null })).toBeNull();
   });
 

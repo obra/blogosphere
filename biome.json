@@ -123,6 +123,12 @@
           },
           "correctness": {
             "noNodejsModules": "off"
+          },
+          "complexity": {
+            "noExcessiveLinesPerFunction": "off"
+          },
+          "security": {
+            "noSecrets": "off"
           }
         }
       }

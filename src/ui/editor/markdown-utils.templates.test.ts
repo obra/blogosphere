@@ -10,7 +10,6 @@ const FUZZ_RUNS = Number(process.env.FUZZ_RUNS) || DEFAULT_FUZZ_RUNS;
 const MAX_FUZZ_STRING_LENGTH = 40;
 const URL_PLACEHOLDER = "https://";
 
-// biome-ignore lint/security/noSecrets: function name under test, not a secret.
 describe("buildImageMarkdown", () => {
   const ref = "/assets/2026/07/foo.png";
 

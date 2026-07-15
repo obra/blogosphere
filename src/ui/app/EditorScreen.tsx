@@ -1,14 +1,10 @@
 // ABOUTME: The editor screen — title/tags/date/draft chrome, publish flow,
 // ABOUTME: secret-link sharing, and the body Editor with a persisted mode toggle.
-//
-// INTEGRATION NOTE: src/ui/editor does not have an index.ts yet (only
-// Editor.tsx, which already matches EditorProps per its own ABOUTME comment).
-// Once it does, swap the import below for: import { Editor } from "../editor";
 import { useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
+import { Editor } from "../editor";
 import type { EditorMode } from "../types";
 import { DateField, DraftStateChip, ModeToggle, TitleField } from "./EditorFieldControls";
-import { EditorPlaceholder as Editor } from "./EditorPlaceholder";
 import { formatDisplayDate, todayIso } from "./format";
 import { PublishDialog } from "./PublishDialog";
 import { useAppStore, useAppStoreApi } from "./state";

@@ -3,6 +3,7 @@
 import type { EntryKind, FieldEdit, PublishOptions } from "../../core/model/types";
 import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
+import { META_COMMIT_TEMPLATES } from "../../core/sync/meta";
 import type {
   CommitMessageTemplates,
   ConflictResolution,
@@ -12,10 +13,27 @@ import type {
 import type { EditorMode, Section } from "../types";
 
 const KEYCHAIN_TOKEN_KEY = "github-token";
-const META_COMMIT_TEMPLATES_KEY = "commitMessageTemplates";
+// Kept as a locally-named alias so call sites in this slice don't change,
+// but the value itself now comes from core/sync/meta.ts — the app store and
+// the sync engine must never again drift onto two different meta keys for
+// the same setting (see state.commitTemplates.integration.test.ts, which
+// proves a template saved here changes the commit message the sync engine
+// produces).
+const META_COMMIT_TEMPLATES_KEY = META_COMMIT_TEMPLATES;
 const META_EDITOR_MODE_PREFIX = "editorMode:";
 const DEFAULT_EDIT_DEBOUNCE_MS = 400;
 const DEFAULT_SEARCH_DEBOUNCE_MS = 150;
+
+/**
+ * Shared stable reference for "no conflicts" (syncStatus is null: no token
+ * configured yet). Every `useAppStore((state) => state.syncStatus?.conflicts
+ * ?? EMPTY_CONFLICTS)` call site MUST use this constant, never a fresh `[]`
+ * literal: zustand's useSyncExternalStore compares selector results by
+ * reference, and a new `[]` on every call reads as "the store changed" on
+ * every render, forever — an actual infinite render loop (React: "Maximum
+ * update depth exceeded"), not just a wasted re-render. Never mutate this.
+ */
+const EMPTY_CONFLICTS: string[] = [];
 
 function editorModeMetaKey(path: string): string {
   return `${META_EDITOR_MODE_PREFIX}${path}`;
@@ -176,6 +194,7 @@ export {
   DEFAULT_COMMIT_TEMPLATES,
   DEFAULT_EDIT_DEBOUNCE_MS,
   DEFAULT_SEARCH_DEBOUNCE_MS,
+  EMPTY_CONFLICTS,
   editorModeMetaKey,
   INITIAL_BUSY,
   KEYCHAIN_TOKEN_KEY,

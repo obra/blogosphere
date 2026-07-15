@@ -169,7 +169,7 @@ describe("applyEdits — opaqueId", () => {
     const result = applyEditsImpl(raw, [{ field: "opaqueId", value: "uuid-1234" }]);
     expect(result).toEqual({
       ok: true,
-      raw: "---\ntitle: T\ndate: 2026-01-01\ndraft: true\nopaqueId: uuid-1234\n---\n\nBody\n",
+      raw: '---\ntitle: T\ndate: 2026-01-01\ndraft: true\nopaqueId: "uuid-1234"\n---\n\nBody\n',
     });
   });
 

@@ -16,9 +16,9 @@ const FUZZ_RUNS = Number(process.env.FUZZ_RUNS) || DEFAULT_FUZZ_RUNS;
 /**
  * The RFC 4648 worked example for "hello world". Not a credential — the
  * noSecrets entropy heuristic can't distinguish a well-known encoding
- * fixture from a real token, hence the narrow ignore.
+ * fixture from a real token (the rule is off for test files entirely; see
+ * biome.json / docs/tooling.md).
  */
-// biome-ignore lint/security/noSecrets: known base64 test vector, not a credential
 const HELLO_WORLD_BASE64 = "aGVsbG8gd29ybGQ=";
 
 /** Re-wraps a flat base64 string at 4-char boundaries, as GitHub wraps blob content. */

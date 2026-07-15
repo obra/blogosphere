@@ -82,14 +82,18 @@ it("setCommitTemplates updates state and persists as JSON", async () => {
   await store.getState().setCommitTemplates(templates);
 
   expect(store.getState().commitTemplates).toEqual(templates);
-  const raw = await services.store.getMeta("commitMessageTemplates");
+  // "commitMsgTemplates" is the sync engine's own META_COMMIT_TEMPLATES key
+  // (src/core/sync/meta.ts) — asserting the literal here, rather than
+  // importing the constant, is deliberate: it catches the app store ever
+  // drifting onto a different key name than what the sync engine reads.
+  const raw = await services.store.getMeta("commitMsgTemplates");
   expect(JSON.parse(raw ?? "{}")).toEqual(templates);
 });
 
 it("init loads persisted commit templates before refreshing", async () => {
   const { services } = buildFakeServices();
   await services.store.setMeta(
-    "commitMessageTemplates",
+    "commitMsgTemplates",
     JSON.stringify({
       newPost: "Custom post",
       edit: "Custom edit",

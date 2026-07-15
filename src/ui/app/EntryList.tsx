@@ -4,6 +4,7 @@ import type { EntryRecord } from "../../core/store/types";
 import { formatDisplayDate } from "./format";
 import { filterBySection, groupByYearMonth, monthGroupLabel } from "./grouping";
 import { useAppStore, useAppStoreApi } from "./state";
+import { EMPTY_CONFLICTS } from "./state.types";
 
 interface EntryRowProps {
   entry: EntryRecord;
@@ -101,7 +102,7 @@ function EntryList() {
   const entries = useAppStore((state) => state.entries);
   const searchResults = useAppStore((state) => state.searchResults);
   const selectedPath = useAppStore((state) => state.selectedPath);
-  const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? []);
+  const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
 
   const visible = filterBySection(searchResults ?? entries, section);
 

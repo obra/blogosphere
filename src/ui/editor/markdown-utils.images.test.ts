@@ -15,7 +15,6 @@ const DEFAULT_FUZZ_RUNS = 200;
 const FUZZ_RUNS = Number(process.env.FUZZ_RUNS) || DEFAULT_FUZZ_RUNS;
 const MAX_FUZZ_STRING_LENGTH = 20;
 const EXTENSION_PATTERN = /^[a-z0-9]+$/;
-// biome-ignore lint/style/noMagicNumbers: arbitrary sample byte values (incl. the 0xff boundary), not configuration.
 const SAMPLE_BYTES = [1, 2, 3, 255];
 
 describe("filterImageFiles", () => {

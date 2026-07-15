@@ -1,14 +1,16 @@
 // ABOUTME: Composition root — three-pane layout (Sidebar/EntryList/Detail),
-// ABOUTME: global dialogs/toasts, and app-wide keyboard shortcuts.
-import { useEffect, useState } from "react";
-import { ConflictDialog } from "./ConflictDialog";
+// ABOUTME: global dialogs/toasts, app-wide keyboard shortcuts, and a
+// ABOUTME: debounced resync on window focus.
+import { useEffect } from "react";
+import { ConflictHost } from "./ConflictHost";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
+import { debounce } from "./format";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
 import type { BoundAppStore } from "./state";
-import { useAppStore, useAppStoreApi } from "./state";
+import { useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
 
 interface AppShellProps {
@@ -17,6 +19,8 @@ interface AppShellProps {
   /** Integration wires the "rebuild github+sync" step, run after a token save. */
   onTokenSaved?: (token: string) => void | Promise<void>;
 }
+
+const FOCUS_SYNC_DEBOUNCE_MS = 800;
 
 function isSaveShortcut(event: KeyboardEvent): boolean {
   return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
@@ -53,35 +57,32 @@ function useKeyboardShortcuts(store: BoundAppStore): void {
   }, [store]);
 }
 
-function ConflictHost() {
-  const store = useAppStoreApi();
-  const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? []);
-  const entries = useAppStore((state) => state.entries);
-  const [dismissed, setDismissed] = useState<string | null>(null);
-
-  const activePath = conflicts.find((path) => path !== dismissed);
-  const record = activePath ? entries.find((e) => e.path === activePath) : undefined;
-  if (!(activePath && record)) {
-    return null;
-  }
-
-  return (
-    <ConflictDialog
-      path={activePath}
-      mine={record.workingContent}
-      theirs={record.baseContent ?? ""}
-      onChoose={(resolution) => {
-        setDismissed(null);
-        store.getState().resolveConflict(activePath, resolution);
-      }}
-      onCancel={() => setDismissed(activePath)}
-    />
-  );
+/** Resync on window focus (e.g. switching back from editing the repo in vim
+ *  or having Claude Code commit directly) — debounced so rapid focus churn
+ *  (alt-tabbing) doesn't hammer the API. A no-op with no sync configured. */
+function useSyncOnFocus(store: BoundAppStore): void {
+  useEffect(() => {
+    const debounced = debounce(() => {
+      store
+        .getState()
+        .services.sync?.sync()
+        .catch(() => undefined);
+    }, FOCUS_SYNC_DEBOUNCE_MS);
+    function onFocus() {
+      debounced.call();
+    }
+    globalThis.window.addEventListener("focus", onFocus);
+    return () => {
+      globalThis.window.removeEventListener("focus", onFocus);
+      debounced.cancel();
+    };
+  }, [store]);
 }
 
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   useKeyboardShortcuts(store);
+  useSyncOnFocus(store);
 
   useEffect(() => {
     store.getState().init();
