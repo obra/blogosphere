@@ -1,7 +1,7 @@
 // ABOUTME: createSync(deps): SyncApi — the sync engine's state machine. Owns
 // ABOUTME: status tracking/bootstrap and thin status-cycle wrappers over pull/push/resolve.
 import { GitHubError, type TreeEntry } from "../github/types";
-import { ASSETS_ROOT } from "../model/types";
+import { ASSETS_ROOT, CONTENT_ROOTS } from "../model/types";
 import type { EntryRecord } from "../store/types";
 import { denormalize, fallbackFrom, fetchCurrentRemote } from "./entry-fields";
 import { SyncError } from "./errors";
@@ -16,7 +16,7 @@ import {
 } from "./meta";
 import { runPull } from "./pull";
 import { runPush, toPushResult } from "./push";
-import { blobPathsUnder } from "./tree-diff";
+import { imageIndexFor } from "./tree-diff";
 import type {
   ConflictResolution,
   PullResult,
@@ -116,7 +116,10 @@ async function runBootstrap(deps: SyncDeps): Promise<void> {
   await deps.store.setMeta(META_LAST_ROOT_TREE_SHA, commit.treeSha);
   await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, headSha);
   await deps.store.setMeta(META_LAST_SYNC_AT, String(deps.now()));
-  await deps.store.setMeta(META_ASSETS_INDEX, JSON.stringify(blobPathsUnder(entries, ASSETS_ROOT)));
+  await deps.store.setMeta(
+    META_ASSETS_INDEX,
+    JSON.stringify(imageIndexFor(entries, ASSETS_ROOT, Object.values(CONTENT_ROOTS))),
+  );
 }
 
 async function resolveViaMine(deps: SyncDeps, path: string, entry: EntryRecord): Promise<void> {

@@ -1,6 +1,7 @@
 // ABOUTME: Fully in-memory ShellApi for unit tests and vite-only (non-Tauri) dev —
 // ABOUTME: Map-backed keychain/assets, a seedable share inbox, a settable clipboard.
 
+import { bytesToBase64 } from "../core/github/base64";
 import { extractClipboardUrl } from "./clipboardUrl";
 import type { Platform, SharePayload, ShellApi } from "./types";
 
@@ -14,6 +15,32 @@ function repoPathFor(localPath: string): string | null {
   return localPath.startsWith(ASSET_LOCAL_PATH_PREFIX)
     ? localPath.slice(ASSET_LOCAL_PATH_PREFIX.length)
     : null;
+}
+
+const FAKE_MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+  avif: "image/avif",
+};
+
+function mimeForPath(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return FAKE_MIME_BY_EXT[ext] ?? "application/octet-stream";
+}
+
+/** A real, renderable data: URL so the browser demo and jsdom tests can show
+ *  cached images instead of a broken placeholder. */
+function fakeDisplayUrl(assets: Map<string, Uint8Array>, localPath: string): string {
+  const repoPath = repoPathFor(localPath);
+  const bytes = repoPath ? assets.get(repoPath) : undefined;
+  if (!bytes) {
+    return `fake-display-url:${localPath}`;
+  }
+  return `data:${mimeForPath(localPath)};base64,${bytesToBase64(bytes)}`;
 }
 
 /** Extra test-only hooks for driving the fake, beyond the ShellApi contract. */
@@ -32,6 +59,7 @@ export interface FakeShellOptions {
 }
 
 /** In-memory ShellApi: no filesystem, no OS keychain, no Tauri runtime required. */
+
 export function createFakeShell(options: FakeShellOptions = {}): FakeShell {
   const keychain = new Map<string, string>();
   const assets = new Map<string, Uint8Array>(); // repoPath -> bytes
@@ -79,7 +107,7 @@ export function createFakeShell(options: FakeShellOptions = {}): FakeShell {
       return Promise.resolve(assets.has(repoPath) ? localPathFor(repoPath) : null);
     },
     assetDisplayUrl(localPath) {
-      return `fake-display-url:${localPath}`;
+      return fakeDisplayUrl(assets, localPath);
     },
 
     clipboardReadUrl() {

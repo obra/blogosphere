@@ -137,7 +137,7 @@ function useEditorScreenState(record: EntryRecord) {
     isLegacyHtml,
     sourceLanguage: isLegacyHtml ? ("html" as const) : ("markdown" as const),
     isConflicted: conflicts.includes(record.path),
-    resolveImage: useMemo(() => makeResolveImage(services), [services]),
+    resolveImage: useMemo(() => makeResolveImage(services, record.path), [services, record.path]),
     onImage: useMemo(() => makeOnImage(services, record.path), [services, record.path]),
     setTitle,
     setTags,

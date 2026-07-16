@@ -1,6 +1,6 @@
 // ABOUTME: Core pull logic — diffs the remote tree against the last-seen
 // ABOUTME: snapshot, fast-forwards clean entries, and diff3-merges or conflicts dirty ones.
-import { ASSETS_ROOT } from "../model/types";
+import { ASSETS_ROOT, CONTENT_ROOTS } from "../model/types";
 import type { EntryRecord } from "../store/types";
 import { denormalize, fallbackFrom } from "./entry-fields";
 import { merge3 } from "./merge";
@@ -14,7 +14,7 @@ import {
   setConflictPaths,
   stashConflictRemote,
 } from "./meta";
-import { blobPathsUnder, diffManagedTrees, type ManagedPathChange } from "./tree-diff";
+import { diffManagedTrees, imageIndexFor, type ManagedPathChange } from "./tree-diff";
 import type { PullResult, SyncDeps } from "./types";
 
 interface ReconcileBuckets {
@@ -236,7 +236,7 @@ export async function runPull(deps: SyncDeps): Promise<PullResult> {
   await deps.store.setMeta(META_LAST_SYNC_AT, String(deps.now()));
   await deps.store.setMeta(
     META_ASSETS_INDEX,
-    JSON.stringify(blobPathsUnder(newEntries, ASSETS_ROOT)),
+    JSON.stringify(imageIndexFor(newEntries, ASSETS_ROOT, Object.values(CONTENT_ROOTS))),
   );
 
   return { updated: buckets.updated, merged: buckets.merged, conflicts: buckets.conflicted };

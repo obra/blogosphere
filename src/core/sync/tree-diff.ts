@@ -2,6 +2,8 @@
 // ABOUTME: plus an asset-index extractor. No IO — just Map/array bookkeeping.
 import type { TreeEntry } from "../github/types";
 
+const IMAGE_EXTENSION_PATTERN = /\.(?:png|jpe?g|gif|svg|webp|avif)$/i;
+
 function managedBlobShas(
   entries: readonly TreeEntry[],
   isManagedPath: (path: string) => boolean,
@@ -62,4 +64,22 @@ export function blobPathsUnder(
   return entries
     .filter((entry) => entry.type === "blob" && entry.path.startsWith(prefix))
     .map((entry) => ({ path: entry.path, sha: entry.sha }));
+}
+
+/**
+ * The image-fetch index: everything under content/assets/ plus image blobs
+ * co-located with posts (content/blog/2025/some-post/diagram.png). The
+ * editor's resolveImage uses this to fetch an uncached image's blob by sha.
+ */
+export function imageIndexFor(
+  entries: readonly TreeEntry[],
+  assetsRoot: string,
+  contentRoots: readonly string[],
+): AssetIndexEntry[] {
+  const assets = blobPathsUnder(entries, assetsRoot);
+  const seen = new Set(assets.map((a) => a.path));
+  const coLocated = contentRoots
+    .flatMap((root) => blobPathsUnder(entries, root))
+    .filter((entry) => IMAGE_EXTENSION_PATTERN.test(entry.path) && !seen.has(entry.path));
+  return [...assets, ...coLocated];
 }
