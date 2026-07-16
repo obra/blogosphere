@@ -132,6 +132,20 @@ function closeNewLinkDialog(set: SetState): void {
   set({ newLinkDialogOpen: false });
 }
 
+async function syncNow(ctx: ActionCtx): Promise<void> {
+  const { sync } = ctx.get().services;
+  if (!sync) {
+    return;
+  }
+  // sync() resolves (never throws) for offline; anything else unexpected
+  // still lands in syncStatus via onStatus. The catch is belt-and-braces.
+  await sync.sync().catch(() => undefined);
+}
+
+async function copyText(ctx: ActionCtx, text: string): Promise<void> {
+  await ctx.deps.writeClipboardText(text).catch(() => undefined);
+}
+
 function openSettings(set: SetState): void {
   set({ settingsOpen: true });
 }
@@ -146,6 +160,7 @@ export {
   attachSync,
   closeNewLinkDialog,
   closeSettings,
+  copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
@@ -156,4 +171,5 @@ export {
   setCommitTemplates,
   setEditorMode,
   setServices,
+  syncNow,
 };

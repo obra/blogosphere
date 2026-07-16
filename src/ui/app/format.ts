@@ -120,5 +120,24 @@ function debounce<Args extends unknown[]>(
   };
 }
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+
+/** "just now" / "3m ago" / "2h ago" / "5d ago" — for the sync footer. */
+function relativeTimeLabel(fromMs: number, nowMs: number): string {
+  const elapsed = Math.max(0, nowMs - fromMs);
+  if (elapsed < MINUTE_MS) {
+    return "just now";
+  }
+  if (elapsed < HOUR_MS) {
+    return `${Math.floor(elapsed / MINUTE_MS)}m ago`;
+  }
+  if (elapsed < DAY_MS) {
+    return `${Math.floor(elapsed / HOUR_MS)}h ago`;
+  }
+  return `${Math.floor(elapsed / DAY_MS)}d ago`;
+}
+
 export type { Debouncer };
-export { debounce, formatDisplayDate, monthName, splitIsoDate, todayIso };
+export { debounce, formatDisplayDate, monthName, relativeTimeLabel, splitIsoDate, todayIso };

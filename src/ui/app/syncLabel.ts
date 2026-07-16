@@ -16,7 +16,8 @@ export interface SyncLabel {
  */
 export function syncStatusLabel(status: SyncStatus | null): SyncLabel {
   if (!status) {
-    return { text: "Offline", tone: "offline" };
+    // No sync configured at all (first run) — distinct from network-offline.
+    return { text: "Not connected", tone: "offline" };
   }
   if (status.conflicts.length > 0) {
     return { text: "Conflict", tone: "conflict" };

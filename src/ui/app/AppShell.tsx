@@ -5,11 +5,13 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect } from "react";
 import { ConflictHost } from "./ConflictHost";
+import { ConnectScreen } from "./ConnectScreen";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { handleCloseRequested } from "./quitFlush";
+import { useServices } from "./ServicesContext";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
 import type { BoundAppStore } from "./state";
@@ -37,6 +39,14 @@ function isNewLinkShortcut(event: KeyboardEvent): boolean {
   return (event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "l";
 }
 
+function isSettingsShortcut(event: KeyboardEvent): boolean {
+  return (event.metaKey || event.ctrlKey) && event.key === ",";
+}
+
+function isSyncShortcut(event: KeyboardEvent): boolean {
+  return (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "r";
+}
+
 function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
   if (isSaveShortcut(event)) {
     event.preventDefault();
@@ -47,6 +57,14 @@ function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
   } else if (isNewLinkShortcut(event)) {
     event.preventDefault();
     store.getState().openNewLinkDialog();
+  } else if (isSettingsShortcut(event)) {
+    event.preventDefault();
+    store.getState().openSettings();
+  } else if (isSyncShortcut(event)) {
+    // Also swallows the webview's own Reload — reloading mid-edit would be
+    // strictly worse than the sync the user actually asked for.
+    event.preventDefault();
+    store.getState().syncNow();
   }
 }
 
@@ -115,6 +133,16 @@ function useFlushBeforeQuit(store: BoundAppStore): void {
   }, [store]);
 }
 
+/** First run (no sync configured) shows the connect card where the editor
+ *  would go; the rest of the shell stays visible but honest about being empty. */
+function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
+  const services = useServices();
+  if (services.sync === null) {
+    return <ConnectScreen onTokenSaved={props.onTokenSaved} />;
+  }
+  return <EditorScreen />;
+}
+
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   useKeyboardShortcuts(store);
@@ -130,7 +158,7 @@ function AppShell(props: AppShellProps) {
       <Sidebar />
       <EntryList />
       <div className="detail-pane pane">
-        <EditorScreen />
+        <DetailPane onTokenSaved={props.onTokenSaved} />
       </div>
       <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
       <SettingsScreen onTokenSaved={props.onTokenSaved} />

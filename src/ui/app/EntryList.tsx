@@ -1,6 +1,7 @@
 // ABOUTME: Entry list — grouped by year/month (newest first), or search results;
 // ABOUTME: dirty/draft/conflict/html badges. Search input debounces via state.ts.
 import type { EntryRecord } from "../../core/store/types";
+import type { Section } from "../types";
 import { formatDisplayDate } from "./format";
 import { filterBySection, groupByYearMonth, monthGroupLabel } from "./grouping";
 import { useAppStore, useAppStoreApi } from "./state";
@@ -51,16 +52,29 @@ function EntryRow(props: EntryRowProps) {
   );
 }
 
+const EMPTY_COPY: Record<Section, string> = {
+  drafts: "No drafts. ⌘N starts one.",
+  posts: "No posts yet.",
+  links: "No link posts. ⌘⇧L captures one.",
+  releases: "No releases.",
+};
+
 interface EntryListGroupsProps {
   entries: EntryRecord[];
   selectedPath: string | null;
   conflicts: string[];
+  section: Section;
+  searching: boolean;
 }
 
 function EntryListGroups(props: EntryListGroupsProps) {
   const groups = groupByYearMonth(props.entries);
   if (groups.length === 0) {
-    return <div className="entry-list-empty">Nothing here yet.</div>;
+    return (
+      <div className="entry-list-empty">
+        {props.searching ? "No matches." : EMPTY_COPY[props.section]}
+      </div>
+    );
   }
   return (
     <div className="entry-list-scroll">
@@ -114,7 +128,13 @@ function EntryList() {
   return (
     <div className="entry-list-pane pane">
       <EntrySearchBox />
-      <EntryListGroups entries={visible} selectedPath={selectedPath} conflicts={conflicts} />
+      <EntryListGroups
+        entries={visible}
+        selectedPath={selectedPath}
+        conflicts={conflicts}
+        section={section}
+        searching={searchResults !== null}
+      />
     </div>
   );
 }

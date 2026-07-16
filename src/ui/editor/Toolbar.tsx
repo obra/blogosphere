@@ -37,6 +37,7 @@ export function ToolbarButton(props: ToolbarButtonProps) {
   return (
     <button
       type="button"
+      className="format-toolbar-button"
       title={props.title}
       aria-label={props.title}
       disabled={props.disabled}
@@ -79,7 +80,7 @@ export function Toolbar(props: ToolbarProps) {
   );
 
   return (
-    <div role="toolbar" aria-label="Formatting">
+    <div className="format-toolbar" role="toolbar" aria-label="Formatting">
       <ToolbarButton label="B" title="Bold" disabled={props.readOnly} onClick={onBoldClick} />
       <ToolbarButton label="I" title="Italic" disabled={props.readOnly} onClick={onItalicClick} />
       <ToolbarButton

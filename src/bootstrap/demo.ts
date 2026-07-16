@@ -63,5 +63,12 @@ function seedEntries(): EntryRecord[] {
  */
 export function createDemoServices(): Services {
   const { services } = buildFakeServices({ seedEntries: seedEntries() });
+  // Design/dev preview of the first-run experience: `vite dev` +
+  // ?onboarding renders the connect card exactly as a tokenless Tauri
+  // launch would (sync === null, empty library). Never in the packaged app.
+  if (globalThis.location?.search.includes("onboarding")) {
+    const empty = buildFakeServices({ seedEntries: [] });
+    return { ...empty.services, sync: null };
+  }
   return services;
 }

@@ -39,7 +39,7 @@ function TokenField(props: TokenFieldProps) {
   }
 
   return (
-    <form className="settings-section" onSubmit={handleSubmit}>
+    <form className="settings-token-form" onSubmit={handleSubmit}>
       <div className="dialog-field">
         <label htmlFor={fieldId}>GitHub token</label>
         <input
@@ -47,6 +47,7 @@ function TokenField(props: TokenFieldProps) {
           type="password"
           value={token}
           onChange={(event) => setToken(event.currentTarget.value)}
+          placeholder="github_pat_…"
           autoComplete="off"
         />
       </div>
@@ -57,15 +58,34 @@ function TokenField(props: TokenFieldProps) {
   );
 }
 
-function RepoDisplay() {
+/** Connection section: connected state with a replace-token disclosure when
+ *  sync is configured; the bare token form when it isn't. */
+function ConnectionSection(props: TokenFieldProps) {
   const services = useServices();
+  const [replacing, setReplacing] = useState(false);
+  const connected = services.sync !== null;
+  const repoLabel = `${services.repo.owner}/${services.repo.repo}#${services.repo.branch}`;
   return (
-    <div className="settings-section">
-      <div>Repository</div>
-      <div className="settings-repo">
-        {services.repo.owner}/{services.repo.repo}#{services.repo.branch}
-      </div>
-    </div>
+    <section className="settings-section">
+      <h3>Connection</h3>
+      {connected ? (
+        <div className="settings-connection">
+          <span className="settings-connected-dot" aria-hidden="true" />
+          <span>
+            Connected to <strong>{repoLabel}</strong>
+          </span>
+          <button type="button" className="link-button" onClick={() => setReplacing(!replacing)}>
+            {replacing ? "Keep current token" : "Replace token…"}
+          </button>
+        </div>
+      ) : (
+        <p className="settings-hint">
+          Not connected. Save a fine-grained GitHub token with contents read &amp; write on{" "}
+          {repoLabel.split("#")[0]} to start syncing.
+        </p>
+      )}
+      {connected && !replacing ? null : <TokenField onTokenSaved={props.onTokenSaved} />}
+    </section>
   );
 }
 
@@ -90,7 +110,10 @@ function CommitTemplatesForm() {
 
   return (
     <form className="settings-section" onSubmit={handleSubmit}>
-      <div>Message templates</div>
+      <h3>Commit messages</h3>
+      <p className="settings-hint">
+        Used for the commits Blogosphere makes. {"{title}"} and {"{path}"} fill in.
+      </p>
       {TEMPLATE_FIELDS.map((field) => (
         <div className="dialog-field" key={field.key}>
           <label htmlFor={`${baseId}-${field.key}`}>{field.label}</label>
@@ -116,17 +139,42 @@ function SettingsScreen(props: SettingsScreenProps) {
     return null;
   }
   return (
-    <div className="dialog-backdrop">
-      <div className="dialog settings-screen" role="dialog" aria-label="Settings">
-        <h2>Settings</h2>
-        <RepoDisplay />
-        <TokenField onTokenSaved={props.onTokenSaved} />
-        <CommitTemplatesForm />
-        <div className="dialog-actions">
-          <button type="button" className="btn" onClick={() => store.getState().closeSettings()}>
-            Close
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-dismiss; the dialog itself is keyboard-reachable via ⌘, and Escape.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape handling lives on the dialog below.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same backdrop affordance as above.
+    <div
+      className="dialog-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          store.getState().closeSettings();
+        }
+      }}
+    >
+      {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: dialog-level Escape shortcut */}
+      <div
+        className="dialog settings-screen"
+        role="dialog"
+        aria-label="Settings"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            store.getState().closeSettings();
+          }
+        }}
+      >
+        <header className="settings-header">
+          <h2>Settings</h2>
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            onClick={() => store.getState().closeSettings()}
+            aria-label="Close settings"
+            title="Close"
+          >
+            ✕
           </button>
-        </div>
+        </header>
+        <ConnectionSection onTokenSaved={props.onTokenSaved} />
+        <CommitTemplatesForm />
       </div>
     </div>
   );

@@ -138,6 +138,11 @@ interface AppActions {
   renameEntry(path: string, changes: { slug?: string; date?: string }): Promise<void>;
   resolveConflict(path: string, resolution: ConflictResolution): Promise<void>;
   saveToken(token: string): Promise<void>;
+  /** User-initiated "sync now" (⌘R / the sidebar sync button). No-op until a
+   *  token is configured; failures surface through syncStatus, not a throw. */
+  syncNow(): Promise<void>;
+  /** Copy arbitrary text via the injected clipboard dep (Tauri or browser). */
+  copyText(text: string): Promise<void>;
 
   setEditorMode(path: string, mode: EditorMode): Promise<void>;
   setCommitTemplates(templates: CommitMessageTemplates): Promise<void>;

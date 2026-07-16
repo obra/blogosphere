@@ -11,6 +11,7 @@ import { AppShell } from "./ui/app/AppShell";
 import { ServicesProvider } from "./ui/app/ServicesContext";
 import { AppStoreProvider } from "./ui/app/state";
 import type { AppStoreDeps } from "./ui/app/state.types";
+import { KEYCHAIN_TOKEN_KEY } from "./ui/app/state.types";
 
 function LoadingScreen() {
   return (
@@ -38,6 +39,15 @@ function buildTokenSavedHandler(
       services.model,
       services.shell,
     );
+    // Validate before installing: one cheap authenticated read. A bad token
+    // rejects here — the connect card / settings show the error and the app
+    // keeps its previous (possibly unconfigured) sync instead of a broken one.
+    try {
+      await github.getRef();
+    } catch (cause) {
+      await services.shell.keychainDelete(KEYCHAIN_TOKEN_KEY).catch(() => undefined);
+      throw cause;
+    }
     const next: Services = { ...services, github, sync };
     setServices(next);
     await runInitialSync(next);

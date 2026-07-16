@@ -55,23 +55,85 @@
 .sidebar-footer {
   margin-top: auto;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
 }
 
-/* ---------- Sync status pill ---------- */
+/* ---------- Sync button (footer) ---------- */
 
 .sync-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--bg-raised);
   font-size: 12px;
   cursor: pointer;
-  width: fit-content;
+  flex: 1;
+  min-width: 0;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.sync-pill:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.sync-pill:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.sync-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sync-pill-detail {
+  color: var(--text-faint);
+}
+
+.sidebar-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.sidebar-icon-button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+@keyframes sync-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sync-pill-dot.spinning {
+  background: conic-gradient(from 0deg, var(--accent), transparent 70%);
+  animation: sync-spin 0.9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sync-pill-dot.spinning {
+    animation: none;
+    background: var(--warning);
+  }
 }
 
 .sync-pill-dot {

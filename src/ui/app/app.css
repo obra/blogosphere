@@ -5,6 +5,7 @@
 @import "./app-sidebar.css";
 @import "./app-editor.css";
 @import "./app-dialogs.css";
+@import "./app-connect.css";
 
 :root {
   --font-sans:

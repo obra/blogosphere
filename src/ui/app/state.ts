@@ -26,6 +26,7 @@ import {
   attachSync,
   closeNewLinkDialog,
   closeSettings,
+  copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
@@ -36,6 +37,7 @@ import {
   setCommitTemplates,
   setEditorMode,
   setServices,
+  syncNow,
 } from "./state.miscActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
 import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY } from "./state.types";
@@ -89,6 +91,8 @@ function bindActions(resources: ActionResources): AppActions {
     renameEntry: (path, changes) => renameEntry(ctx, path, changes),
     resolveConflict: (path, resolution) => resolveConflict(ctx, path, resolution),
     saveToken: (token) => saveToken(ctx, token),
+    syncNow: () => syncNow(ctx),
+    copyText: (text) => copyText(ctx, text),
     setEditorMode: (path, mode) => setEditorMode(ctx, path, mode),
     setCommitTemplates: (templates) => setCommitTemplates(ctx, templates),
     addToast: (toast) => addToast(ctx, toast),

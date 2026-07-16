@@ -200,19 +200,73 @@
 /* ---------- Settings ---------- */
 
 .settings-screen {
-  padding: 20px;
-  max-width: 520px;
+  padding: 20px 24px 24px;
+  width: min(560px, calc(100vw - 48px));
 }
 
-.settings-screen h2 {
-  margin-top: 0;
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.settings-header h2 {
+  margin: 0;
+  font-size: 17px;
 }
 
 .settings-section {
-  margin-bottom: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.settings-repo {
-  font-family: var(--font-mono);
+.settings-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
   color: var(--text-muted);
+}
+
+.settings-connection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.settings-connected-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--success);
+  flex: none;
+}
+
+.settings-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+.settings-token-form .dialog-field {
+  width: 100%;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-button:hover {
+  opacity: 0.8;
 }

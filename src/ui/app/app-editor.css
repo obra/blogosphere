@@ -80,6 +80,50 @@
   padding: 10px 14px 14px;
 }
 
+/* ---------- Formatting toolbar ---------- */
+
+.format-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px 14px 0;
+}
+.format-toolbar-button {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.format-toolbar-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.format-toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Crepe ships a cream "frame" theme background; the writing surface should
+   sit on the app's own background in both color schemes. */
+.editor-body-wrap .milkdown {
+  --crepe-color-background: var(--bg);
+  --crepe-color-surface: var(--bg);
+  --crepe-color-on-background: var(--text);
+  background: var(--bg);
+}
+.editor-body-wrap .milkdown .ProseMirror {
+  background: var(--bg);
+  color: var(--text);
+}
+
 .editor-placeholder {
   width: 100%;
   height: 100%;
