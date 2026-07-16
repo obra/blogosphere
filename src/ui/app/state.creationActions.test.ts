@@ -84,6 +84,37 @@ it("newLink scaffolds a link entry with the given url", async () => {
   expect(store.getState().section).toBe("links");
 });
 
+it("newDraft stays local — creating a draft is the start of writing, not a deploy", async () => {
+  const { services, sync } = buildFakeServices();
+  const store = createAppStore(services);
+
+  await store.getState().newDraft({ title: "Just Starting", date: "2026-03-01" });
+
+  expect(sync?.syncCallCount()).toBe(0);
+});
+
+it("newLink pushes — a linkblog entry is publish-on-create", async () => {
+  const { services, sync } = buildFakeServices();
+  const store = createAppStore(services);
+
+  await store.getState().newLink({
+    title: "Cool Article",
+    url: "https://example.com/article",
+    date: "2026-03-01",
+  });
+
+  expect(sync?.syncCallCount()).toBeGreaterThan(0);
+});
+
+it("newPost pushes — a kind:post entry is public the moment it lands on main", async () => {
+  const { services, sync } = buildFakeServices();
+  const store = createAppStore(services);
+
+  await store.getState().newPost({ title: "Direct Post", date: "2026-03-01" });
+
+  expect(sync?.syncCallCount()).toBeGreaterThan(0);
+});
+
 it("newDraft defaults the date to today when omitted", async () => {
   const { services } = buildFakeServices();
   const store = createAppStore(services, { now: () => Date.parse("2026-07-15T12:00:00Z") });

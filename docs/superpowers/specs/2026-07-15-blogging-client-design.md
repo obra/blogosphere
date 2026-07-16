@@ -167,7 +167,11 @@ Per-entry sync state in SQLite: `path`, `base_sha` (blob SHA at last sync),
   notice; the pre-merge working copy is snapshotted locally first (never lossy).
   Overlapping hunks → conflict UI: keep mine / take remote / side-by-side diff.
   No YAML-aware structural merge — over-engineering for a single author.
-- **Push** (auto after save/publish, on app foreground, and manual):
+- **Push** (deliberate only — manual ⌘S/sync button, publish, share secret link,
+  rename, delete, and creating a public post/link; never on typing pauses, app
+  foreground, or launch, since every push to main triggers a Pages deploy — burning
+  Actions minutes and shipping half-finished edits of published posts. Foreground
+  and launch do a pull-only refresh instead):
   1. Pull first (cheap tree-SHA check).
   2. Create blobs for dirty files + outbox images they reference.
   3. Build one tree off the current remote commit, one commit. Messages from templates:

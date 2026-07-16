@@ -59,7 +59,12 @@ async function createNewInner(
   await svc.store.upsertEntry(record);
   replaceEntryInCache(ctx.set, record);
   ctx.set({ selectedPath: record.path, section: sectionForKind(kind) });
-  maybeBackgroundSync(ctx.get);
+  // A new post or link is public the moment it lands on main, so creating
+  // one is a deliberate publish — push it. A new draft is the *start* of
+  // writing: it stays local (like every edit after it) until the user syncs.
+  if (kind !== "draft") {
+    maybeBackgroundSync(ctx.get);
+  }
   return record.path;
 }
 

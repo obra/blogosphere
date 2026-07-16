@@ -11,9 +11,14 @@ import { createTauriServices } from "./tauri";
  * First-ever sync (nothing in the store yet) is awaited: there's no cached
  * data to show in the meantime, so a brief startup wait is preferable to an
  * empty three-pane app. Every later app start already has cached entries to
- * show immediately, so a routine resync runs fire-and-forget instead of
+ * show immediately, so a routine refresh runs fire-and-forget instead of
  * blocking first paint — see state.miscActions.ts's attachSync, which
  * refreshes the entries cache once this (or any later) sync round settles.
+ *
+ * Both paths are read-only against the repo (bootstrap reads; pull merges
+ * remote into local): launching the app must never push — unpushed work
+ * from the last session stays pending until the user syncs, rather than
+ * deploying half-finished edits the moment the app opens.
  */
 export async function runInitialSync(services: Services): Promise<void> {
   if (!services.sync) {
@@ -23,7 +28,7 @@ export async function runInitialSync(services: Services): Promise<void> {
   if (lastRootTreeSha === null) {
     await services.sync.bootstrap();
   } else {
-    services.sync.sync().catch(() => undefined);
+    services.sync.pull().catch(() => undefined);
   }
 }
 

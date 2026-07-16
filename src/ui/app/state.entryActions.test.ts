@@ -91,7 +91,7 @@ it("edit debounce-saves a body change with recomputed denormalized fields", asyn
   expect(cached?.workingContent).toContain("New body");
 });
 
-it("edit debounce-saves a field change and triggers a background sync", async () => {
+it("edit debounce-saves a field change WITHOUT pushing — typing pauses never deploy", async () => {
   const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
   const { services, sync } = buildFakeServices({ seedEntries: [draft] });
   const store = createAppStore(services, { editDebounceMs: FAST_DEBOUNCE_MS });
@@ -103,7 +103,9 @@ it("edit debounce-saves a field change and triggers a background sync", async ()
 
   const saved = await services.store.getEntry(draft.path);
   expect(saved?.title).toBe("Renamed");
-  expect(sync?.syncCallCount()).toBeGreaterThan(0);
+  // Every push to main triggers a Pages deploy (and, for published posts,
+  // ships half-finished edits live) — the write path must stay local.
+  expect(sync?.syncCallCount()).toBe(0);
 });
 
 it("a second edit within the debounce window replaces the first (last write wins)", async () => {
@@ -187,7 +189,7 @@ it("edits to two different fields within the debounce window both survive", asyn
 
 it("flushEdit(path) applies a pending edit immediately, without waiting out the debounce", async () => {
   const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
-  const { services } = buildFakeServices({ seedEntries: [draft] });
+  const { services, sync } = buildFakeServices({ seedEntries: [draft] });
   const store = createAppStore(services, { editDebounceMs: 10_000 });
 
   store.getState().edit(draft.path, { kind: "body", body: "Flushed now" });
@@ -195,6 +197,9 @@ it("flushEdit(path) applies a pending edit immediately, without waiting out the 
 
   const saved = await services.store.getEntry(draft.path);
   expect(saved?.workingContent).toContain("Flushed now");
+  // flushEdit is the local-durability half of saveNow (and the quit-flush
+  // safety net) — it must never push on its own.
+  expect(sync?.syncCallCount()).toBe(0);
 });
 
 it("saveNow flushes all pending edits and calls sync() when online", async () => {

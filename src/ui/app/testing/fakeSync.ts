@@ -28,6 +28,8 @@ interface FakeSyncState {
   pullResult: PullResult;
   pushResult: PushResult;
   syncCalls: number;
+  pullCalls: number;
+  bootstrapCalls: number;
   resolved: ResolvedConflict[];
 }
 
@@ -42,6 +44,10 @@ interface FakeSync extends SyncApi {
   setStatus(status: SyncStatus): void;
   /** Test-only: how many times sync() has been invoked. */
   syncCallCount(): number;
+  /** Test-only: how many times pull() has been invoked. */
+  pullCallCount(): number;
+  /** Test-only: how many times bootstrap() has been invoked. */
+  bootstrapCallCount(): number;
   /** Test-only: every resolveConflict() call so far, in order. */
   resolvedConflicts(): ResolvedConflict[];
 }
@@ -90,6 +96,8 @@ function createState(options: FakeSyncOptions): FakeSyncState {
     pullResult: options.pullResult ?? DEFAULT_PULL,
     pushResult: options.pushResult ?? DEFAULT_PUSH,
     syncCalls: 0,
+    pullCalls: 0,
+    bootstrapCalls: 0,
     resolved: [],
   };
 }
@@ -100,13 +108,21 @@ function createFakeSync(options: FakeSyncOptions = {}): FakeSync {
   return {
     status: () => state.status,
     onStatus: (cb) => onStatus(state, cb),
-    pull: () => Promise.resolve(state.pullResult),
+    pull: () => {
+      state.pullCalls += 1;
+      return Promise.resolve(state.pullResult);
+    },
     push: () => Promise.resolve(state.pushResult),
     sync: () => sync(state),
     resolveConflict: (path, resolution) => resolveConflict(state, path, resolution),
-    bootstrap: () => Promise.resolve(),
+    bootstrap: () => {
+      state.bootstrapCalls += 1;
+      return Promise.resolve();
+    },
     setStatus: (status) => setStatus(state, status),
     syncCallCount: () => state.syncCalls,
+    pullCallCount: () => state.pullCalls,
+    bootstrapCallCount: () => state.bootstrapCalls,
     resolvedConflicts: () => state.resolved,
   };
 }

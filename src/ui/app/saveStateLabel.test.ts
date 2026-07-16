@@ -19,16 +19,19 @@ describe("saveStateLabel", () => {
     expect(label.text).toBe("Saving…");
   });
 
-  it("a dirty entry while offline promises to sync later", () => {
+  it("a dirty entry while offline points at syncing once back online", () => {
     const label = saveStateLabel({ dirty: true, draft: true }, status({ state: "offline" }));
     expect(label.text).toBe("Saved on this device · offline");
     expect(label.title).toContain("back online");
+    // Pushes are deliberate now — nothing may promise an automatic sync.
+    expect(label.title).not.toContain("automatic");
   });
 
-  it("a dirty entry between syncs (idle or error) is saved locally", () => {
-    expect(saveStateLabel({ dirty: true, draft: true }, status()).text).toBe(
-      "Saved on this device",
-    );
+  it("a dirty entry between syncs is saved locally, and the tooltip names the sync gesture", () => {
+    const idle = saveStateLabel({ dirty: true, draft: true }, status());
+    expect(idle.text).toBe("Saved on this device");
+    expect(idle.title).toContain("⌘S");
+    expect(idle.title).not.toContain("automatic");
     expect(saveStateLabel({ dirty: true, draft: false }, status({ state: "error" })).text).toBe(
       "Saved on this device",
     );

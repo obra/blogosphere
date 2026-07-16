@@ -13,9 +13,11 @@ export interface SaveStateLabel {
 
 /**
  * Everything here must stay true to the actual pipeline (state.entryActions.ts
- * / push.ts): edits commit locally within the debounce window, background
- * sync pushes ALL dirty entries — drafts included, as drafts — and only the
- * Publish action makes a draft public.
+ * / push.ts): edits commit locally within the debounce window; pushing to
+ * GitHub is deliberate (⌘S/the sync button, publish, share, rename, delete —
+ * every push deploys the site, so nothing pushes on its own); a push sends
+ * ALL dirty entries — drafts included, as drafts — and only the Publish
+ * action makes a draft public.
  */
 export function saveStateLabel(record: SaveStateFields, status: SyncStatus | null): SaveStateLabel {
   if (!status) {
@@ -32,12 +34,12 @@ export function saveStateLabel(record: SaveStateFields, status: SyncStatus | nul
     if (status.state === "offline") {
       return {
         text: "Saved on this device · offline",
-        title: "Saved on this device. Your changes will sync to GitHub when you're back online.",
+        title: "Saved on this device. You're offline — sync (⌘S) when you're back online.",
       };
     }
     return {
       text: "Saved on this device",
-      title: "Saved on this device. Changes sync to GitHub automatically — ⌘S syncs now.",
+      title: "Saved on this device. ⌘S (or the sidebar sync button) sends changes to GitHub.",
     };
   }
   if (record.draft) {

@@ -5,12 +5,7 @@ import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode, Section } from "../types";
 import { debounce } from "./format";
-import {
-  findEntryInCache,
-  maybeBackgroundSync,
-  replaceEntryInCache,
-  withParsedFields,
-} from "./state.cache";
+import { findEntryInCache, replaceEntryInCache, withParsedFields } from "./state.cache";
 import type { ActionCtx, EditChange } from "./state.types";
 import { editorModeMetaKey } from "./state.types";
 
@@ -145,7 +140,7 @@ function reportEditFailure(
   ctx.get().addToast({
     tone: "error",
     message: `Couldn't save "${record.title ?? record.path}": ${error}`,
-    retry: () => commitPending(ctx, record.path, entry, true),
+    retry: () => commitPending(ctx, record.path, entry),
   });
 }
 
@@ -175,22 +170,18 @@ async function commitPendingInner(
   replaceEntryInCache(ctx.set, updated);
 }
 
-async function commitPending(
-  ctx: ActionCtx,
-  path: string,
-  entry: PendingEntry,
-  notifySync: boolean,
-): Promise<void> {
+/** Commits to the local store only — never the network. Pushing is a
+ *  deliberate act (saveNow/syncNow, publish, share, …): every push to main
+ *  triggers a Pages deploy, so a push riding along with typing would both
+ *  burn Actions minutes and ship half-finished edits of published posts. */
+async function commitPending(ctx: ActionCtx, path: string, entry: PendingEntry): Promise<void> {
   try {
     await commitPendingInner(ctx, path, entry);
-    if (notifySync) {
-      maybeBackgroundSync(ctx.get);
-    }
   } catch {
     ctx.get().addToast({
       tone: "error",
       message: "Couldn't save your changes.",
-      retry: () => commitPending(ctx, path, entry, notifySync),
+      retry: () => commitPending(ctx, path, entry),
     });
   }
 }
@@ -201,13 +192,10 @@ function onDebounceFire(ctx: ActionCtx, pending: PendingEdits, path: string): vo
   if (!slot) {
     return;
   }
+  // A single-edit burst (uncommitted still false) was already captured and
+  // persisted by the immediate commit in edit() — nothing left to write.
   if (slot.uncommitted) {
-    commitPending(ctx, path, slot, true);
-  } else {
-    // A single-edit burst: the immediate commit in edit() already captured
-    // and persisted it. Nothing new to write, but the network sync this
-    // debounce exists to gate still needs to fire.
-    maybeBackgroundSync(ctx.get);
+    commitPending(ctx, path, slot);
   }
 }
 
@@ -255,7 +243,7 @@ function edit(ctx: ActionCtx, pending: PendingEdits, path: string, change: EditC
   };
   mergeChangeInto(slot, change);
   pending.set(path, slot);
-  commitPending(ctx, path, slot, false);
+  commitPending(ctx, path, slot);
 }
 
 async function flushOne(ctx: ActionCtx, pending: PendingEdits, path: string): Promise<void> {
@@ -265,7 +253,7 @@ async function flushOne(ctx: ActionCtx, pending: PendingEdits, path: string): Pr
   }
   clearTimeout(slot.timer);
   pending.delete(path);
-  await commitPending(ctx, path, slot, true);
+  await commitPending(ctx, path, slot);
 }
 
 async function flushEdit(ctx: ActionCtx, pending: PendingEdits, path?: string): Promise<void> {
@@ -284,7 +272,10 @@ async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
     return;
   }
   if (ctx.get().syncStatus?.state === "offline") {
-    ctx.get().addToast({ tone: "info", message: "Saved. Will sync when you're back online." });
+    ctx.get().addToast({
+      tone: "info",
+      message: "Saved on this device. You're offline — sync again once you're back.",
+    });
     return;
   }
   try {

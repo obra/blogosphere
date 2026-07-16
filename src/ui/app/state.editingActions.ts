@@ -104,7 +104,8 @@ async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void
   if (!svc.sync || ctx.get().syncStatus?.state === "offline") {
     ctx.get().addToast({
       tone: "info",
-      message: "Secret link copied. Will go live once you're back online.",
+      message:
+        "Secret link copied — but you're offline. Sync when you're back online to make it live.",
     });
     return;
   }

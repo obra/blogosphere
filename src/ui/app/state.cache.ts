@@ -51,7 +51,12 @@ function withParsedFields(
   return { title, date, draft, opaqueId };
 }
 
-/** Not awaited by callers on purpose — the sync-status subscription is the
+/** Fire-and-forget sync for actions whose *meaning* is remote — publish,
+ *  rename, delete, creating a public post/link. Never called from the typing
+ *  path: every push to main triggers a Pages deploy, so syncing on keystroke
+ *  pauses would burn Actions minutes and ship half-finished edits of
+ *  published posts (edits accumulate locally until ⌘S/the sync button).
+ *  Not awaited by callers on purpose — the sync-status subscription is the
  *  channel that surfaces the outcome, not the call site. */
 function maybeBackgroundSync(get: GetState): void {
   const { services, syncStatus } = get();

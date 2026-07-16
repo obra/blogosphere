@@ -53,8 +53,8 @@ function DeleteButton(props: { path: string }) {
 }
 
 /** Answers "did I just make this public, and is my work safe?" without a Save
- *  button: edits autosave locally and background-sync to GitHub — drafts sync
- *  as drafts, and only Publish makes one public (see saveStateLabel.ts). */
+ *  button: edits autosave locally; ⌘S/the sync button push to GitHub — drafts
+ *  sync as drafts, and only Publish makes one public (see saveStateLabel.ts). */
 function SaveStateIndicator(props: { record: EntryRecord }) {
   const status = useAppStore((state) => state.syncStatus);
   const label = saveStateLabel(props.record, status);

@@ -78,15 +78,17 @@ function useKeyboardShortcuts(store: BoundAppStore): void {
   }, [store]);
 }
 
-/** Resync on window focus (e.g. switching back from editing the repo in vim
- *  or having Claude Code commit directly) — debounced so rapid focus churn
- *  (alt-tabbing) doesn't hammer the API. A no-op with no sync configured. */
+/** Refresh from remote on window focus (e.g. switching back from editing the
+ *  repo in vim or having Claude Code commit directly) — debounced so rapid
+ *  focus churn (alt-tabbing) doesn't hammer the API. Pull-only, never sync():
+ *  a push here would deploy the site (and any half-finished local edits)
+ *  every time the window regains focus. A no-op with no sync configured. */
 function useSyncOnFocus(store: BoundAppStore): void {
   useEffect(() => {
     const debounced = debounce(() => {
       store
         .getState()
-        .services.sync?.sync()
+        .services.sync?.pull()
         .catch(() => undefined);
     }, FOCUS_SYNC_DEBOUNCE_MS);
     function onFocus() {
