@@ -9,8 +9,9 @@ import type { EditorHandle } from "./markdown-utils";
 import { SourceEditor } from "./SourceEditor";
 import { Toolbar } from "./Toolbar";
 
-const EDITOR_PANE_STYLE = { flex: "1", minHeight: 0, overflow: "hidden" } as const;
-const ROOT_STYLE = { display: "flex", flexDirection: "column", height: "100%" } as const;
+// Natural height: the app's document column owns scrolling, so title, meta,
+// and body move together like one document.
+const ROOT_STYLE = { display: "block" } as const;
 
 /**
  * Mode-switching is a full unmount/remount of the child editor: CrepeEditor
@@ -69,8 +70,10 @@ export function Editor(props: EditorProps) {
 
   return (
     <div style={ROOT_STYLE}>
-      {isHtml ? null : <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />}
-      <div style={EDITOR_PANE_STYLE}>
+      {useSourceEditor && !isHtml ? (
+        <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />
+      ) : null}
+      <div>
         {useSourceEditor ? (
           <SourceEditor
             ref={handleRef}

@@ -37,7 +37,7 @@ const EDITING_KEYMAP: readonly KeyBinding[] = [
 ];
 
 const EDITOR_THEME = EditorView.theme({
-  "&": { height: "100%", fontSize: "14px", color: "inherit", backgroundColor: "transparent" },
+  "&": { minHeight: "40vh", fontSize: "14px", color: "inherit", backgroundColor: "transparent" },
   ".cm-content": {
     fontFamily:
       "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",

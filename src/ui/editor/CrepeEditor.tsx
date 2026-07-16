@@ -98,7 +98,16 @@ function createCrepe(container: HTMLElement, refs: CrepeRefs): Crepe {
   const crepe = new Crepe({
     root: container,
     defaultValue: refs.lastKnownRef.current,
+    features: {
+      // The left-gutter drag-handle/plus block tools read as alien on a Mac
+      // writing surface; markdown input rules + the selection toolbar cover
+      // everything they did. (This also removes the slash menu.)
+      [CrepeFeature.BlockEdit]: false,
+    },
     featureConfigs: {
+      [CrepeFeature.Placeholder]: {
+        text: "Start writing…",
+      },
       [CrepeFeature.ImageBlock]: {
         onUpload: widgetOnUpload(() => refs.onImageRef.current),
         // biome-ignore lint/style/useNamingConvention: Milkdown's own required config field name, not ours to choose.
@@ -274,7 +283,7 @@ export function CrepeEditor(props: CrepeEditorProps) {
 
   useImperativeHandle(props.ref, () => buildEditorHandle(crepeRef), []);
 
-  // This host is the Write-mode scroll container: Crepe/ProseMirror grows to
-  // its content height and does not scroll itself (unlike CodeMirror).
-  return <div ref={containerRef} style={{ height: "100%", width: "100%", overflowY: "auto" }} />;
+  // Natural height: the document column (ui/app's .editor-scroll) is the one
+  // scroll container, so title/meta/body scroll together like a real document.
+  return <div ref={containerRef} style={{ width: "100%" }} />;
 }

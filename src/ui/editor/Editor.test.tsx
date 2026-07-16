@@ -12,12 +12,6 @@ import "./jsdom-layout-shim";
 afterEach(cleanup);
 
 // Same debounce as CrepeEditor.test.tsx — see @milkdown/plugin-listener.
-const DEBOUNCE_MARGIN_MS = 300;
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function noopResolveImage(): Promise<string | null> {
   return Promise.resolve(null);
 }
@@ -130,9 +124,9 @@ describe("Editor: the Toolbar drives whichever mode is active", () => {
     expect(onChange).toHaveBeenCalledWith("## Title");
   });
 
-  it("in wysiwyg mode, the same button dispatches a Milkdown command instead", async () => {
+  it("in wysiwyg mode the static toolbar is absent — Crepe's selection toolbar owns formatting", async () => {
     const onChange = vi.fn();
-    const { container, getByTitle } = render(
+    const { container, queryByTitle } = render(
       <Editor
         value="Title"
         mode="wysiwyg"
@@ -142,11 +136,13 @@ describe("Editor: the Toolbar drives whichever mode is active", () => {
       />,
     );
     await waitFor(() => expect(queryProseMirror(container)).not.toBeNull());
-    act(() => {
-      fireEvent.click(getByTitle("Heading 2"));
-    });
-    await wait(DEBOUNCE_MARGIN_MS);
-    expect(onChange).toHaveBeenCalledWith("## Title\n");
+    // No static button row in Write mode (it lives in source mode only)...
+    expect(queryByTitle("Heading 2")).toBeNull();
+    expect(queryByTitle("Bold")).toBeNull();
+    // ...because Crepe mounts its own selection-triggered toolbar instead.
+    await waitFor(() => expect(document.querySelector(".milkdown-toolbar")).not.toBeNull());
+    // And the left-gutter block tools (drag handle / plus) are disabled.
+    expect(document.querySelector(".milkdown-block-handle")).toBeNull();
   });
 });
 

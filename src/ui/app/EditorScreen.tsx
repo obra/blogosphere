@@ -11,7 +11,7 @@ import {
   ModeToggle,
   TitleField,
 } from "./EditorFieldControls";
-import { formatDisplayDate, todayIso } from "./format";
+import { todayIso } from "./format";
 import { HtmlPreview } from "./HtmlPreview";
 import { PublishDialog } from "./PublishDialog";
 import { useAppStore, useAppStoreApi } from "./state";
@@ -92,9 +92,11 @@ function EditorToolbar(props: EditorToolbarProps) {
       ) : (
         <ModeToggle mode={props.mode} onChange={props.onModeChange} />
       )}
-      <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
-      <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
-      <DeleteButton path={props.record.path} />
+      <div className="editor-actions">
+        <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
+        <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
+        <DeleteButton path={props.record.path} />
+      </div>
     </div>
   );
 }
@@ -109,6 +111,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
     return <div className="editor-empty">Couldn't read this entry's front matter.</div>;
   }
 
+  const showHtmlPreview = s.isLegacyHtml && htmlView === "preview";
   return (
     <div className="editor-screen">
       <EditorToolbar
@@ -119,32 +122,35 @@ function EditorScreenBody(props: { record: EntryRecord }) {
         htmlView={htmlView}
         onHtmlViewChange={setHtmlView}
       />
-      <TitleField value={s.title} onChange={s.setTitle} />
-      <div className="editor-meta-row">
-        <DateField value={props.record.date} onChange={s.commitDate} />
-        <span className="entry-row-meta">{formatDisplayDate(props.record.date)}</span>
-      </div>
-      <TagChipsEditor tags={s.tags} onChange={s.setTags} />
-      {s.isConflicted ? (
-        <p className="entry-row-meta">
-          This entry has a conflicting change — resolve it to keep editing.
-        </p>
-      ) : null}
-      <div className="editor-body-wrap">
-        {s.isLegacyHtml && htmlView === "preview" ? (
+      {showHtmlPreview ? (
+        <div className="editor-fill">
           <HtmlPreview html={s.body} />
-        ) : (
-          <Editor
-            value={s.body}
-            onChange={s.setBody}
-            mode={s.editorMode}
-            sourceLanguage={s.sourceLanguage}
-            resolveImage={s.resolveImage}
-            onImage={s.onImage}
-            readOnly={s.isConflicted}
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="editor-scroll">
+          <div className="editor-doc">
+            <TitleField value={s.title} onChange={s.setTitle} />
+            <div className="editor-meta-row">
+              <DateField value={props.record.date} onChange={s.commitDate} />
+              <TagChipsEditor tags={s.tags} onChange={s.setTags} />
+            </div>
+            {s.isConflicted ? (
+              <p className="editor-conflict-note">
+                This entry has a conflicting change — resolve it to keep editing.
+              </p>
+            ) : null}
+            <Editor
+              value={s.body}
+              onChange={s.setBody}
+              mode={s.editorMode}
+              sourceLanguage={s.sourceLanguage}
+              resolveImage={s.resolveImage}
+              onImage={s.onImage}
+              readOnly={s.isConflicted}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
