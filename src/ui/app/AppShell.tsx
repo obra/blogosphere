@@ -3,7 +3,7 @@
 // ABOUTME: resync on window focus, and a flush-before-quit safety net.
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ConflictHost } from "./ConflictHost";
 import { ConnectScreen } from "./ConnectScreen";
 import { EditorScreen } from "./EditorScreen";
@@ -70,11 +70,13 @@ function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
   }
 }
 
-/** Browser/dev only: in the Tauri app the native menu (menu.ts) owns these
- *  accelerators — a DOM handler on top of it would double-fire every one. */
-function useKeyboardShortcuts(store: BoundAppStore): void {
+/** Once the native menu owns the accelerators, a DOM handler on top of it
+ *  would double-fire every one — but until it does (browser dev, or a failed
+ *  menu install in Tauri), the DOM handler is the only thing making the
+ *  shortcuts work at all, so it stays active as the fallback. */
+function useKeyboardShortcuts(store: BoundAppStore, menuInstalled: boolean): void {
   useEffect(() => {
-    if (isTauri()) {
+    if (menuInstalled) {
       return;
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -82,12 +84,14 @@ function useKeyboardShortcuts(store: BoundAppStore): void {
     }
     globalThis.window.addEventListener("keydown", onKeyDown);
     return () => globalThis.window.removeEventListener("keydown", onKeyDown);
-  }, [store]);
+  }, [store, menuInstalled]);
 }
 
 /** Installs the real macOS menu bar (File/Edit/View/Window with working
- *  commands) once the shell mounts. A no-op outside Tauri. */
-function useNativeMenu(store: BoundAppStore): void {
+ *  commands) once the shell mounts. A no-op outside Tauri. Returns whether
+ *  the menu is actually installed — the shortcut fallback keys off it. */
+function useNativeMenu(store: BoundAppStore): boolean {
+  const [installed, setInstalled] = useState(false);
   useEffect(() => {
     if (!isTauri()) {
       return;
@@ -101,13 +105,16 @@ function useNativeMenu(store: BoundAppStore): void {
           return;
         }
         dispose = fn;
+        setInstalled(true);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
+      setInstalled(false);
       dispose?.();
     };
   }, [store]);
+  return installed;
 }
 
 /** Refresh from remote on window focus (e.g. switching back from editing the
@@ -179,8 +186,8 @@ function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
 
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
-  useKeyboardShortcuts(store);
-  useNativeMenu(store);
+  const menuInstalled = useNativeMenu(store);
+  useKeyboardShortcuts(store, menuInstalled);
   useSyncOnFocus(store);
   useFlushBeforeQuit(store);
 
