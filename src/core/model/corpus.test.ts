@@ -24,14 +24,50 @@ const CONTENT_SUBDIRS = ["blog", "drafts", "_linkblog", "releases"];
 const KNOWN_PARSE_EXCEPTIONS = new Set([
   "content/blog/2025/using-graphviz-for-claudemd/CLAUDE.md",
   "content/blog/2025/using-graphviz-for-claudemd/PROCESS-DSL-STYLE.md",
+  // Same co-located-debris category as the two above (nested two levels
+  // below content/blog/, so kindForPath already excludes it structurally) —
+  // a 71-byte leftover from a failed local "python3 -m markdown" render
+  // ("No module named markdown"), not a real post. Only surfaced once this
+  // module started walking .html files too (see the ~440 legacy imports).
+  "content/blog/2025/using-graphviz-for-claudemd/process-dsl-experiment.html",
 ]);
+
+/**
+ * Real legacy .html imports whose front-matter `title` is YAML-folded
+ * across two physical lines — either plain-scalar line folding
+ * ("title: Foo Bar\n  Baz") or a double-quoted scalar that wraps before its
+ * closing quote ("title: \"Foo\n  bar\""). scanValueShape.ts's
+ * boundPlainScalar/boundQuoted deliberately decline to bound either shape
+ * (see their doc comments) rather than guess at YAML line-folding rules —
+ * matching the front-matter editor's documented policy of refusing a
+ * surgical edit it can't apply with full confidence, rather than risking
+ * corruption.
+ *
+ * These 3 files (out of all 440) are NOT parse failures: parseEntry reads
+ * every field correctly (js-yaml folds the title exactly per spec), and
+ * both byte-stability identities (applyEdits(raw, []) === raw,
+ * replaceBody(raw, parsedBody) === raw) hold exactly as for every other
+ * file. Only the *surgical title-edit probe* below is expected to refuse —
+ * confirmed explicitly, not just skipped, so this document is proof the
+ * refusal is real and intentional, not an accidental gap.
+ */
+const KNOWN_UNSCANNABLE_TITLE_EXCEPTIONS = new Set([
+  "content/blog/2005/2005-02-10-party-the-software-isnt-old-enough-to-drink-but-that-doesnt-mean-you-cant.html",
+  "content/blog/2006/2006-06-05-best-practical-solutions-announces-svk-acquisition-total-world-domination-plan-proceeding-apace.html",
+  "content/blog/2007/2007-08-03-hey-were-having-a-party-cuz-we-got-married-on-august-11-in-somerville-ma.html",
+]);
+
+const MANAGED_CORPUS_EXTENSIONS = [".md", ".html"];
 
 function walk(dir: string, acc: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(full, acc);
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+    } else if (
+      entry.isFile() &&
+      MANAGED_CORPUS_EXTENSIONS.some((ext) => entry.name.endsWith(ext))
+    ) {
       acc.push(full);
     }
   }
@@ -162,10 +198,21 @@ describe.skipIf(!realCorpusDir)("corpus round-trip — real blog checkout (BLOG_
         expect(parsed.ok).toBe(false);
         return;
       }
+
+      // The byte-stability guarantee (applyEdits(raw, []) === raw and
+      // replaceBody(raw, parsedBody) === raw) is unconditional on every file
+      // that parses — required for every real file, no exceptions.
       const check = computeRoundTripCheck(logicalPath, raw);
       expect(check.parseOk).toBe(true);
       expect(check.noEditIdentical).toBe(true);
       expect(check.bodyReplaceIdentical).toBe(true);
+
+      if (KNOWN_UNSCANNABLE_TITLE_EXCEPTIONS.has(logicalPath)) {
+        // See the set's doc comment: confirmed, intentional refusal — not a
+        // byte-stability gap.
+        expect(check.editOk).toBe(false);
+        return;
+      }
       expect(check.editOk).toBe(true);
       expect(check.localityPreserved).toBe(true);
     });

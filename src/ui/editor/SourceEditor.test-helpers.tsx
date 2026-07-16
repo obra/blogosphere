@@ -2,7 +2,7 @@
 // ABOUTME: the .test.tsx file itself since test files may not export (Controlled is a component).
 import type { RefObject } from "react";
 import { useCallback, useState } from "react";
-import type { EditorHandle } from "./markdown-utils";
+import type { EditorHandle, SourceLanguage } from "./markdown-utils";
 import { SourceEditor } from "./SourceEditor";
 
 function noopOnImage(): Promise<string | null> {
@@ -14,6 +14,7 @@ export interface ControlledProps {
   onEmit: (value: string) => void;
   initial?: string;
   readOnly?: boolean;
+  sourceLanguage?: SourceLanguage;
 }
 
 /** A minimal stand-in for a real controlled parent: feeds onChange's value
@@ -35,6 +36,7 @@ export function Controlled(props: ControlledProps) {
       onChange={handleChange}
       onImage={noopOnImage}
       readOnly={props.readOnly ?? false}
+      sourceLanguage={props.sourceLanguage ?? "markdown"}
     />
   );
 }

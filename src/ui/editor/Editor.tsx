@@ -51,29 +51,41 @@ const ROOT_STYLE = { display: "flex", flexDirection: "column", height: "100%" } 
  * characters, and certain letter-then-period sequences, inside a
  * shortcode's own argument text — this project's own asset-naming
  * convention doesn't hit either one).
+ *
+ * `sourceLanguage: "html"` (legacy .html entries — body editing is source-
+ * mode only, see ui/app/EditorScreen's isLegacyHtml) forces source mode
+ * regardless of `mode` — defense in depth on top of EditorScreen already
+ * never producing a "wysiwyg" mode for one — since Milkdown/Crepe is
+ * markdown-only and must stay unreachable for these entries. The formatting
+ * Toolbar (bold/italic/link/H2/image — all markdown syntax) is hidden
+ * entirely rather than left inert, since none of its buttons produce
+ * meaningful HTML.
  */
 export function Editor(props: EditorProps) {
   const handleRef = useRef<EditorHandle | null>(null);
   const isReadOnly = props.readOnly ?? false;
+  const isHtml = props.sourceLanguage === "html";
+  const useSourceEditor = isHtml || props.mode === "source";
 
   return (
     <div style={ROOT_STYLE}>
-      <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />
+      {isHtml ? null : <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />}
       <div style={EDITOR_PANE_STYLE}>
-        {props.mode === "wysiwyg" ? (
+        {useSourceEditor ? (
+          <SourceEditor
+            ref={handleRef}
+            value={props.value}
+            onChange={props.onChange}
+            onImage={props.onImage}
+            readOnly={isReadOnly}
+            sourceLanguage={props.sourceLanguage ?? "markdown"}
+          />
+        ) : (
           <CrepeEditor
             ref={handleRef}
             value={props.value}
             onChange={props.onChange}
             resolveImage={props.resolveImage}
-            onImage={props.onImage}
-            readOnly={isReadOnly}
-          />
-        ) : (
-          <SourceEditor
-            ref={handleRef}
-            value={props.value}
-            onChange={props.onChange}
             onImage={props.onImage}
             readOnly={isReadOnly}
           />

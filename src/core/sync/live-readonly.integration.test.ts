@@ -12,10 +12,15 @@ import { createSync } from "./engine";
 
 const token = process.env.LIVE_GITHUB_TOKEN;
 const BOOTSTRAP_TIMEOUT_MS = 300_000;
-// The real repo holds ~133 managed .md entries; the ~440 legacy 1996-2014 posts
-// are .html (LiveJournal imports) and are deliberately outside the client's scope.
-const MIN_EXPECTED_ENTRIES = 125;
+// The real repo holds 131 md + ~440 legacy html: 131 managed .md entries,
+// plus the ~440 legacy 1996-2014 LiveJournal-import .html posts under
+// content/blog/, which are now first-class (browse/read/edit/sync; body
+// editing is source-mode only — see ui/editor). 500 leaves headroom below
+// the real ~570 total without being so loose it'd miss a regression that
+// dropped .html bootstrapping back out.
+const MIN_EXPECTED_ENTRIES = 500;
 const KNOWN_POST = "content/blog/2025/2025-04-06-posting-through-it.md";
+const KNOWN_LEGACY_HTML_POST = "content/blog/2004/2004-01-24-orkut.html";
 
 describe.skipIf(!token)("live read-only bootstrap against obra/blog", () => {
   it(
@@ -66,6 +71,12 @@ describe.skipIf(!token)("live read-only bootstrap against obra/blog", () => {
       expect(known).not.toBeNull();
       expect(known?.title).toBe("Posting through it");
       expect(known?.dirty).toBe(false);
+
+      const knownLegacyHtml = await store.getEntry(KNOWN_LEGACY_HTML_POST);
+      expect(knownLegacyHtml).not.toBeNull();
+      expect(knownLegacyHtml?.title).not.toBeNull();
+      expect(knownLegacyHtml?.dirty).toBe(false);
+
       expect(await store.getMeta("lastRootTreeSha")).not.toBeNull();
     },
     BOOTSTRAP_TIMEOUT_MS,

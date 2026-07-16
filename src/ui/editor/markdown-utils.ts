@@ -140,8 +140,13 @@ export function dispatchSpec(
 }
 
 // ---------------------------------------------------------------------------
-// Markdown templates
+// Markdown/HTML image templates
 // ---------------------------------------------------------------------------
+
+/** Source-editing language a template/insertion helper should target. Legacy
+ *  .html entries (body editing is source-mode only — see ui/app/EditorScreen)
+ *  use "html"; everything else uses the default, "markdown". */
+export type SourceLanguage = "markdown" | "html";
 
 /**
  * Build a markdown image reference. `ref` is trusted (it's whatever
@@ -151,6 +156,17 @@ export function dispatchSpec(
  */
 export function buildImageMarkdown(ref: string, alt = ""): string {
   return `![${alt}](${ref})`;
+}
+
+/** Build an `<img>` tag for legacy .html source editing — same trust model
+ *  and default-empty `alt` as buildImageMarkdown above. */
+export function buildImageHtml(ref: string, alt = ""): string {
+  return `<img src="${ref}" alt="${alt}">`;
+}
+
+/** Pick the right image-insertion template for a source language. */
+export function buildImageRef(sourceLanguage: SourceLanguage, ref: string, alt = ""): string {
+  return sourceLanguage === "html" ? buildImageHtml(ref, alt) : buildImageMarkdown(ref, alt);
 }
 
 /** A markdown link template, plus the offsets (within `markdown`) of the
@@ -212,11 +228,21 @@ export async function bytesFromFile(file: Blob): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer());
 }
 
+export interface InsertImagesAtOptions {
+  /** Document position to start inserting at. */
+  pos: number;
+  onImage: (bytes: Uint8Array, suggestedExt: string) => Promise<string | null>;
+  /** Default "markdown". Picks the insertion template: a legacy .html entry
+   *  in source mode gets `<img src="..." alt="">` instead of markdown's
+   *  `![]()`, via buildImageRef. */
+  sourceLanguage?: SourceLanguage;
+}
+
 /**
  * Read each file's bytes, hand them to `onImage`, and insert the returned
- * markdown ref starting at `pos` in a CodeMirror doc — advancing past each
- * insertion so multiple pasted/dropped images land in order rather than
- * overlapping. Files whose `onImage` call returns `null` are skipped
+ * image ref starting at `options.pos` in a CodeMirror doc — advancing past
+ * each insertion so multiple pasted/dropped images land in order rather
+ * than overlapping. Files whose `onImage` call returns `null` are skipped
  * (cancelled); the rest still insert. `onImage` calls run concurrently
  * (their order doesn't matter); the resulting inserts are applied in the
  * original file order, sequentially.
@@ -230,16 +256,16 @@ export async function bytesFromFile(file: Blob): Promise<Uint8Array> {
 export async function insertImagesAt(
   view: DispatchableView,
   files: readonly File[],
-  pos: number,
-  onImage: (bytes: Uint8Array, suggestedExt: string) => Promise<string | null>,
+  options: InsertImagesAtOptions,
 ): Promise<void> {
+  const { pos, onImage, sourceLanguage = "markdown" } = options;
   const refs = await Promise.all(
     files.map(async (file) => onImage(await bytesFromFile(file), extensionForImageFile(file))),
   );
   let at = pos;
   for (const ref of refs) {
     if (ref !== null) {
-      const text = buildImageMarkdown(ref);
+      const text = buildImageRef(sourceLanguage, ref);
       dispatchSpec(view, (state) => insertTextAt(state, at, text));
       at += text.length;
     }

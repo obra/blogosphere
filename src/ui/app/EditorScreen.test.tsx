@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // ABOUTME: Tests for EditorScreen, focused on the publish dialog flow: open,
-// ABOUTME: date default, keepOpaqueId visibility, submit, and cancel.
+// ABOUTME: date default, keepOpaqueId visibility, submit, and cancel; and legacy-.html behavior.
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
+import "../editor/jsdom-layout-shim";
 import { EditorScreen } from "./EditorScreen";
 import { ServicesProvider } from "./ServicesContext";
 import { AppStoreProvider, createAppStore } from "./state";
@@ -241,4 +242,70 @@ it("renders without an infinite-render loop when no sync is configured yet (no t
   await renderEditorFor(draft, false);
 
   expect(screen.getByLabelText("Title")).not.toBeNull();
+});
+
+function queryCmContent(container: HTMLElement): HTMLElement | null {
+  return container.querySelector(".cm-content");
+}
+
+function queryProseMirror(container: HTMLElement): HTMLElement | null {
+  return container.querySelector(".milkdown .ProseMirror");
+}
+
+it("a legacy .html entry shows an HTML chip instead of the Write/Markdown toggle", async () => {
+  const post = makeEntry({
+    path: "content/blog/2004/2004-01-24-orkut.html",
+    kind: "post",
+    title: "Orkut",
+  });
+  await renderEditorFor(post);
+
+  expect(screen.getByTitle("Legacy HTML post — source editing only")).toHaveProperty(
+    "textContent",
+    "HTML",
+  );
+  expect(screen.queryByText("Write")).toBeNull();
+  expect(screen.queryByText("Markdown")).toBeNull();
+});
+
+it("an ordinary .md entry shows the Write/Markdown toggle, not an HTML chip", async () => {
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft", draft: true });
+  await renderEditorFor(draft);
+
+  expect(screen.getByText("Write")).not.toBeNull();
+  expect(screen.getByText("Markdown")).not.toBeNull();
+  expect(screen.queryByTitle("Legacy HTML post — source editing only")).toBeNull();
+});
+
+it("a legacy .html entry renders the body in source mode (CodeMirror), never WYSIWYG", async () => {
+  const post = makeEntry({
+    path: "content/blog/2004/2004-01-24-orkut.html",
+    kind: "post",
+    title: "Orkut",
+  });
+  const { store } = await renderEditorFor(post);
+
+  expect(queryCmContent(document.body)).not.toBeNull();
+  expect(queryProseMirror(document.body)).toBeNull();
+
+  // Force source mode ignores any per-entry persisted mode — even if
+  // "wysiwyg" was saved before this file existed (or never cleared), a
+  // legacy .html entry must still never reach Milkdown.
+  await act(async () => {
+    await store.getState().setEditorMode(post.path, "wysiwyg");
+  });
+  expect(queryCmContent(document.body)).not.toBeNull();
+  expect(queryProseMirror(document.body)).toBeNull();
+});
+
+it("the formatting Toolbar is hidden for a legacy .html entry's body editor", async () => {
+  const post = makeEntry({
+    path: "content/blog/2004/2004-01-24-orkut.html",
+    kind: "post",
+    title: "Orkut",
+  });
+  await renderEditorFor(post);
+
+  expect(screen.queryByTitle("Bold")).toBeNull();
+  expect(screen.queryByTitle("Insert image")).toBeNull();
 });

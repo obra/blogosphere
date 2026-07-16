@@ -100,6 +100,15 @@ Four entry kinds; each is a markdown file with YAML front matter at a convention
 Permalinks derive from date + slug: `/YYYY/MM/DD/slug/`. Filename and front-matter date
 must agree; the client keeps them in lockstep.
 
+**Legacy HTML entries** (added 2026-07-15): the ~439 LiveJournal-era posts
+(2002–2014) are `.html` files with the same YAML front matter. They are first-class
+for browse/read/edit/sync — front-matter surgical edits work identically, and the
+byte-stability guarantee covers them — but body editing is source mode only with HTML
+highlighting (WYSIWYG is markdown-only and unreachable for them). New entries are
+always markdown. Their front-matter `date:` is a full LJ-export timestamp; the client
+tolerates that everywhere it reads dates. Renames/publishes preserve the `.html`
+extension.
+
 ### Front matter handling: surgical edits only
 
 The raw front-matter text is the document of record. The client parses YAML (js-yaml) to

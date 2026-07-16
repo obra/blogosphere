@@ -6,11 +6,27 @@ import { replaceBodyImpl } from "./frontMatter";
 import { kindForPath, pathParts } from "./paths";
 import type { ValidationIssue } from "./types";
 
-const DATED_FILENAME_RE = /^\d{4}-\d{2}-\d{2}-.+\.md$/;
+const DATED_FILENAME_RE = /^\d{4}-\d{2}-\d{2}-.+\.(?:md|html)$/;
+
+// The real ~440 legacy .html imports carry a full LiveJournal export
+// timestamp in their `date:` field (e.g. "2004-01-24 00:04:00.000000000
+// -08:00"), not the bare YYYY-MM-DD every .md file uses — but the filename
+// still only ever encodes the bare date. Comparing full strings would flag
+// literally every one of those files as a date/filename mismatch the
+// instant a legacy post is edited and re-validated for push. Extracting the
+// leading YYYY-MM-DD (requiring it end at a space/T separator or the string
+// end, so a plain bare date matches exactly as before) fixes that without
+// loosening the check for anything else: a genuine mismatch still trips it.
+const LEADING_ISO_DATE_RE = /^(\d{4}-\d{2}-\d{2})(?:[ T]|$)/;
 
 function basenameOf(path: string): string {
   const segments = path.split("/");
   return segments.at(-1) ?? path;
+}
+
+function leadingIsoDate(value: string): string {
+  const match = LEADING_ISO_DATE_RE.exec(value);
+  return match?.[1] ?? value;
 }
 
 export function validateForCommit(path: string, raw: string): ValidationIssue[] {
@@ -20,7 +36,7 @@ export function validateForCommit(path: string, raw: string): ValidationIssue[] 
   if (!DATED_FILENAME_RE.test(filename)) {
     issues.push({
       severity: "error",
-      message: `filename "${filename}" does not match the required YYYY-MM-DD-slug.md pattern`,
+      message: `filename "${filename}" does not match the required YYYY-MM-DD-slug.(md|html) pattern`,
     });
   }
 
@@ -43,7 +59,7 @@ export function validateForCommit(path: string, raw: string): ValidationIssue[] 
   const { entry } = parsed;
 
   const parts = pathParts(path);
-  if (entry.date !== null && parts?.date && entry.date !== parts.date) {
+  if (entry.date !== null && parts?.date && leadingIsoDate(entry.date) !== parts.date) {
     issues.push({
       severity: "error",
       message: `front matter date "${entry.date}" does not match filename date "${parts.date}"`,

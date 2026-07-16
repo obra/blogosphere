@@ -120,6 +120,31 @@ describe("groupByYearMonth", () => {
     expect(groups.map((g) => g.key)).toEqual(["2026", "Undated"]);
   });
 
+  it("groups a legacy .html entry by its real year/month, not Undated (full-timestamp date field)", () => {
+    // The real ~440 legacy imports' front-matter `date:` carries a full
+    // LiveJournal export timestamp, e.g. "2004-01-24 00:04:00.000000000
+    // -08:00" — not the bare YYYY-MM-DD every .md file uses. Regression
+    // test for the bug where all 440 of those landed in "Undated" because
+    // splitIsoDate required an *exact* YYYY-MM-DD match.
+    const entries = [
+      makeEntry({
+        path: "content/blog/2004/2004-01-24-orkut.html",
+        kind: "post",
+        date: "2004-01-24 00:04:00.000000000 -08:00",
+        title: "Orkut",
+      }),
+    ];
+
+    const groups = groupByYearMonth(entries);
+
+    expect(groups.map((g) => g.key)).toEqual(["2004"]);
+    const [onlyYear] = groups;
+    if (!onlyYear) {
+      throw new Error("expected exactly one year group");
+    }
+    expect(onlyYear.months.map((m) => m.key)).toEqual(["01"]);
+  });
+
   it("property: every input entry appears in exactly one group, none are dropped or duplicated", () => {
     fc.assert(
       fc.property(fc.array(arbitraryEntry(), { maxLength: 40 }), (entries) => {

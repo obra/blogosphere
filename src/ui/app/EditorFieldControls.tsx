@@ -78,4 +78,15 @@ function ModeToggle(props: ModeToggleProps) {
   );
 }
 
-export { DateField, DraftStateChip, ModeToggle, TitleField };
+/** Shown instead of ModeToggle for a legacy .html entry — there's no
+ *  Write/Markdown choice to make (source editing only), so a static chip
+ *  replaces the toggle rather than disabling it in place. */
+function HtmlModeChip() {
+  return (
+    <span className="state-chip" data-kind="html" title="Legacy HTML post — source editing only">
+      HTML
+    </span>
+  );
+}
+
+export { DateField, DraftStateChip, HtmlModeChip, ModeToggle, TitleField };

@@ -85,6 +85,38 @@ describe("planPublish — non-draft kinds keep their structural kind", () => {
   });
 });
 
+describe("planPublish — preserves a legacy .html entry's extension", () => {
+  it("keeps .html when a draft:true .html post already under content/blog/ gets its date fixed up", () => {
+    // No real .html file is ever a draft in practice (the corpus's ~440
+    // legacy imports are all long-published), but planPublish's "draft:true
+    // post outside content/drafts" path is generic over kind/extension —
+    // and pathFor (which this ultimately calls) only ever returns .md, so
+    // this is exactly the case that needs the extension swapped back.
+    const entry = makeEntry({
+      path: "content/blog/2004/2004-01-24-orkut.html",
+      kind: "post",
+      draft: true,
+    });
+    const plan = planPublishImpl(entry, { date: "2026-07-15" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-orkut.html");
+  });
+
+  it("keeps .html for a draft in content/drafts/ that happens to be .html", () => {
+    const entry = makeEntry({
+      path: "content/drafts/2026-02-01-a-draft.html",
+      kind: "draft",
+    });
+    const plan = planPublishImpl(entry, { date: "2026-07-15" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-a-draft.html");
+  });
+
+  it("does not append .html onto an ordinary .md entry", () => {
+    const entry = makeEntry({});
+    const plan = planPublishImpl(entry, { date: "2026-07-15" });
+    expect(plan.newPath.endsWith(".md")).toBe(true);
+  });
+});
+
 describe("planPublish — always removes the draft flag", () => {
   it("includes the draft removal edit even when draft is already false", () => {
     const entry = makeEntry({

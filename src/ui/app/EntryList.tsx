@@ -1,5 +1,5 @@
-// ABOUTME: Entry list — grouped by year/month (newest first), or search
-// ABOUTME: results; dirty/draft/conflict badges. Search input debounces via state.ts.
+// ABOUTME: Entry list — grouped by year/month (newest first), or search results;
+// ABOUTME: dirty/draft/conflict/html badges. Search input debounces via state.ts.
 import type { EntryRecord } from "../../core/store/types";
 import { formatDisplayDate } from "./format";
 import { filterBySection, groupByYearMonth, monthGroupLabel } from "./grouping";
@@ -30,6 +30,11 @@ function EntryRow(props: EntryRowProps) {
         <span className="entry-row-title">{props.entry.title ?? "Untitled"}</span>
         <span className="entry-row-meta">
           {formatDisplayDate(props.entry.date)}
+          {props.entry.path.endsWith(".html") ? (
+            <span className="pill-badge" data-kind="html" title="Legacy HTML post">
+              HTML
+            </span>
+          ) : null}
           {props.entry.draft ? (
             <span className="pill-badge" data-kind="draft">
               Draft

@@ -1,139 +1,19 @@
-// ABOUTME: Raw-markdown editing mode: CodeMirror 6 with markdown language support,
-// ABOUTME: line wrapping, a minimal theme, and the same paste/drop image behavior as Crepe.
-import { defaultKeymap, historyKeymap } from "@codemirror/commands";
-import { markdown as markdownLang } from "@codemirror/lang-markdown";
-import type { Extension } from "@codemirror/state";
+// ABOUTME: Raw-source editing mode: the React wrapper around CodeMirror 6 (see
+// ABOUTME: sourceEditorSetup.ts) — value/readOnly sync, and the EditorHandle imperative API.
 import { Compartment, EditorState } from "@codemirror/state";
-import type { KeyBinding } from "@codemirror/view";
-import { EditorView, keymap } from "@codemirror/view";
-import { minimalSetup } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import type { Ref, RefObject } from "react";
 import { useEffect, useImperativeHandle, useRef } from "react";
-import type { EditorHandle } from "./markdown-utils";
+import type { EditorHandle, SourceLanguage } from "./markdown-utils";
 import {
-  buildImageMarkdown,
+  buildImageRef,
   buildLinkMarkdown,
   dispatchSpec,
-  filterImageFiles,
   insertAtCursor,
-  insertImagesAt,
   setLinePrefix,
   wrapSelection,
 } from "./markdown-utils";
-
-type OnImage = (bytes: Uint8Array, suggestedExt: string) => Promise<string | null>;
-
-function boldCommand(view: EditorView): boolean {
-  dispatchSpec(view, (state) => wrapSelection(state, "**"));
-  return true;
-}
-
-function italicCommand(view: EditorView): boolean {
-  dispatchSpec(view, (state) => wrapSelection(state, "_"));
-  return true;
-}
-
-function inlineCodeCommand(view: EditorView): boolean {
-  dispatchSpec(view, (state) => wrapSelection(state, "`"));
-  return true;
-}
-
-// Mirrors Milkdown/Crepe's own shortcuts for the same marks (Mod-b/Mod-i/Mod-e).
-const EDITING_KEYMAP: readonly KeyBinding[] = [
-  { key: "Mod-b", run: boldCommand },
-  { key: "Mod-i", run: italicCommand },
-  { key: "Mod-e", run: inlineCodeCommand },
-];
-
-const EDITOR_THEME = EditorView.theme({
-  "&": { height: "100%", fontSize: "14px", color: "inherit", backgroundColor: "transparent" },
-  ".cm-content": {
-    fontFamily:
-      "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
-    padding: "8px 0",
-  },
-  ".cm-scroller": { overflow: "auto" },
-  "&.cm-focused": { outline: "none" },
-});
-
-function handlePaste(event: ClipboardEvent, view: EditorView, onImage: OnImage): boolean {
-  const files = filterImageFiles(event.clipboardData?.files);
-  if (files.length === 0) {
-    return false;
-  }
-  event.preventDefault();
-  const pos = view.state.selection.main.from;
-  insertImagesAt(view, files, pos, onImage).catch(() => undefined);
-  return true;
-}
-
-function handleDrop(event: DragEvent, view: EditorView, onImage: OnImage): boolean {
-  const files = filterImageFiles(event.dataTransfer?.files);
-  if (files.length === 0) {
-    return false;
-  }
-  event.preventDefault();
-  const coords = view.posAtCoords({ x: event.clientX, y: event.clientY });
-  const pos = coords ?? view.state.selection.main.from;
-  insertImagesAt(view, files, pos, onImage).catch(() => undefined);
-  return true;
-}
-
-interface BuildExtensionsConfig {
-  initialReadOnly: boolean;
-  readOnlyCompartment: Compartment;
-  onDocChanged: (next: string) => void;
-  getOnImage: () => OnImage;
-}
-
-function buildExtensions(config: BuildExtensionsConfig): Extension[] {
-  return [
-    minimalSetup,
-    markdownLang(),
-    EditorView.lineWrapping,
-    EDITOR_THEME,
-    keymap.of([...defaultKeymap, ...historyKeymap, ...EDITING_KEYMAP]),
-    config.readOnlyCompartment.of([
-      EditorState.readOnly.of(config.initialReadOnly),
-      EditorView.editable.of(!config.initialReadOnly),
-    ]),
-    EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        config.onDocChanged(update.state.doc.toString());
-      }
-    }),
-    EditorView.domEventHandlers({
-      paste: (event, view) => handlePaste(event, view, config.getOnImage()),
-      drop: (event, view) => handleDrop(event, view, config.getOnImage()),
-    }),
-  ];
-}
-
-interface ViewRefs {
-  lastKnownRef: RefObject<string>;
-  onChangeRef: RefObject<(markdown: string) => void>;
-  onImageRef: RefObject<OnImage>;
-  readOnlyRef: RefObject<boolean>;
-  readOnlyCompartment: Compartment;
-}
-
-function createView(container: HTMLElement, refs: ViewRefs): EditorView {
-  return new EditorView({
-    doc: refs.lastKnownRef.current,
-    parent: container,
-    extensions: buildExtensions({
-      initialReadOnly: refs.readOnlyRef.current,
-      readOnlyCompartment: refs.readOnlyCompartment,
-      getOnImage: () => refs.onImageRef.current,
-      onDocChanged: (next) => {
-        if (next !== refs.lastKnownRef.current) {
-          refs.lastKnownRef.current = next;
-          refs.onChangeRef.current(next);
-        }
-      },
-    }),
-  });
-}
+import { createView, type OnImage } from "./sourceEditorSetup";
 
 /** Push external `value` changes into the view — guarded so an echo of our
  * own just-emitted onChange (parent re-renders with the same string back as
@@ -177,7 +57,10 @@ function insertLinkAtSelection(view: EditorView): void {
   dispatchSpec(view, (s) => insertAtCursor(s, markdown, { from: urlFrom, to: urlTo }));
 }
 
-function buildEditorHandle(viewRef: RefObject<EditorView | null>): EditorHandle {
+function buildEditorHandle(
+  viewRef: RefObject<EditorView | null>,
+  sourceLanguage: SourceLanguage,
+): EditorHandle {
   return {
     toggleBold: () => {
       const view = viewRef.current;
@@ -212,7 +95,7 @@ function buildEditorHandle(viewRef: RefObject<EditorView | null>): EditorHandle 
     insertImage: (imageRef, alt) => {
       const view = viewRef.current;
       if (view) {
-        dispatchSpec(view, (s) => insertAtCursor(s, buildImageMarkdown(imageRef, alt)));
+        dispatchSpec(view, (s) => insertAtCursor(s, buildImageRef(sourceLanguage, imageRef, alt)));
       }
     },
   };
@@ -223,17 +106,32 @@ export interface SourceEditorProps {
   onChange(markdown: string): void;
   onImage: OnImage;
   readOnly: boolean;
+  /** Default "markdown". Legacy .html entries pass "html" — see EditorProps
+   *  in ui/types.ts — which switches CodeMirror's language mode and the
+   *  paste/drop/insertImage image template. */
+  sourceLanguage?: SourceLanguage;
   ref?: Ref<EditorHandle>;
 }
 
-export function SourceEditor({ value, onChange, onImage, readOnly, ref }: SourceEditorProps) {
+export function SourceEditor({
+  value,
+  onChange,
+  onImage,
+  readOnly,
+  sourceLanguage = "markdown",
+  ref,
+}: SourceEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const readOnlyCompartmentRef = useRef(new Compartment());
 
   // "Latest" refs: the mount effect below runs exactly once (empty deps) and
   // must never see a stale onChange/onImage/readOnly from the render that
-  // happened to be current when the view was constructed.
+  // happened to be current when the view was constructed. sourceLanguage
+  // isn't captured this way — it's derived from the entry's path (see
+  // EditorScreen's isLegacyHtml), which can't change without the entry
+  // itself changing, and EditorScreenBody remounts (key={record.path}) on
+  // every entry switch, so a fresh mount always sees the current value.
   const lastKnownRef = useRef(value);
   const onChangeRef = useRef(onChange);
   const onImageRef = useRef(onImage);
@@ -256,6 +154,7 @@ export function SourceEditor({ value, onChange, onImage, readOnly, ref }: Source
       onImageRef,
       readOnlyRef,
       readOnlyCompartment: readOnlyCompartmentRef.current,
+      sourceLanguage,
     });
     viewRef.current = view;
     return () => {
@@ -267,7 +166,7 @@ export function SourceEditor({ value, onChange, onImage, readOnly, ref }: Source
   useSyncValue(viewRef, lastKnownRef, value);
   useSyncReadOnly(viewRef, readOnlyCompartmentRef, readOnly);
 
-  useImperativeHandle(ref, () => buildEditorHandle(viewRef), []);
+  useImperativeHandle(ref, () => buildEditorHandle(viewRef, sourceLanguage), [sourceLanguage]);
 
   return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
 }

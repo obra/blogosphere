@@ -44,12 +44,30 @@ describe("kindForPath", () => {
   it("rejects a directory-data file sitting at the root", () => {
     expect(kindForPath("content/blog/blog.11tydata.js")).toBeNull();
   });
+
+  it("recognizes a legacy .html post (the ~440 real LiveJournal imports)", () => {
+    expect(kindForPath("content/blog/2004/2004-01-24-orkut.html")).toBe("post");
+  });
+
+  it("accepts .html uniformly under every managed root, not just content/blog", () => {
+    expect(kindForPath("content/drafts/2026-07-15-a-draft.html")).toBe("draft");
+    expect(kindForPath("content/_linkblog/2026-07-15-a-link.html")).toBe("link");
+    expect(kindForPath("content/releases/2026/2026-07-15-a-release.html")).toBe("release");
+  });
+
+  it("rejects a bare '.html' filename (mirrors the '.md' guard)", () => {
+    expect(kindForPath("content/blog/2026/.html")).toBeNull();
+  });
 });
 
 describe("isManagedPath", () => {
   it("mirrors kindForPath", () => {
     expect(isManagedPath("content/blog/2026/2026-07-15-a-post.md")).toBe(true);
     expect(isManagedPath("content/about/index.md")).toBe(false);
+  });
+
+  it("recognizes a legacy .html post", () => {
+    expect(isManagedPath("content/blog/2004/2004-01-24-orkut.html")).toBe(true);
   });
 });
 
@@ -92,6 +110,30 @@ describe("pathParts", () => {
   it("returns null for a non-.md path", () => {
     expect(pathParts("content/blog/2026/image.png")).toBeNull();
   });
+
+  it("parses a legacy .html filename, stripping the .html extension into the slug", () => {
+    expect(pathParts("content/blog/2004/2004-01-24-orkut.html")).toEqual({
+      year: "2004",
+      date: "2004-01-24",
+      slug: "orkut",
+    });
+  });
+
+  it("parses a numeric-only legacy slug (real corpus shape, e.g. 2002-08-02-4.html)", () => {
+    expect(pathParts("content/blog/2002/2002-08-02-4.html")).toEqual({
+      year: "2002",
+      date: "2002-08-02",
+      slug: "4",
+    });
+  });
+
+  it("falls back to a YYYY parent directory for a dateless .html filename", () => {
+    expect(pathParts("content/blog/2025/some-slug.html")).toEqual({
+      year: "2025",
+      date: null,
+      slug: "some-slug",
+    });
+  });
 });
 
 describe("pathFor", () => {
@@ -111,6 +153,14 @@ describe("pathFor", () => {
 
   it("builds a flat path for link", () => {
     expect(pathFor("link", "2026-07-15", "a-link")).toBe("content/_linkblog/2026-07-15-a-link.md");
+  });
+
+  it("always builds a .md path, even when standing in for a legacy .html entry's slug", () => {
+    // pathFor is the canonical *markdown* path builder — it has no concept of
+    // "preserve the source extension" (that's planPublishImpl's job; see
+    // publish.test.ts). Callers that need to keep a legacy entry's .html
+    // extension across a rename/publish must post-process this result.
+    expect(pathFor("post", "2026-07-15", "orkut")).toBe("content/blog/2026/2026-07-15-orkut.md");
   });
 });
 
@@ -182,5 +232,20 @@ describe("permalinkFor", () => {
       kind: "draft",
     });
     expect(permalinkFor(entry)).toBeNull();
+  });
+
+  it("strips the .html extension from a legacy entry's path when building the slug", () => {
+    // Front matter date deliberately omitted (null) here so the permalink is
+    // built from the filename-encoded date + slug alone — isolating exactly
+    // the extension-stripping behavior this test targets. (The real corpus's
+    // .html front matter carries a full timestamp rather than a bare
+    // YYYY-MM-DD in its `date:` field, which is a separate, orthogonal
+    // concern from extension-stripping — see validate.ts's leadingIsoDate.)
+    const entry = makeEntry({
+      path: "content/blog/2004/2004-01-24-orkut.html",
+      date: null,
+      kind: "post",
+    });
+    expect(permalinkFor(entry)).toBe("/2004/01/24/orkut/");
   });
 });

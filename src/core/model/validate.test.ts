@@ -17,6 +17,23 @@ describe("validateForCommit — filename pattern", () => {
     const issues = validateForCommit("content/blog/2026/hello.md", raw);
     expect(issues.some((i) => i.severity === "error" && i.message.includes("pattern"))).toBe(true);
   });
+
+  it("accepts a legacy .html filename", () => {
+    const raw = "---\ntitle: Hello\ndate: 2026-07-15\n---\n\n<p>Body</p>\n";
+    const issues = validateForCommit("content/blog/2026/2026-07-15-hello.html", raw);
+    expect(issues.some((i) => i.message.includes("pattern"))).toBe(false);
+  });
+});
+
+describe("validateForCommit — a clean legacy .html post", () => {
+  it("has no issues, including a full LiveJournal-export timestamp in the date field", () => {
+    // Modeled directly on the real content/blog/2004/2004-01-24-orkut.html
+    // shape: the front-matter date carries time-of-day precision the
+    // filename doesn't encode. That must not read as a mismatch.
+    const raw =
+      "---\ntitle: Orkut\ndate: 2004-01-24 00:04:00.000000000 -08:00\ntype: post\n---\n\n<p>Body</p>\n";
+    expect(validateForCommit("content/blog/2004/2004-01-24-orkut.html", raw)).toEqual([]);
+  });
 });
 
 describe("validateForCommit — managed root", () => {
@@ -50,6 +67,20 @@ describe("validateForCommit — date/filename agreement", () => {
     const raw = "---\ntitle: Hello\ndate: 2026-07-15\n---\n\nBody\n";
     const issues = validateForCommit("content/blog/2026/2026-07-15-hello.md", raw);
     expect(issues.some((i) => i.message.includes("does not match"))).toBe(false);
+  });
+
+  it("is silent when a full timestamp date's leading YYYY-MM-DD agrees with the filename", () => {
+    const raw =
+      "---\ntitle: Hello\ndate: 2026-07-15 09:30:00.000000000 -07:00\n---\n\n<p>Body</p>\n";
+    const issues = validateForCommit("content/blog/2026/2026-07-15-hello.html", raw);
+    expect(issues.some((i) => i.message.includes("does not match"))).toBe(false);
+  });
+
+  it("still flags a genuine mismatch even when the front matter date has time-of-day precision", () => {
+    const raw =
+      "---\ntitle: Hello\ndate: 2026-07-16 09:30:00.000000000 -07:00\n---\n\n<p>Body</p>\n";
+    const issues = validateForCommit("content/blog/2026/2026-07-15-hello.html", raw);
+    expect(issues.some((i) => i.message.includes("does not match"))).toBe(true);
   });
 });
 

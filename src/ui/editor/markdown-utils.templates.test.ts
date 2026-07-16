@@ -1,9 +1,14 @@
-// ABOUTME: Unit + property tests for the markdown template builders in
-// ABOUTME: markdown-utils.ts: buildImageMarkdown and buildLinkMarkdown.
+// ABOUTME: Unit + property tests for the markdown/html template builders in
+// ABOUTME: markdown-utils.ts: buildImageMarkdown, buildImageHtml, buildImageRef, and buildLinkMarkdown.
 import process from "node:process";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { buildImageMarkdown, buildLinkMarkdown } from "./markdown-utils";
+import {
+  buildImageHtml,
+  buildImageMarkdown,
+  buildImageRef,
+  buildLinkMarkdown,
+} from "./markdown-utils";
 
 const DEFAULT_FUZZ_RUNS = 200;
 const FUZZ_RUNS = Number(process.env.FUZZ_RUNS) || DEFAULT_FUZZ_RUNS;
@@ -28,6 +33,65 @@ describe("buildImageMarkdown", () => {
         fc.string(),
         fc.string(),
         (anyRef, alt) => buildImageMarkdown(anyRef, alt) === `![${alt}](${anyRef})`,
+      ),
+      { numRuns: FUZZ_RUNS },
+    );
+  });
+});
+
+describe("buildImageHtml", () => {
+  const ref = "/assets/2026/07/foo.png";
+
+  it("builds an <img> tag with an empty alt attribute by default", () => {
+    expect(buildImageHtml(ref)).toBe(`<img src="${ref}" alt="">`);
+  });
+
+  it("includes alt text when given", () => {
+    const alt = "a keyboard";
+    expect(buildImageHtml(ref, alt)).toBe(`<img src="${ref}" alt="${alt}">`);
+  });
+
+  it('property: always matches the literal <img src="ref" alt="alt"> shape', () => {
+    fc.assert(
+      fc.property(
+        fc.string(),
+        fc.string(),
+        (anyRef, alt) => buildImageHtml(anyRef, alt) === `<img src="${anyRef}" alt="${alt}">`,
+      ),
+      { numRuns: FUZZ_RUNS },
+    );
+  });
+});
+
+describe("buildImageRef", () => {
+  const ref = "/assets/2026/07/foo.png";
+  const alt = "a keyboard";
+
+  it("defaults to the markdown template", () => {
+    expect(buildImageRef("markdown", ref, alt)).toBe(buildImageMarkdown(ref, alt));
+  });
+
+  it("uses the markdown template explicitly", () => {
+    expect(buildImageRef("markdown", ref, alt)).toBe(buildImageMarkdown(ref, alt));
+  });
+
+  it("uses the html template for sourceLanguage 'html'", () => {
+    expect(buildImageRef("html", ref, alt)).toBe(buildImageHtml(ref, alt));
+  });
+
+  it("property: always delegates to exactly one of the two templates, by language", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom("markdown", "html"),
+        fc.string(),
+        fc.string(),
+        (sourceLanguage, anyRef, anyAlt) => {
+          const expected =
+            sourceLanguage === "html"
+              ? buildImageHtml(anyRef, anyAlt)
+              : buildImageMarkdown(anyRef, anyAlt);
+          return buildImageRef(sourceLanguage, anyRef, anyAlt) === expected;
+        },
       ),
       { numRuns: FUZZ_RUNS },
     );

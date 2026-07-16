@@ -123,6 +123,31 @@ describe("SourceEditor: EditorHandle actions, continued", () => {
   });
 });
 
+describe("SourceEditor: sourceLanguage='html'", () => {
+  it("insertImage inserts an <img> tag instead of markdown", () => {
+    const handleRef = createRef<EditorHandle>();
+    const onEmit = vi.fn();
+    render(<Controlled handleRef={handleRef} onEmit={onEmit} initial="" sourceLanguage="html" />);
+    act(() => {
+      handleRef.current?.insertImage("/assets/2026/07/foo.png", "a keyboard");
+    });
+    expect(onEmit).toHaveBeenCalledWith('<img src="/assets/2026/07/foo.png" alt="a keyboard">');
+  });
+
+  it("still mounts and renders the initial value (a real .html file's raw text)", () => {
+    const handleRef = createRef<EditorHandle>();
+    const { container } = render(
+      <Controlled
+        handleRef={handleRef}
+        onEmit={vi.fn()}
+        initial="<p>Legacy post body.</p>"
+        sourceLanguage="html"
+      />,
+    );
+    expect(queryContent(container)?.textContent).toBe("<p>Legacy post body.</p>");
+  });
+});
+
 describe("SourceEditor: controlled-loop guard", () => {
   it("does not reset the cursor when the parent echoes the just-emitted value back", () => {
     const handleRef = createRef<EditorHandle>();

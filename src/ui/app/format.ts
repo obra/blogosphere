@@ -16,7 +16,14 @@ const MONTH_NAMES = [
   "December",
 ] as const;
 
-const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+// Requires the YYYY-MM-DD to either be the whole string or be followed by a
+// space/T separator (not just any suffix) — so it still only matches a real
+// date-shaped prefix, not e.g. "2026-07-1" mid-token, but does tolerate the
+// legacy .html corpus's front-matter `date:` field, which carries a full
+// LiveJournal export timestamp ("2004-01-24 00:04:00.000000000 -08:00")
+// rather than the bare date every .md file uses. Every ordinary "2026-07-15"
+// value still matches exactly as before (the `$` alternative covers it).
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]|$)/;
 const MONTH_ABBREVIATION_LENGTH = 3;
 
 /** Today as YYYY-MM-DD in the local timezone, from an injected clock (ms epoch). */

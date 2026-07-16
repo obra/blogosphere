@@ -210,3 +210,8 @@
   background: color-mix(in srgb, var(--danger) 18%, transparent);
   color: var(--danger);
 }
+
+.pill-badge[data-kind="html"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}

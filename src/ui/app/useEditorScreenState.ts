@@ -91,6 +91,8 @@ function useLocalEcho(record: EntryRecord, parsed: ParsedView | null) {
   return { title, tags, body, setTitleState, setTagsState, setBodyState, markLocalEditPending };
 }
 
+const HTML_EXTENSION = ".html";
+
 /** Keyed by path at the call site (EditorScreen), so switching entries
  *  re-initializes this local state instead of carrying over stale text. */
 function useEditorScreenState(record: EntryRecord) {
@@ -98,8 +100,17 @@ function useEditorScreenState(record: EntryRecord) {
   const parsed = useParsedView(record);
   const handlers = useEditorCommitHandlers(record.path);
   const echo = useLocalEcho(record, parsed);
-  const editorMode = useAppStore((state) => state.editorModes[record.path] ?? "wysiwyg");
+  const persistedMode = useAppStore((state) => state.editorModes[record.path] ?? "wysiwyg");
   const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
+
+  // The ~440 legacy 1996-2014 LiveJournal-import .html posts are source-mode
+  // only — Milkdown/Crepe is markdown-only and must stay unreachable for
+  // them. Force source mode here regardless of any per-entry persisted
+  // toggle (a stale "wysiwyg" preference saved before this file existed, or
+  // just never cleared) — this is the single point every other WYSIWYG-vs-
+  // source decision for this entry flows through.
+  const isLegacyHtml = record.path.endsWith(HTML_EXTENSION);
+  const editorMode: EditorMode = isLegacyHtml ? "source" : persistedMode;
 
   function setTitle(value: string) {
     echo.setTitleState(value);
@@ -123,6 +134,8 @@ function useEditorScreenState(record: EntryRecord) {
     tags: echo.tags,
     body: echo.body,
     editorMode,
+    isLegacyHtml,
+    sourceLanguage: isLegacyHtml ? ("html" as const) : ("markdown" as const),
     isConflicted: conflicts.includes(record.path),
     resolveImage: useMemo(() => makeResolveImage(services), [services]),
     onImage: useMemo(() => makeOnImage(services, record.path), [services, record.path]),

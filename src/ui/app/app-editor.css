@@ -68,6 +68,11 @@
   color: var(--warning);
 }
 
+.state-chip[data-kind="html"] {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
 .editor-body-wrap {
   flex: 1;
   min-height: 0;

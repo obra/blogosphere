@@ -13,7 +13,8 @@
       "!**/dist",
       "!src-tauri/target",
       "!inspo",
-      "!src/ui/app/EntryList.test.tsx"
+      "!src/ui/app/EntryList.test.tsx",
+      "!src/core/model/fixtures/**/*.html"
     ]
   },
   "formatter": {

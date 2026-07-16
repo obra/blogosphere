@@ -1,10 +1,16 @@
-// ABOUTME: The editor screen — title/tags/date/draft chrome, publish flow,
-// ABOUTME: secret-link sharing, and the body Editor with a persisted mode toggle.
+// ABOUTME: The editor screen — title/tags/date/draft chrome, publish flow, secret-link
+// ABOUTME: sharing, and the body Editor with a persisted mode toggle (an "HTML" chip for legacy entries).
 import { useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import { Editor } from "../editor";
 import type { EditorMode } from "../types";
-import { DateField, DraftStateChip, ModeToggle, TitleField } from "./EditorFieldControls";
+import {
+  DateField,
+  DraftStateChip,
+  HtmlModeChip,
+  ModeToggle,
+  TitleField,
+} from "./EditorFieldControls";
 import { formatDisplayDate, todayIso } from "./format";
 import { PublishDialog } from "./PublishDialog";
 import { useAppStore, useAppStoreApi } from "./state";
@@ -71,13 +77,18 @@ interface EditorToolbarProps {
   record: EntryRecord;
   mode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
+  isLegacyHtml: boolean;
 }
 
 function EditorToolbar(props: EditorToolbarProps) {
   return (
     <div className="editor-toolbar">
       <DraftStateChip draft={props.record.draft} />
-      <ModeToggle mode={props.mode} onChange={props.onModeChange} />
+      {props.isLegacyHtml ? (
+        <HtmlModeChip />
+      ) : (
+        <ModeToggle mode={props.mode} onChange={props.onModeChange} />
+      )}
       <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
       <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
       <DeleteButton path={props.record.path} />
@@ -94,7 +105,12 @@ function EditorScreenBody(props: { record: EntryRecord }) {
 
   return (
     <div className="editor-screen">
-      <EditorToolbar record={props.record} mode={s.editorMode} onModeChange={s.commitMode} />
+      <EditorToolbar
+        record={props.record}
+        mode={s.editorMode}
+        onModeChange={s.commitMode}
+        isLegacyHtml={s.isLegacyHtml}
+      />
       <TitleField value={s.title} onChange={s.setTitle} />
       <div className="editor-meta-row">
         <DateField value={props.record.date} onChange={s.commitDate} />
@@ -111,6 +127,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
           value={s.body}
           onChange={s.setBody}
           mode={s.editorMode}
+          sourceLanguage={s.sourceLanguage}
           resolveImage={s.resolveImage}
           onImage={s.onImage}
           readOnly={s.isConflicted}

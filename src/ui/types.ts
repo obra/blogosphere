@@ -4,10 +4,13 @@
 export type EditorMode = "wysiwyg" | "source";
 
 export interface EditorProps {
-  /** Markdown document of record. Fully controlled component. */
+  /** Document of record (markdown, or raw HTML for legacy entries). Fully controlled. */
   value: string;
   onChange(markdown: string): void;
   mode: EditorMode;
+  /** Source-mode language. Legacy .html entries use "html" and must never be
+   *  given mode "wysiwyg" (Milkdown is markdown-only). Default "markdown". */
+  sourceLanguage?: "markdown" | "html";
   /** Resolve an image ref (absolute /assets/... or relative) to a displayable URL.
    *  Returns null when unavailable (offline, not yet cached) -> placeholder. */
   resolveImage(src: string): Promise<string | null>;

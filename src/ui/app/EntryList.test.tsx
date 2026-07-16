@@ -71,6 +71,31 @@ it("shows a draft badge for draft:true posts living outside content/drafts", asy
   expect(screen.getByText("Draft")).not.toBeNull();
 });
 
+it("shows an HTML badge for a legacy .html entry, not for an ordinary .md one", async () => {
+  const entries = [
+    makeEntry({
+      path: "content/blog/2004/2004-01-24-orkut.html",
+      kind: "post",
+      title: "Legacy post",
+    }),
+    makeEntry({
+      path: "content/blog/2026/2026-01-01-a.md",
+      kind: "post",
+      title: "Modern post",
+    }),
+  ];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+    store.getState().setSection("posts");
+  });
+
+  const htmlRow = screen.getByText("Legacy post").closest("button");
+  const mdRow = screen.getByText("Modern post").closest("button");
+  expect(htmlRow && within(htmlRow).queryByText("HTML")).not.toBeNull();
+  expect(mdRow && within(mdRow).queryByText("HTML")).toBeNull();
+});
+
 it("shows a conflict badge for a path listed in syncStatus.conflicts", async () => {
   const entries = [makeEntry({ path: "a.md", kind: "draft", title: "Conflicted" })];
   const { store, sync } = renderWithStore(<EntryList />, { seedEntries: entries });

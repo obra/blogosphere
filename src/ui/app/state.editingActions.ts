@@ -157,6 +157,22 @@ type RenameComputation =
   | { kind: "noop" }
   | { kind: "error"; message: string };
 
+const HTML_EXTENSION = ".html";
+const MD_EXTENSION = ".md";
+
+/** model.pathFor() only ever builds a canonical .md path — that's its job,
+ *  it's for new/canonical markdown writes (see core/model/paths.ts). A
+ *  rename/date-change of a legacy .html entry must not silently turn it
+ *  into a .md file just because its path moved: the file's actual format
+ *  hasn't changed. Mirrors core/model/publish.ts's identical
+ *  extension-preserving transform for planPublish's newPath. */
+function withSourceExtension(sourcePath: string, canonicalMdPath: string): string {
+  if (sourcePath.endsWith(HTML_EXTENSION) && canonicalMdPath.endsWith(MD_EXTENSION)) {
+    return `${canonicalMdPath.slice(0, -MD_EXTENSION.length)}${HTML_EXTENSION}`;
+  }
+  return canonicalMdPath;
+}
+
 function computeRenameTarget(
   ctx: ActionCtx,
   record: EntryRecord,
@@ -173,7 +189,10 @@ function computeRenameTarget(
     return { kind: "error", message: "This entry needs a title before it can be renamed." };
   }
   const newDate = changes.date ?? parsed.entry.date ?? todayIso(ctx.deps.now());
-  const newPath = svc.model.pathFor(record.kind, newDate, newSlug);
+  const newPath = withSourceExtension(
+    record.path,
+    svc.model.pathFor(record.kind, newDate, newSlug),
+  );
   if (newPath === record.path) {
     return { kind: "noop" };
   }

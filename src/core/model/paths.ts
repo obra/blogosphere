@@ -8,16 +8,34 @@ const KINDS: readonly EntryKind[] = ["post", "draft", "link", "release"];
 /** Kinds whose canonical path nests entries under a YYYY directory. */
 const YEAR_NESTED_KINDS: ReadonlySet<EntryKind> = new Set(["post", "release"]);
 
-const DATED_FILENAME_RE = /^(\d{4})-(\d{2})-(\d{2})-(.+)\.md$/;
+// .html alongside .md: the ~440 legacy 1996-2014 LiveJournal imports living
+// under content/blog/YYYY/ are real files the client must browse/read/edit/
+// sync (body editing is source-mode only — see ui/editor — but path/kind/
+// front-matter handling is uniform across every managed root, even though
+// only content/blog has any .html in practice).
+const DATED_FILENAME_RE = /^(\d{4})-(\d{2})-(\d{2})-(.+)\.(?:md|html)$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const FOUR_DIGIT_YEAR_RE = /^\d{4}$/;
 const MD_EXTENSION = ".md";
+const HTML_EXTENSION = ".html";
+const MANAGED_EXTENSIONS: readonly string[] = [MD_EXTENSION, HTML_EXTENSION];
 const ISO_DATE_YEAR_LENGTH = 4;
 
 function basenameOf(path: string): string | null {
   const segments = path.split("/");
   const last = segments.at(-1);
   return last && last.length > 0 ? last : null;
+}
+
+function hasManagedExtension(filename: string): boolean {
+  return MANAGED_EXTENSIONS.some((ext) => filename.endsWith(ext));
+}
+
+/** Strip whichever managed extension `filename` ends with. Precondition:
+ *  `hasManagedExtension(filename)` — callers already checked. */
+function stripManagedExtension(filename: string): string {
+  const ext = MANAGED_EXTENSIONS.find((candidate) => filename.endsWith(candidate));
+  return ext ? filename.slice(0, -ext.length) : filename;
 }
 
 /** True when `path`'s first `rootSegments.length` segments equal `rootSegments`. */
@@ -39,10 +57,10 @@ function pathPartsFromDatedFilename(filename: string): PathParts | null {
 }
 
 function pathPartsFromYearDirectory(path: string, filename: string): PathParts | null {
-  if (!filename.endsWith(MD_EXTENSION)) {
+  if (!hasManagedExtension(filename)) {
     return null;
   }
-  const slug = filename.slice(0, -MD_EXTENSION.length);
+  const slug = stripManagedExtension(filename);
   if (slug.length === 0) {
     return null;
   }
@@ -61,14 +79,14 @@ function pathPartsFromYearDirectory(path: string, filename: string): PathParts |
  * legacy release committed flat, directly under content/releases/, so
  * reading has to tolerate what create-post-era history actually produced.
  * Anything nested deeper than that (co-located reference files beside an
- * old post) is deliberately excluded.
+ * old post) is deliberately excluded. Also accepts .html — uniformly across
+ * every kind, even though only content/blog has any real .html files (the
+ * ~440 legacy LiveJournal imports) — so a stray .html elsewhere isn't
+ * silently treated differently than a stray .md would be.
  */
 export function kindForPath(path: string): EntryKind | null {
-  if (!path.endsWith(MD_EXTENSION)) {
-    return null;
-  }
   const filename = basenameOf(path);
-  if (!filename || filename === MD_EXTENSION) {
+  if (!(filename && hasManagedExtension(filename)) || MANAGED_EXTENSIONS.includes(filename)) {
     return null;
   }
   const segments = path.split("/");

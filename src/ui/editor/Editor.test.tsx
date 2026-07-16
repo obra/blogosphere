@@ -150,6 +150,65 @@ describe("Editor: the Toolbar drives whichever mode is active", () => {
   });
 });
 
+describe("Editor: sourceLanguage='html' (legacy .html entries)", () => {
+  it("renders CodeMirror even when mode='wysiwyg' (defense in depth)", () => {
+    const { container } = render(
+      <Editor
+        value="<p>hi</p>"
+        mode="wysiwyg"
+        sourceLanguage="html"
+        onChange={vi.fn()}
+        resolveImage={noopResolveImage}
+        onImage={noopOnImage}
+      />,
+    );
+    expect(queryCmContent(container)?.textContent).toBe("<p>hi</p>");
+    expect(queryProseMirror(container)).toBeNull();
+  });
+
+  it("renders CodeMirror when mode='source' too", () => {
+    const { container } = render(
+      <Editor
+        value="<p>hi</p>"
+        mode="source"
+        sourceLanguage="html"
+        onChange={vi.fn()}
+        resolveImage={noopResolveImage}
+        onImage={noopOnImage}
+      />,
+    );
+    expect(queryCmContent(container)?.textContent).toBe("<p>hi</p>");
+  });
+
+  it("hides the formatting Toolbar entirely", () => {
+    const { queryByTitle } = render(
+      <Editor
+        value="<p>hi</p>"
+        mode="source"
+        sourceLanguage="html"
+        onChange={vi.fn()}
+        resolveImage={noopResolveImage}
+        onImage={noopOnImage}
+      />,
+    );
+    expect(queryByTitle("Bold")).toBeNull();
+    expect(queryByTitle("Insert image")).toBeNull();
+  });
+
+  it("still shows the Toolbar for an ordinary markdown entry (sourceLanguage omitted)", () => {
+    const { queryByTitle } = render(
+      <Editor
+        value="hello"
+        mode="source"
+        onChange={vi.fn()}
+        resolveImage={noopResolveImage}
+        onImage={noopOnImage}
+      />,
+    );
+    expect(queryByTitle("Bold")).not.toBeNull();
+  });
+});
+
 describe("Editor: readOnly", () => {
   it("disables the toolbar and the active (source) editor", () => {
     const { container, getByTitle } = render(
