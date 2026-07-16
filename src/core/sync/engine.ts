@@ -17,6 +17,7 @@ import {
   recordRemoteHead,
   setConflictPaths,
 } from "./meta";
+import { createOpQueue } from "./opQueue";
 import { runPull } from "./pull";
 import { runPush, toPushResult } from "./push";
 import { imageIndexFor } from "./tree-diff";
@@ -265,6 +266,7 @@ async function syncWithStatus(
 export function createSync(deps: SyncDeps): SyncApi {
   const status = createStatusTracker(deps);
   const logs = createLogChannel(deps);
+  const enqueue = createOpQueue();
 
   async function loggedPull(): Promise<PullResult> {
     const result = await runWithStatus(status, () => runPull(deps));
@@ -286,10 +288,10 @@ export function createSync(deps: SyncDeps): SyncApi {
     status: status.get,
     onStatus: status.subscribe,
     onLog: logs.subscribe,
-    pull: loggedPull,
-    push: () => pushWithStatus(deps, status, logs.log),
-    sync: () => syncWithStatus(deps, status, logs.log),
-    resolveConflict: loggedResolve,
-    bootstrap: loggedBootstrap,
+    pull: () => enqueue(loggedPull),
+    push: () => enqueue(() => pushWithStatus(deps, status, logs.log)),
+    sync: () => enqueue(() => syncWithStatus(deps, status, logs.log)),
+    resolveConflict: (path, resolution) => enqueue(() => loggedResolve(path, resolution)),
+    bootstrap: () => enqueue(loggedBootstrap),
   };
 }

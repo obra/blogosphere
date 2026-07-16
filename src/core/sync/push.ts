@@ -5,6 +5,7 @@ import { buildCommitMessage } from "./messages";
 import {
   getConflictPaths,
   loadCommitMessageTemplates,
+  loadRecentHeads,
   META_LAST_REMOTE_COMMIT_SHA,
   META_LAST_ROOT_TREE_SHA,
   META_LAST_SYNC_AT,
@@ -138,9 +139,28 @@ async function collectPushAssets(deps: SyncDeps, pushable: readonly EntryRecord[
   return { uploadAssets, assets: [...uploadAssets, ...orphanedAssets] };
 }
 
+/** The head to build the commit on. GitHub's read replicas can serve a head
+ *  we've already integrated PAST (most often our own previous push's parent,
+ *  seconds after that push). Building on it guarantees updateRef refuses
+ *  (not fast-forward) — three retries against the same lagging replica then
+ *  report "the remote kept moving under us" with no other writer anywhere.
+ *  When the served head is one we've already moved past, build on the newest
+ *  head this client has integrated instead: commit objects are permanent, so
+ *  getCommit on it always works, and the CAS on updateRef still protects us
+ *  if the remote genuinely advanced meanwhile. */
+async function effectiveHead(deps: SyncDeps): Promise<string> {
+  const fetched = await deps.github.getRef();
+  const recent = await loadRecentHeads(deps.store);
+  const latest = recent.at(-1);
+  if (latest !== undefined && latest !== fetched && recent.includes(fetched)) {
+    return latest;
+  }
+  return fetched;
+}
+
 async function attemptCommit(deps: SyncDeps, args: AttemptArgs): Promise<PushOutcome> {
   const { pushable, skipped, retries, conflictPaths } = args;
-  const headSha = await deps.github.getRef();
+  const headSha = await effectiveHead(deps);
   const commit = await deps.github.getCommit(headSha);
 
   const renameCollision = await findRenameCollision(deps, pushable, commit.treeSha);

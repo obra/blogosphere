@@ -70,7 +70,7 @@ it("shareSecretLink reuses an existing opaqueId instead of minting a new one", a
   expect(copied).toEqual(["https://blog.fsck.com/private/already-set/"]);
 });
 
-it("shareSecretLink copies the link but waits for the actual push before toasting success", async () => {
+it("shareSecretLink succeeds silently — the copy control is its own feedback, not a toast", async () => {
   const entry = makeEntry({
     path: "content/drafts/2026-01-01-a.md",
     kind: "draft",
@@ -82,29 +82,12 @@ it("shareSecretLink copies the link but waits for the actual push before toastin
     throw new Error("test setup");
   }
 
-  // Gate the fake sync behind a controllable promise, standing in for a
-  // slow GitHub push, so we can observe state *before* it settles.
-  const deferred: { resolve: () => void } = { resolve: () => undefined };
-  const gate = new Promise<void>((resolve) => {
-    deferred.resolve = resolve;
-  });
-  const realSync = sync.sync.bind(sync);
-  sync.sync = async () => {
-    await gate;
-    return realSync();
-  };
+  await store.getState().shareSecretLink(entry.path);
 
-  const sharePromise = store.getState().shareSecretLink(entry.path);
-  await Promise.resolve();
-  await Promise.resolve();
-
-  // The push hasn't settled yet: no success toast promised prematurely.
-  expect(store.getState().toasts.some((toast) => toast.tone === "success")).toBe(false);
-
-  deferred.resolve();
-  await sharePromise;
-
-  expect(store.getState().toasts.some((toast) => toast.tone === "success")).toBe(true);
+  // No toast of any tone on the happy path; failures (push error, offline)
+  // still toast — those change what the user should do next.
+  expect(store.getState().toasts).toEqual([]);
+  expect(sync.syncCallCount()).toBe(1);
 });
 
 it("shareSecretLink reports a specific error (not a false success) when the push fails", async () => {

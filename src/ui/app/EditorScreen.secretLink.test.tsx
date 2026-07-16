@@ -57,6 +57,24 @@ it("clicking Secret link mints the opaqueId and then shows the link with a copy 
   expect(screen.getByLabelText("Copy secret link")).not.toBeNull();
 });
 
+it("copying flashes the button to a checkmark instead of raising a toast", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    draft: true,
+    opaqueId: "existing-id",
+  });
+  const { store } = await renderEditorFor(draft);
+
+  await act(async () => {
+    fireEvent.click(screen.getByLabelText("Copy secret link"));
+    await Promise.resolve();
+  });
+
+  expect(screen.getByLabelText("Copy secret link").getAttribute("data-copied")).toBe("true");
+  expect(store.getState().toasts).toEqual([]);
+});
+
 it("an entry that already has a secret link shows it, with the full URL on hover", async () => {
   const draft = makeEntry({
     path: "content/drafts/2026-01-01-a.md",

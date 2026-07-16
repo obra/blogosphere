@@ -136,12 +136,11 @@ async function ensureOpaqueId(ctx: ActionCtx, record: EntryRecord): Promise<Entr
   return updated;
 }
 
-/** Writes the clipboard immediately (that part is local and instant), but —
- *  unlike a bare fire-and-forget maybeBackgroundSync — waits for the actual
- *  push before promising success. Sharing a link is a promise that the URL
- *  is reachable; toasting "copied" while the entry might not even be live
- *  yet (offline, or the push simply hasn't landed) sets the user up to hand
- *  someone a 404 with no warning anything was wrong. */
+/** Writes the clipboard immediately (that part is local and instant), then
+ *  pushes so the URL is actually reachable. The happy path is silent — the
+ *  copy control's own inline feedback covers it; a toast would just restate
+ *  the click. Only the cases that change what the user should do next speak
+ *  up: offline (the link isn't live yet) and a failed push (it won't be). */
 async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void> {
   const svc = ctx.get().services;
   const parsed = svc.model.parseEntry(record.path, record.workingContent);
@@ -162,7 +161,6 @@ async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void
   }
   try {
     await svc.sync.sync();
-    ctx.get().addToast({ tone: "success", message: "Secret link copied." });
   } catch {
     ctx.get().addToast({
       tone: "error",

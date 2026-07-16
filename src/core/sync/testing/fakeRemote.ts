@@ -135,22 +135,31 @@ export class FakeRemote implements GitHubApi {
     return [...byPath.values()];
   }
 
-  private staleRefOnce: string | null = null;
+  private staleRef: { sha: string; remaining: number } | null = null;
 
   /** Test-only: the next getRef() serves this sha instead of the real head —
    *  simulating GitHub's read-replica lag returning a pre-push head. */
   serveStaleRefOnce(sha: string): void {
-    this.staleRefOnce = sha;
+    this.serveStaleRef(sha, 1);
+  }
+
+  /** Test-only: serve `sha` for the next `times` getRef() calls — replica lag
+   *  persists across the several reads one sync round makes. */
+  serveStaleRef(sha: string, times: number): void {
+    this.staleRef = { sha, remaining: times };
   }
 
   // ---- GitHubApi ----
 
   async getRef(): Promise<string> {
     this.assertOnline();
-    if (this.staleRefOnce !== null) {
-      const stale = this.staleRefOnce;
-      this.staleRefOnce = null;
-      return stale;
+    if (this.staleRef !== null && this.staleRef.remaining > 0) {
+      this.staleRef.remaining -= 1;
+      const { sha } = this.staleRef;
+      if (this.staleRef.remaining === 0) {
+        this.staleRef = null;
+      }
+      return sha;
     }
     if (this.ref === null) {
       throw new GitHubError("not-found", "ref has no commits yet");

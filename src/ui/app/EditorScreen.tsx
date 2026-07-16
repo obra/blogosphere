@@ -1,6 +1,6 @@
 // ABOUTME: The editor screen — title/tags/date/draft chrome, publish flow, secret-link
 // ABOUTME: sharing, and the body Editor with a persisted mode toggle (an "HTML" chip for legacy entries).
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import { Editor } from "../editor";
 import type { EditorMode, HtmlViewMode } from "../types";
@@ -37,17 +37,60 @@ function CopyGlyph() {
   );
 }
 
+function CheckGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 12.5 9.5 18 20 6.5"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const COPY_FEEDBACK_MS = 1600;
+
+/** The copy button is its own feedback: glyph flips to a checkmark briefly.
+ *  No toast — "you copied a link" isn't news worth interrupting for. */
+function useCopiedFlash(): [boolean, () => void] {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+      }
+    },
+    [],
+  );
+  const flash = () => {
+    setCopied(true);
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+  };
+  return [copied, flash];
+}
+
 /** Drafts always get the affordance — shareSecretLink mints the opaqueId on
  *  first use (state.editingActions.ts) — and once a link exists (draft or a
  *  published post that kept one), the link itself is shown with a copy icon
  *  instead of a wordy button. */
 function SecretLinkControl(props: { record: EntryRecord }) {
   const store = useAppStoreApi();
+  const [copied, flashCopied] = useCopiedFlash();
   const { path, opaqueId, draft } = props.record;
   if (!(opaqueId || draft)) {
     return null;
   }
-  const copy = () => store.getState().shareSecretLink(path);
+  const copy = () => {
+    store.getState().shareSecretLink(path);
+    flashCopied();
+  };
   if (!opaqueId) {
     return (
       <button
@@ -69,9 +112,10 @@ function SecretLinkControl(props: { record: EntryRecord }) {
         className="secret-link-copy"
         aria-label="Copy secret link"
         title={`Copy ${url}`}
+        data-copied={copied || undefined}
         onClick={copy}
       >
-        <CopyGlyph />
+        {copied ? <CheckGlyph /> : <CopyGlyph />}
       </button>
     </span>
   );
@@ -187,7 +231,6 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
 
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: parseEntry genuinely fails on malformed front matter — parsed is ParsedView | null; Biome's checker mis-narrows here.
   if (!s.parsed) {
     return <div className="editor-empty">Couldn't read this entry's front matter.</div>;
   }
