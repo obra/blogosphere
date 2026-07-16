@@ -2,6 +2,7 @@
 // ABOUTME: the in-memory browser/dev demo), then renders the real app tree.
 // ABOUTME: Also owns the Settings "save token" -> live github+sync rebuild.
 import { isTauri } from "@tauri-apps/api/core";
+import { confirm as tauriConfirm } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { boot, runInitialSync } from "./bootstrap";
 import { fetchPageTitle } from "./bootstrap/fetchTitle";
@@ -81,8 +82,15 @@ export function App() {
   // Spread in only when non-empty: AppStoreProviderProps.deps is a true
   // optional prop under exactOptionalPropertyTypes, so an explicit
   // `deps={undefined}` on the demo path would be a type error, not a no-op.
+  // `confirm` becomes the real native NSAlert (tauri-plugin-dialog) instead
+  // of the webview's "This page says…" panel.
   const storeProviderProps: { deps?: Partial<AppStoreDeps> } = tauri
-    ? { deps: { writeClipboardText: tauriWriteClipboardText } }
+    ? {
+        deps: {
+          writeClipboardText: tauriWriteClipboardText,
+          confirm: (message) => tauriConfirm(message, { title: "Blogosphere" }),
+        },
+      }
     : {};
 
   return (

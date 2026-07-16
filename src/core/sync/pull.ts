@@ -5,12 +5,15 @@ import type { EntryRecord } from "../store/types";
 import { denormalize, fallbackFrom } from "./entry-fields";
 import { merge3 } from "./merge";
 import {
+  bumpStaleHeadStreak,
   clearConflictRemote,
   getConflictPaths,
+  loadRecentHeads,
   META_ASSETS_INDEX,
   META_LAST_REMOTE_COMMIT_SHA,
   META_LAST_ROOT_TREE_SHA,
   META_LAST_SYNC_AT,
+  recordRemoteHead,
   setConflictPaths,
   stashConflictRemote,
 } from "./meta";
@@ -205,12 +208,34 @@ async function reconcilePath(
   await mergeAgainstRemote(deps, { path, entry, remoteText, remoteSha: newSha }, buckets);
 }
 
+/** How many consecutive pulls must serve the same already-integrated head
+ *  before it's believed as a genuine history rewind (force-push) instead of
+ *  read-replica lag. */
+const STALE_HEAD_ACCEPT_AFTER = 3;
+
+/** True when GitHub served a head this client already integrated PAST —
+ *  proceeding would diff backwards and read our own freshly pushed files as
+ *  "deleted remotely", destroying clean local rows for a few seconds until
+ *  a fresh read restores them. */
+async function isStaleHead(deps: SyncDeps, headSha: string): Promise<boolean> {
+  const recent = await loadRecentHeads(deps.store);
+  if (!recent.includes(headSha) || recent.at(-1) === headSha) {
+    return false;
+  }
+  const streak = await bumpStaleHeadStreak(deps.store, headSha);
+  return streak < STALE_HEAD_ACCEPT_AFTER;
+}
+
 export async function runPull(deps: SyncDeps): Promise<PullResult> {
   const headSha = await deps.github.getRef();
+  if (await isStaleHead(deps, headSha)) {
+    return { updated: [], merged: [], conflicts: [], staleHead: headSha };
+  }
   const commit = await deps.github.getCommit(headSha);
   const lastRootTreeSha = await deps.store.getMeta(META_LAST_ROOT_TREE_SHA);
 
   if (lastRootTreeSha !== null && commit.treeSha === lastRootTreeSha) {
+    await recordRemoteHead(deps.store, headSha);
     return { updated: [], merged: [], conflicts: [] };
   }
 
@@ -234,6 +259,7 @@ export async function runPull(deps: SyncDeps): Promise<PullResult> {
   await deps.store.setMeta(META_LAST_ROOT_TREE_SHA, commit.treeSha);
   await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, headSha);
   await deps.store.setMeta(META_LAST_SYNC_AT, String(deps.now()));
+  await recordRemoteHead(deps.store, headSha);
   await deps.store.setMeta(
     META_ASSETS_INDEX,
     JSON.stringify(imageIndexFor(newEntries, ASSETS_ROOT, Object.values(CONTENT_ROOTS))),

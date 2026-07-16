@@ -25,6 +25,9 @@ export interface PullResult {
   merged: string[];
   /** Entries with overlapping changes, now awaiting resolution. */
   conflicts: string[];
+  /** Set when the round was skipped because GitHub served a head this client
+   *  already integrated past (read-replica lag) — see pull.ts. */
+  staleHead?: string;
 }
 
 /** A dirty entry excluded from a push because it failed validateForCommit.

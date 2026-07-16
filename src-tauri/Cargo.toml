@@ -38,3 +38,4 @@ tauri-plugin-http = "2.5.9"
 tauri-plugin-fs = "2.5.1"
 tauri-plugin-clipboard-manager = "2.3.2"
 keyring = { version = "3.6.3", features = ["apple-native"] }
+tauri-plugin-dialog = "2"

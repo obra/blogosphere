@@ -16,6 +16,7 @@ import { HtmlPreview } from "./HtmlPreview";
 import { PublishDialog } from "./PublishDialog";
 import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
+import { SITE_ORIGIN } from "./state.types";
 import { TagChipsEditor } from "./TagChipsEditor";
 import { useEditorScreenState } from "./useEditorScreenState";
 
@@ -23,19 +24,56 @@ function EditorEmptyState() {
   return <div className="editor-empty">Select an entry, or start a new one.</div>;
 }
 
-function SecretLinkButton(props: { path: string; opaqueId: string | null }) {
+function CopyGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+/** Drafts always get the affordance — shareSecretLink mints the opaqueId on
+ *  first use (state.editingActions.ts) — and once a link exists (draft or a
+ *  published post that kept one), the link itself is shown with a copy icon
+ *  instead of a wordy button. */
+function SecretLinkControl(props: { record: EntryRecord }) {
   const store = useAppStoreApi();
-  if (!props.opaqueId) {
+  const { path, opaqueId, draft } = props.record;
+  if (!(opaqueId || draft)) {
     return null;
   }
+  const copy = () => store.getState().shareSecretLink(path);
+  if (!opaqueId) {
+    return (
+      <button
+        type="button"
+        className="btn btn-with-glyph"
+        title="Create this draft's secret link and copy it — shareable before publishing"
+        onClick={copy}
+      >
+        <CopyGlyph /> Secret link
+      </button>
+    );
+  }
+  const url = `${SITE_ORIGIN}/private/${opaqueId}/`;
   return (
-    <button
-      type="button"
-      className="btn"
-      onClick={() => store.getState().shareSecretLink(props.path)}
-    >
-      Copy secret link
-    </button>
+    <span className="secret-link" title={url}>
+      <span className="secret-link-text">/private/{opaqueId}/</span>
+      <button
+        type="button"
+        className="secret-link-copy"
+        aria-label="Copy secret link"
+        title={`Copy ${url}`}
+        onClick={copy}
+      >
+        <CopyGlyph />
+      </button>
+    </span>
   );
 }
 
@@ -136,7 +174,7 @@ function EditorToolbar(props: EditorToolbarProps) {
       <SaveStateIndicator record={props.record} />
       <div className="editor-actions">
         <DiscardButton record={props.record} />
-        <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
+        <SecretLinkControl record={props.record} />
         <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
         <DeleteButton path={props.record.path} />
       </div>

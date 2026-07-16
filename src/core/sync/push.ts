@@ -8,6 +8,7 @@ import {
   META_LAST_REMOTE_COMMIT_SHA,
   META_LAST_ROOT_TREE_SHA,
   META_LAST_SYNC_AT,
+  recordRemoteHead,
 } from "./meta";
 import { runPull } from "./pull";
 import {
@@ -181,6 +182,9 @@ async function attemptCommit(deps: SyncDeps, args: AttemptArgs): Promise<PushOut
   await deps.store.setMeta(META_LAST_ROOT_TREE_SHA, newTreeSha);
   await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, commitSha);
   await deps.store.setMeta(META_LAST_SYNC_AT, String(now));
+  // Our own commit is integrated history now — a later pull served this sha's
+  // PARENT by a lagging replica must be recognized as stale, not a deletion.
+  await recordRemoteHead(deps.store, commitSha);
 
   return {
     committed: true,

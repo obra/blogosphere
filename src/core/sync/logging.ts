@@ -36,6 +36,13 @@ function createLogChannel(deps: SyncDeps) {
 }
 
 function logPullResult(log: LogFn, result: PullResult): void {
+  if (result.staleHead !== undefined) {
+    log(
+      "warn",
+      `Ignored a stale response from GitHub (served ${result.staleHead.slice(0, SHORT_SHA_LENGTH)}, older than history already synced)`,
+    );
+    return;
+  }
   if (result.updated.length > 0) {
     log("info", `Pulled ${result.updated.length} update(s) from GitHub`, result.updated.join("\n"));
   }

@@ -133,6 +133,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/**/testing/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noExcessiveLinesPerFile": "off"
+          }
+        }
+      }
     }
   ]
 }

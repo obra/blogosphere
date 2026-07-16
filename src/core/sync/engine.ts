@@ -14,6 +14,7 @@ import {
   META_LAST_REMOTE_COMMIT_SHA,
   META_LAST_ROOT_TREE_SHA,
   META_LAST_SYNC_AT,
+  recordRemoteHead,
   setConflictPaths,
 } from "./meta";
 import { runPull } from "./pull";
@@ -122,6 +123,7 @@ async function runBootstrap(deps: SyncDeps): Promise<number> {
     META_ASSETS_INDEX,
     JSON.stringify(imageIndexFor(entries, ASSETS_ROOT, Object.values(CONTENT_ROOTS))),
   );
+  await recordRemoteHead(deps.store, headSha);
   return managed.length;
 }
 

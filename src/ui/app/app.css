@@ -30,6 +30,8 @@
   --success: #16a34a;
   --warning: #d97706;
   --shadow: 0 8px 24px rgba(20, 22, 26, 0.14);
+  /* Sheets hang from the titlebar; the shadow falls further below them. */
+  --shadow-sheet: 0 18px 44px rgba(20, 22, 26, 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -50,6 +52,7 @@
     --success: #4ade80;
     --warning: #fbbf24;
     --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    --shadow-sheet: 0 18px 48px rgba(0, 0, 0, 0.6);
   }
 }
 

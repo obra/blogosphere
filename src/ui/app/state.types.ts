@@ -82,9 +82,12 @@ interface NewLinkFields extends NewEntryFields {
   url: string;
 }
 
-/** Injectable side effects, so action logic is testable without a DOM. */
+/** Injectable side effects, so action logic is testable without a DOM.
+ *  `confirm` may resolve async: the Tauri runtime injects the native NSAlert
+ *  (tauri-plugin-dialog), which is Promise-based; browser/dev and tests use
+ *  the synchronous window.confirm / a stub. */
 interface AppStoreDeps {
-  confirm: (message: string) => boolean;
+  confirm: (message: string) => boolean | Promise<boolean>;
   now: () => number;
   writeClipboardText: (text: string) => Promise<void>;
   createId: () => string;

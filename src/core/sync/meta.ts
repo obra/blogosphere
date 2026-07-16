@@ -4,9 +4,29 @@ import type { StoreApi } from "../store/types";
 import type { CommitMessageTemplates } from "./types";
 
 const META_CONFLICT_REMOTE_PREFIX = "conflictRemote:";
+const RECENT_HEADS_CAP = 20;
 
 function conflictRemoteMetaKey(path: string): string {
   return `${META_CONFLICT_REMOTE_PREFIX}${path}`;
+}
+
+function parseStreakCount(raw: string | null, sha: string): number {
+  try {
+    const parsed: unknown = raw === null ? null : JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "sha" in parsed &&
+      parsed.sha === sha &&
+      "count" in parsed &&
+      typeof parsed.count === "number"
+    ) {
+      return parsed.count;
+    }
+  } catch {
+    // fall through — corrupt/foreign value reads as "no streak yet".
+  }
+  return 0;
 }
 
 function isConflictRemote(value: unknown): value is ConflictRemote {
@@ -26,6 +46,44 @@ export const META_LAST_SYNC_AT = "lastSyncAt";
 export const META_ASSETS_INDEX = "assetsIndex";
 export const META_CONFLICTS = "conflicts";
 export const META_COMMIT_TEMPLATES = "commitMsgTemplates";
+export const META_RECENT_REMOTE_HEADS = "recentRemoteHeads";
+export const META_STALE_HEAD_STREAK = "staleHeadStreak";
+
+/** Every commit sha this client has integrated (bootstrap, pull, own push),
+ *  newest last. Lets pull recognize a GitHub read-replica serving a head we
+ *  have already moved PAST — naively diffing backwards reads as "your
+ *  freshly pushed files were deleted remotely" and destroys local rows. */
+export async function loadRecentHeads(store: StoreApi): Promise<string[]> {
+  const raw = await store.getMeta(META_RECENT_REMOTE_HEADS);
+  if (raw === null) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((sha) => typeof sha === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Move-to-end dedupe + cap; also clears any stale-head streak, since a
+ *  successful integration means we're reading fresh history again. */
+export async function recordRemoteHead(store: StoreApi, sha: string): Promise<void> {
+  const heads = (await loadRecentHeads(store)).filter((known) => known !== sha);
+  heads.push(sha);
+  await store.setMeta(META_RECENT_REMOTE_HEADS, JSON.stringify(heads.slice(-RECENT_HEADS_CAP)));
+  await store.setMeta(META_STALE_HEAD_STREAK, JSON.stringify(null));
+}
+
+/** Counts consecutive sightings of the same suspect head. Replica lag serves
+ *  an old head once or twice; a head that KEEPS coming back is a genuine
+ *  history rewind (force-push) that must eventually be accepted as reality. */
+export async function bumpStaleHeadStreak(store: StoreApi, sha: string): Promise<number> {
+  const raw = await store.getMeta(META_STALE_HEAD_STREAK);
+  const next = parseStreakCount(raw, sha) + 1;
+  await store.setMeta(META_STALE_HEAD_STREAK, JSON.stringify({ sha, count: next }));
+  return next;
+}
 
 export const DEFAULT_COMMIT_MESSAGE_TEMPLATES: CommitMessageTemplates = {
   newPost: "Post: {title}",

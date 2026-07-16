@@ -10,12 +10,17 @@
     "sql:allow-execute",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://**" }]
+      "allow": [
+        {
+          "url": "https://**"
+        }
+      ]
     },
     "fs:allow-appdata-read-recursive",
     "fs:allow-appdata-write-recursive",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
+    "dialog:default",
     "keychain-access"
   ]
 }

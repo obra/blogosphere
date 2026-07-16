@@ -53,14 +53,14 @@ function computeRenameTarget(
   return { kind: "target", newPath, newDate };
 }
 
-function confirmUrlChangeIfNeeded(ctx: ActionCtx, record: EntryRecord): boolean {
+async function confirmUrlChangeIfNeeded(ctx: ActionCtx, record: EntryRecord): Promise<boolean> {
   if (record.baseSha === null) {
     return true;
   }
   const svc = ctx.get().services;
   const parsed = svc.model.parseEntry(record.path, record.workingContent);
   const oldLink = parsed.ok ? (svc.model.permalinkFor(parsed.entry) ?? record.path) : record.path;
-  return ctx.deps.confirm(
+  return await ctx.deps.confirm(
     `Renaming changes this entry's web address (currently ${oldLink}). Continue?`,
   );
 }
@@ -82,7 +82,7 @@ async function renameEntryInner(
     ctx.get().addToast({ tone: "error", message: computation.message });
     return;
   }
-  if (!confirmUrlChangeIfNeeded(ctx, record)) {
+  if (!(await confirmUrlChangeIfNeeded(ctx, record))) {
     return;
   }
   const svc = ctx.get().services;

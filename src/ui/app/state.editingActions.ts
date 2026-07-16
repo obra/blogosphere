@@ -38,7 +38,10 @@ async function deleteEntry(ctx: ActionCtx, path: string): Promise<void> {
   await ctx.flush(path);
   const svc = ctx.get().services;
   const record = findEntryInCache(ctx.get, path) ?? (await svc.store.getEntry(path));
-  if (!(record && ctx.deps.confirm(`Delete "${record.title ?? path}"? This can't be undone.`))) {
+  if (!record) {
+    return;
+  }
+  if (!(await ctx.deps.confirm(`Delete "${record.title ?? path}"? This can't be undone.`))) {
     return;
   }
   ctx.set((state) => ({ busy: { ...state.busy, deleting: true } }));
@@ -69,9 +72,9 @@ async function discardChangesInner(ctx: ActionCtx, record: EntryRecord): Promise
   }
   const noun = record.draft ? "GitHub" : "the published version";
   if (
-    !ctx.deps.confirm(
+    !(await ctx.deps.confirm(
       `Discard unsynced changes to "${record.title ?? record.path}"? This restores ${noun}.`,
-    )
+    ))
   ) {
     return;
   }
