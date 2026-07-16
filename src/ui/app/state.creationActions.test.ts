@@ -115,6 +115,31 @@ it("newPost pushes — a kind:post entry is public the moment it lands on main",
   expect(sync?.syncCallCount()).toBeGreaterThan(0);
 });
 
+it("a second same-day untitled draft gets its own path instead of overwriting the first", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+
+  const first = await store.getState().newDraft({ title: "", date: "2026-03-01" });
+  const second = await store.getState().newDraft({ title: "", date: "2026-03-01" });
+  if (first === null || second === null) {
+    throw new Error("test setup");
+  }
+
+  expect(second).not.toBe(first);
+  expect(await services.store.getEntry(first)).not.toBeNull();
+  expect(await services.store.getEntry(second)).not.toBeNull();
+});
+
+it("newPost onto an already-occupied path picks a free one rather than clobbering", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+
+  const first = await store.getState().newPost({ title: "Same Title", date: "2026-03-01" });
+  const second = await store.getState().newPost({ title: "Same Title", date: "2026-03-01" });
+
+  expect(second).not.toBe(first);
+});
+
 it("newDraft defaults the date to today when omitted", async () => {
   const { services } = buildFakeServices();
   const store = createAppStore(services, { now: () => Date.parse("2026-07-15T12:00:00Z") });

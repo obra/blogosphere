@@ -29,6 +29,40 @@ function leadingIsoDate(value: string): string {
   return match?.[1] ?? value;
 }
 
+/** Per-kind required-field checks. Missing title is only a *warning* for
+ *  drafts: drafts are work in progress by definition — a freshly created
+ *  (⌘N) draft has no title yet, and refusing to sync it would leave the
+ *  user's only copy on one device (it's harmless remotely; the drafts lane
+ *  never reaches the production build). A titleless published-lane entry
+ *  would render a broken page, so there it stays an error. */
+function requiredFieldIssues(
+  kind: ReturnType<typeof kindForPath>,
+  entry: { title: string | null; date: string | null; url: string | null; draft: boolean },
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  if (!entry.title) {
+    issues.push(
+      kind === "draft"
+        ? { severity: "warning", message: "draft has no title yet" }
+        : { severity: "error", message: "missing required field: title" },
+    );
+  }
+  if (!entry.date) {
+    issues.push({ severity: "error", message: "missing required field: date" });
+  }
+  if (kind === "link" && !entry.url) {
+    issues.push({ severity: "error", message: "link entries require a url field" });
+  }
+  if (kind === "draft" && !entry.draft) {
+    issues.push({
+      severity: "warning",
+      message:
+        "entries under content/drafts should set draft: true (belt and suspenders against accidental publish)",
+    });
+  }
+  return issues;
+}
+
 export function validateForCommit(path: string, raw: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const filename = basenameOf(path);
@@ -66,22 +100,7 @@ export function validateForCommit(path: string, raw: string): ValidationIssue[] 
     });
   }
 
-  if (!entry.title) {
-    issues.push({ severity: "error", message: "missing required field: title" });
-  }
-  if (!entry.date) {
-    issues.push({ severity: "error", message: "missing required field: date" });
-  }
-  if (kind === "link" && !entry.url) {
-    issues.push({ severity: "error", message: "link entries require a url field" });
-  }
-  if (kind === "draft" && !entry.draft) {
-    issues.push({
-      severity: "warning",
-      message:
-        "entries under content/drafts should set draft: true (belt and suspenders against accidental publish)",
-    });
-  }
+  issues.push(...requiredFieldIssues(kind, entry));
 
   const roundTrip = replaceBodyImpl(raw, entry.body);
   if (!roundTrip.ok || roundTrip.raw !== raw) {

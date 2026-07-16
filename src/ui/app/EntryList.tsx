@@ -28,7 +28,7 @@ function EntryRow(props: EntryRowProps) {
         ) : null}
       </span>
       <span className="entry-row-body">
-        <span className="entry-row-title">{props.entry.title ?? "Untitled"}</span>
+        <span className="entry-row-title">{props.entry.title || "Untitled"}</span>
         <span className="entry-row-meta">
           {formatDisplayDate(props.entry.date)}
           {props.entry.path.endsWith(".html") ? (

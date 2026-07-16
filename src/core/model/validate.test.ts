@@ -2,6 +2,7 @@
 // ABOUTME: agreement, per-kind required fields, and round-trip integrity.
 
 import { describe, expect, it } from "vitest";
+import { newEntryImpl } from "./newEntry";
 import { validateForCommit } from "./validate";
 
 describe("validateForCommit — a clean post", () => {
@@ -85,10 +86,29 @@ describe("validateForCommit — date/filename agreement", () => {
 });
 
 describe("validateForCommit — required fields", () => {
-  it("flags a missing title", () => {
+  it("flags a missing title as an error for a published-lane post", () => {
     const raw = "---\ndate: 2026-07-15\n---\n\nBody\n";
     const issues = validateForCommit("content/blog/2026/2026-07-15-hello.md", raw);
-    expect(issues.some((i) => i.message.includes("missing required field: title"))).toBe(true);
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && i.message.includes("missing required field: title"),
+      ),
+    ).toBe(true);
+  });
+
+  it("a titleless draft is a warning, not an error — drafts are work in progress", () => {
+    const raw = '---\ntype: post\ntitle: ""\ndate: 2026-07-15\ndraft: true\n---\n\nBody\n';
+    const issues = validateForCommit("content/drafts/2026-07-15-untitled.md", raw);
+    expect(issues.some((i) => i.severity === "error")).toBe(false);
+    expect(issues.some((i) => i.severity === "warning" && i.message.includes("title"))).toBe(true);
+  });
+
+  it("a freshly scaffolded ⌘N draft (empty title) validates clean enough to push", () => {
+    const scaffold = newEntryImpl({ kind: "draft", title: "", date: "2026-07-15" });
+    const errors = validateForCommit(scaffold.path, scaffold.raw).filter(
+      (i) => i.severity === "error",
+    );
+    expect(errors).toEqual([]);
   });
 
   it("flags a missing date", () => {

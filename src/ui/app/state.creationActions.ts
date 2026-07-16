@@ -42,6 +42,29 @@ function buildNewRecord(
   };
 }
 
+const MAX_PATH_SUFFIX = 50;
+
+/** First path not occupied by ANY existing row (tombstones included: pushing
+ *  an add and a delete for the same path in one commit would collapse in the
+ *  tree-change map). Scaffolded slugs collide easily — two untitled ⌘N drafts
+ *  on the same day both want <date>-untitled.md — and upserting onto a taken
+ *  path would silently destroy the earlier entry's content. */
+async function firstFreePath(ctx: ActionCtx, basePath: string): Promise<string> {
+  const svc = ctx.get().services;
+  const dot = basePath.lastIndexOf(".");
+  const stem = basePath.slice(0, dot);
+  const ext = basePath.slice(dot);
+  for (let n = 1; n <= MAX_PATH_SUFFIX; n += 1) {
+    const candidate = n === 1 ? basePath : `${stem}-${n}${ext}`;
+    // biome-ignore lint/performance/noAwaitInLoops: candidates must be probed in order — the first free one wins.
+    const existing = await svc.store.getEntry(candidate);
+    if (existing === null) {
+      return candidate;
+    }
+  }
+  throw new Error(`No free path near ${basePath} — clean up the ${MAX_PATH_SUFFIX} entries there.`);
+}
+
 async function createNewInner(
   ctx: ActionCtx,
   kind: CreatableKind,
@@ -55,6 +78,7 @@ async function createNewInner(
     date,
     ...(input.url === undefined ? {} : { url: input.url }),
   });
+  scaffold.path = await firstFreePath(ctx, scaffold.path);
   const record = buildNewRecord(ctx, kind, scaffold, { title: input.title, date });
   await svc.store.upsertEntry(record);
   replaceEntryInCache(ctx.set, record);
