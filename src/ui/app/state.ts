@@ -7,9 +7,10 @@ import type { Services } from "../../core/services";
 import { useServices } from "./ServicesContext";
 import { newDraft, newLink, newPost, publishDraft } from "./state.creationActions";
 import { buildDeps } from "./state.deps";
-import { deleteEntry, renameEntry, shareSecretLink } from "./state.editingActions";
+import { deleteEntry, discardChanges, shareSecretLink } from "./state.editingActions";
 import type { PendingEdits, SearchDebouncer } from "./state.entryActions";
 import {
+  cancelEdit,
   createPendingEdits,
   createSearchDebouncer,
   edit,
@@ -25,13 +26,17 @@ import {
   addToast,
   attachSync,
   closeNewLinkDialog,
+  closePublishDialog,
   closeSettings,
+  closeSyncLog,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
   openNewLinkDialog,
+  openPublishDialog,
   openSettings,
+  openSyncLog,
   resolveConflict,
   saveToken,
   setCommitTemplates,
@@ -39,6 +44,7 @@ import {
   setServices,
   syncNow,
 } from "./state.miscActions";
+import { renameEntry } from "./state.renameActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
 import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY } from "./state.types";
 
@@ -53,12 +59,15 @@ function initialAppData(services: Services): AppData {
     searchQuery: "",
     searchResults: null,
     syncStatus: null,
+    syncLog: [],
     busy: INITIAL_BUSY,
     toasts: [],
     editorModes: {},
     commitTemplates: DEFAULT_COMMIT_TEMPLATES,
     newLinkDialogOpen: false,
     settingsOpen: false,
+    syncLogOpen: false,
+    publishDialogOpen: false,
   };
 }
 
@@ -88,6 +97,7 @@ function bindActions(resources: ActionResources): AppActions {
     publishDraft: (path, opts) => publishDraft(ctx, path, opts),
     shareSecretLink: (path) => shareSecretLink(ctx, path),
     deleteEntry: (path) => deleteEntry(ctx, path),
+    discardChanges: (path) => discardChanges(ctx, path),
     renameEntry: (path, changes) => renameEntry(ctx, path, changes),
     resolveConflict: (path, resolution) => resolveConflict(ctx, path, resolution),
     saveToken: (token) => saveToken(ctx, token),
@@ -101,6 +111,10 @@ function bindActions(resources: ActionResources): AppActions {
     closeNewLinkDialog: () => closeNewLinkDialog(ctx.set),
     openSettings: () => openSettings(ctx.set),
     closeSettings: () => closeSettings(ctx.set),
+    openSyncLog: () => openSyncLog(ctx.set),
+    closeSyncLog: () => closeSyncLog(ctx.set),
+    openPublishDialog: () => openPublishDialog(ctx.set),
+    closePublishDialog: () => closePublishDialog(ctx.set),
   };
 }
 
@@ -118,7 +132,13 @@ function createAppStore(services: Services, overrides: Partial<AppStoreDeps> = {
     // `flush` closes over `ctx` itself (assigned below) — safe because
     // nothing invokes it until well after this object literal finishes
     // constructing.
-    const ctx: ActionCtx = { get, set, deps, flush: (path) => flushEdit(ctx, pendingEdits, path) };
+    const ctx: ActionCtx = {
+      get,
+      set,
+      deps,
+      flush: (path) => flushEdit(ctx, pendingEdits, path),
+      cancel: (path) => cancelEdit(pendingEdits, path),
+    };
     const searchDebouncer = createSearchDebouncer(ctx);
     return {
       ...initialAppData(services),

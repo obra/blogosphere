@@ -8,6 +8,7 @@ import type {
   CommitMessageTemplates,
   ConflictResolution,
   SyncApi,
+  SyncLogEntry,
   SyncStatus,
 } from "../../core/sync/types";
 import type { EditorMode, Section } from "../types";
@@ -23,6 +24,8 @@ const META_COMMIT_TEMPLATES_KEY = META_COMMIT_TEMPLATES;
 const META_EDITOR_MODE_PREFIX = "editorMode:";
 const DEFAULT_EDIT_DEBOUNCE_MS = 400;
 const DEFAULT_SEARCH_DEBOUNCE_MS = 150;
+/** Activity-log ring size — enough history to diagnose a session, bounded. */
+const SYNC_LOG_CAP = 200;
 
 /**
  * Shared stable reference for "no conflicts" (syncStatus is null: no token
@@ -101,6 +104,8 @@ interface AppData {
   searchResults: EntryRecord[] | null;
 
   syncStatus: SyncStatus | null;
+  /** Rolling activity log fed by SyncApi.onLog (capped at SYNC_LOG_CAP). */
+  syncLog: SyncLogEntry[];
   busy: BusyFlags;
   toasts: Toast[];
 
@@ -109,6 +114,8 @@ interface AppData {
 
   newLinkDialogOpen: boolean;
   settingsOpen: boolean;
+  syncLogOpen: boolean;
+  publishDialogOpen: boolean;
 }
 
 /** Everything that mutates the store. */
@@ -135,6 +142,9 @@ interface AppActions {
   publishDraft(path: string, opts: PublishOptions): Promise<void>;
   shareSecretLink(path: string): Promise<void>;
   deleteEntry(path: string): Promise<void>;
+  /** Revert an entry's working copy to its last-synced base (confirm-gated).
+   *  Cancels any still-debounced keystrokes rather than committing them. */
+  discardChanges(path: string): Promise<void>;
   renameEntry(path: string, changes: { slug?: string; date?: string }): Promise<void>;
   resolveConflict(path: string, resolution: ConflictResolution): Promise<void>;
   saveToken(token: string): Promise<void>;
@@ -154,6 +164,10 @@ interface AppActions {
   closeNewLinkDialog(): void;
   openSettings(): void;
   closeSettings(): void;
+  openSyncLog(): void;
+  closeSyncLog(): void;
+  openPublishDialog(): void;
+  closePublishDialog(): void;
 }
 
 type AppState = AppData & AppActions;
@@ -174,12 +188,17 @@ type SetState = (partial: Partial<AppState> | ((state: AppState) => Partial<AppS
  *  that reads an entry's workingContent to build something durable from it
  *  (publish, rename, delete, share-secret-link) MUST call this first, or it
  *  risks silently working from a stale pre-edit snapshot while the user's
- *  actual last keystrokes are still sitting in the debounce timer. */
+ *  actual last keystrokes are still sitting in the debounce timer.
+ *
+ *  `cancel` is flush's opposite: it drops a path's pending debounced edit
+ *  WITHOUT committing it — for discardChanges, where flushing would commit
+ *  the very keystrokes being thrown away. */
 interface ActionCtx {
   get: GetState;
   set: SetState;
   deps: AppStoreDeps;
   flush: (path?: string) => Promise<void>;
+  cancel: (path: string) => void;
 }
 
 /** Hardcoded per spec: the live site origin, used to build "Copy secret link" URLs. */
@@ -217,4 +236,5 @@ export {
   KEYCHAIN_TOKEN_KEY,
   META_COMMIT_TEMPLATES_KEY,
   SITE_ORIGIN,
+  SYNC_LOG_CAP,
 };

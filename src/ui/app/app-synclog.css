@@ -1,0 +1,85 @@
+/* ABOUTME: Activity-log panel styles (SyncLogPanel) — level-tinted rows with
+   ABOUTME: timestamps and optional path-list detail. Imported by app.css. */
+
+.sync-log-panel {
+  width: min(560px, 94vw);
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-log-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 120px;
+}
+
+.sync-log-row {
+  display: flex;
+  gap: 9px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+}
+.sync-log-row:last-child {
+  border-bottom: none;
+}
+
+.sync-log-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex: none;
+  background: var(--text-muted);
+}
+.sync-log-row[data-level="warn"] .sync-log-dot {
+  background: var(--warning);
+}
+.sync-log-row[data-level="error"] .sync-log-dot {
+  background: var(--danger);
+}
+
+.sync-log-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.sync-log-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sync-log-message {
+  font-size: 12.5px;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.sync-log-row[data-level="error"] .sync-log-message {
+  color: var(--danger);
+}
+
+.sync-log-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-log-detail {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}

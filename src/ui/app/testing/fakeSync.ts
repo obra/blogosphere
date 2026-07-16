@@ -5,6 +5,7 @@ import type {
   PullResult,
   PushResult,
   SyncApi,
+  SyncLogEntry,
   SyncStatus,
 } from "../../../core/sync/types";
 
@@ -15,7 +16,13 @@ const DEFAULT_STATUS: SyncStatus = {
   lastSyncAt: null,
 };
 const DEFAULT_PULL: PullResult = { updated: [], merged: [], conflicts: [] };
-const DEFAULT_PUSH: PushResult = { committed: false, retries: 0, conflicts: [] };
+const DEFAULT_PUSH: PushResult = {
+  committed: false,
+  retries: 0,
+  conflicts: [],
+  pushed: [],
+  skipped: [],
+};
 
 interface ResolvedConflict {
   path: string;
@@ -25,6 +32,7 @@ interface ResolvedConflict {
 interface FakeSyncState {
   status: SyncStatus;
   listeners: Set<(status: SyncStatus) => void>;
+  logListeners: Set<(entry: SyncLogEntry) => void>;
   pullResult: PullResult;
   pushResult: PushResult;
   syncCalls: number;
@@ -42,6 +50,8 @@ interface FakeSyncOptions {
 interface FakeSync extends SyncApi {
   /** Test-only: push a new status to all subscribers (simulate engine progress). */
   setStatus(status: SyncStatus): void;
+  /** Test-only: emit an activity-log entry to all onLog subscribers. */
+  emitLog(entry: SyncLogEntry): void;
   /** Test-only: how many times sync() has been invoked. */
   syncCallCount(): number;
   /** Test-only: how many times pull() has been invoked. */
@@ -93,6 +103,7 @@ function createState(options: FakeSyncOptions): FakeSyncState {
   return {
     status: options.status ?? DEFAULT_STATUS,
     listeners: new Set(),
+    logListeners: new Set(),
     pullResult: options.pullResult ?? DEFAULT_PULL,
     pushResult: options.pushResult ?? DEFAULT_PUSH,
     syncCalls: 0,
@@ -108,6 +119,17 @@ function createFakeSync(options: FakeSyncOptions = {}): FakeSync {
   return {
     status: () => state.status,
     onStatus: (cb) => onStatus(state, cb),
+    onLog: (cb) => {
+      state.logListeners.add(cb);
+      return () => {
+        state.logListeners.delete(cb);
+      };
+    },
+    emitLog: (entry) => {
+      for (const listener of state.logListeners) {
+        listener(entry);
+      }
+    },
     pull: () => {
       state.pullCalls += 1;
       return Promise.resolve(state.pullResult);

@@ -4,17 +4,10 @@ import { useEffect, useState } from "react";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { relativeTimeLabel } from "./format";
-import { countsBySection } from "./grouping";
+import { countsBySection, SECTION_LABELS } from "./grouping";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
 import { syncStatusLabel } from "./syncLabel";
-
-const SECTION_LABELS: Record<Section, string> = {
-  drafts: "Drafts",
-  posts: "Posts",
-  links: "Links",
-  releases: "Releases",
-};
 
 const RELATIVE_TIME_TICK_MS = 30_000;
 
@@ -28,6 +21,14 @@ function useNowMs(): number {
   return nowMs;
 }
 
+function pillTitle(connected: boolean, statusMessage: string | undefined): string {
+  if (!connected) {
+    return "Not connected — open Settings to connect";
+  }
+  // Surface the actual failure right on the pill; the activity log has history.
+  return statusMessage ?? "Sync now (⌘R)";
+}
+
 function SyncButton() {
   const store = useAppStoreApi();
   const status = useAppStore((state) => state.syncStatus);
@@ -37,21 +38,42 @@ function SyncButton() {
   const syncing = status?.state === "syncing";
   const detail =
     label.tone === "ok" && status?.lastSyncAt ? relativeTimeLabel(status.lastSyncAt, nowMs) : null;
-  const disabled = services.sync === null;
+  const connected = services.sync !== null;
   return (
     <button
       type="button"
       className="sync-pill"
       data-tone={label.tone}
-      onClick={() => store.getState().syncNow()}
-      disabled={disabled}
-      title={disabled ? "Connect to your blog to sync" : "Sync now (⌘R)"}
+      onClick={() => (connected ? store.getState().syncNow() : store.getState().openSettings())}
+      title={pillTitle(connected, status?.message)}
     >
       <span className={syncing ? "sync-pill-dot spinning" : "sync-pill-dot"} />
       <span className="sync-pill-text">
         {label.text}
         {detail ? <span className="sync-pill-detail"> · {detail}</span> : null}
       </span>
+    </button>
+  );
+}
+
+function ActivityLogButton() {
+  const store = useAppStoreApi();
+  return (
+    <button
+      type="button"
+      className="sidebar-icon-button"
+      onClick={() => store.getState().openSyncLog()}
+      title="Activity log"
+      aria-label="Activity log"
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 6h16M4 12h16M4 18h10"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
     </button>
   );
 }
@@ -139,6 +161,7 @@ function Sidebar() {
       </ul>
       <div className="sidebar-footer">
         <SyncButton />
+        <ActivityLogButton />
         <SettingsButton />
       </div>
     </nav>

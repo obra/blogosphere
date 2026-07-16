@@ -246,6 +246,18 @@ function edit(ctx: ActionCtx, pending: PendingEdits, path: string, change: EditC
   commitPending(ctx, path, slot);
 }
 
+/** Drops a path's pending debounced edit without committing it — the
+ *  counterpart to flushOne for flows (discardChanges) that are throwing the
+ *  buffered keystrokes away on purpose. */
+function cancelEdit(pending: PendingEdits, path: string): void {
+  const slot = pending.get(path);
+  if (!slot) {
+    return;
+  }
+  clearTimeout(slot.timer);
+  pending.delete(path);
+}
+
 async function flushOne(ctx: ActionCtx, pending: PendingEdits, path: string): Promise<void> {
   const slot = pending.get(path);
   if (!slot) {
@@ -289,6 +301,7 @@ async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
 
 export type { PendingEdits, SearchDebouncer };
 export {
+  cancelEdit,
   createPendingEdits,
   createSearchDebouncer,
   edit,

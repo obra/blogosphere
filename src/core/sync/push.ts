@@ -18,24 +18,33 @@ import {
   findRenameCollision,
   requireBlobSha,
 } from "./push.changes";
-import type { PushResult, SyncDeps } from "./types";
+import type { PushResult, PushSkip, SyncDeps } from "./types";
 
 const MAX_ATTEMPTS = 3;
 
-function firstValidationFailure(
+/** Splits dirty entries into pushable and validation-skipped. A skipped entry
+ *  stays dirty and is reported (log + result), but must never block the rest
+ *  of the queue — one malformed file holding the whole blog hostage is worse
+ *  than pushing around it. Deletions carry no content to validate. */
+function partitionByValidation(
   deps: SyncDeps,
   entries: readonly EntryRecord[],
-): { path: string; message: string } | null {
+): { pushable: EntryRecord[]; skipped: PushSkip[] } {
+  const pushable: EntryRecord[] = [];
+  const skipped: PushSkip[] = [];
   for (const entry of entries) {
-    if (!entry.deleted) {
-      const issues = deps.model.validateForCommit(entry.path, entry.workingContent);
-      const errors = issues.filter((issue) => issue.severity === "error");
-      if (errors.length > 0) {
-        return { path: entry.path, message: errors.map((issue) => issue.message).join("; ") };
-      }
+    const errors = entry.deleted
+      ? []
+      : deps.model
+          .validateForCommit(entry.path, entry.workingContent)
+          .filter((issue) => issue.severity === "error");
+    if (errors.length > 0) {
+      skipped.push({ path: entry.path, reason: errors.map((issue) => issue.message).join("; ") });
+    } else {
+      pushable.push(entry);
     }
   }
-  return null;
+  return { pushable, skipped };
 }
 
 interface ApplyPushArgs {
@@ -105,12 +114,31 @@ interface PushOutcome extends PushResult {
   errorMessage?: string;
 }
 
-async function attemptCommit(
-  deps: SyncDeps,
-  pushable: readonly EntryRecord[],
-  retries: number,
-  conflictPaths: ReadonlySet<string>,
-): Promise<PushOutcome> {
+interface AttemptArgs {
+  pushable: readonly EntryRecord[];
+  skipped: PushSkip[];
+  retries: number;
+  conflictPaths: ReadonlySet<string>;
+}
+
+/** Gathers outbox assets riding this push: uploads for live entries, plus
+ *  the orphaned rows of deleted entries. Assets for a *deleted* entry must
+ *  never be uploaded (there's no point riding an image blob along with
+ *  content that's about to disappear), but their outbox rows still need to
+ *  be swept up here — otherwise they're never fetched by either the upload
+ *  pass or the cleanup pass again, and leak in local storage forever (see
+ *  applySuccessfulPush's removeAsset). */
+async function collectPushAssets(deps: SyncDeps, pushable: readonly EntryRecord[]) {
+  const nonDeletedPaths = pushable.filter((entry) => !entry.deleted).map((entry) => entry.path);
+  const deletedPaths = pushable.filter((entry) => entry.deleted).map((entry) => entry.path);
+  const uploadAssets = await deps.store.listAssetsFor(nonDeletedPaths);
+  const orphanedAssets =
+    deletedPaths.length === 0 ? [] : await deps.store.listAssetsFor(deletedPaths);
+  return { uploadAssets, assets: [...uploadAssets, ...orphanedAssets] };
+}
+
+async function attemptCommit(deps: SyncDeps, args: AttemptArgs): Promise<PushOutcome> {
+  const { pushable, skipped, retries, conflictPaths } = args;
   const headSha = await deps.github.getRef();
   const commit = await deps.github.getCommit(headSha);
 
@@ -120,27 +148,18 @@ async function attemptCommit(
       committed: false,
       retries,
       conflicts: [...conflictPaths],
+      pushed: [],
+      skipped,
       errorMessage: `Refusing to push: "${renameCollision}" already has different content on the remote that this rename/publish doesn't know about. Rename the entry to a different date or title and try again.`,
     };
   }
 
   const blobShas = await createEntryBlobs(deps, pushable);
   const changesByPath = buildEntryChanges(pushable, blobShas, conflictPaths);
-
-  const nonDeletedPaths = pushable.filter((entry) => !entry.deleted).map((entry) => entry.path);
-  const deletedPaths = pushable.filter((entry) => entry.deleted).map((entry) => entry.path);
-  // Assets for a *deleted* entry must never be uploaded (there's no point
-  // riding an image blob along with content that's about to disappear), but
-  // their outbox rows still need to be swept up here — otherwise they're
-  // never fetched by either the upload pass or the cleanup pass again, and
-  // leak in local storage forever (see applySuccessfulPush's removeAsset).
-  const uploadAssets = await deps.store.listAssetsFor(nonDeletedPaths);
-  const orphanedAssets =
-    deletedPaths.length === 0 ? [] : await deps.store.listAssetsFor(deletedPaths);
+  const { uploadAssets, assets } = await collectPushAssets(deps, pushable);
   for (const change of await createAssetChanges(deps, uploadAssets)) {
     changesByPath.set(change.path, change);
   }
-  const assets = [...uploadAssets, ...orphanedAssets];
 
   const templates = await loadCommitMessageTemplates(deps.store);
   const message = buildCommitMessage(pushable, templates);
@@ -154,7 +173,7 @@ async function attemptCommit(
   const updateResult = await deps.github.updateRef(commitSha);
 
   if (!updateResult.ok) {
-    return { committed: false, retries, conflicts: [...conflictPaths] };
+    return { committed: false, retries, conflicts: [...conflictPaths], pushed: [], skipped };
   }
 
   const now = deps.now();
@@ -163,7 +182,35 @@ async function attemptCommit(
   await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, commitSha);
   await deps.store.setMeta(META_LAST_SYNC_AT, String(now));
 
-  return { committed: true, commitSha, retries, conflicts: [...conflictPaths] };
+  return {
+    committed: true,
+    commitSha,
+    retries,
+    conflicts: [...conflictPaths],
+    pushed: pushable.map((entry) => entry.path),
+    skipped,
+  };
+}
+
+/** Nothing dirty at all is a normal quiet round; everything-skipped means the
+ *  user's pending work is stuck and deserves the error state. */
+function nothingPushableOutcome(
+  retries: number,
+  conflictPaths: ReadonlySet<string>,
+  skipped: PushSkip[],
+): PushOutcome {
+  return {
+    committed: false,
+    retries,
+    conflicts: [...conflictPaths],
+    pushed: [],
+    skipped,
+    ...(skipped.length > 0
+      ? {
+          errorMessage: `${skipped.length} pending ${skipped.length === 1 ? "change" : "changes"} failed validation and can't be pushed — see the activity log.`,
+        }
+      : {}),
+  };
 }
 
 export function toPushResult(outcome: PushOutcome): PushResult {
@@ -171,6 +218,8 @@ export function toPushResult(outcome: PushOutcome): PushResult {
     committed: outcome.committed,
     retries: outcome.retries,
     conflicts: outcome.conflicts,
+    pushed: outcome.pushed,
+    skipped: outcome.skipped,
   };
   return outcome.commitSha === undefined ? base : { ...base, commitSha: outcome.commitSha };
 }
@@ -183,23 +232,14 @@ export async function runPush(deps: SyncDeps): Promise<PushOutcome> {
     await runPull(deps);
 
     const conflictPaths = new Set(await getConflictPaths(deps.store));
-    const pushable = computePushable(await deps.store.listDirty(), conflictPaths);
+    const candidates = computePushable(await deps.store.listDirty(), conflictPaths);
+    const { pushable, skipped } = partitionByValidation(deps, candidates);
 
     if (pushable.length === 0) {
-      return { committed: false, retries, conflicts: [...conflictPaths] };
+      return nothingPushableOutcome(retries, conflictPaths, skipped);
     }
 
-    const failure = firstValidationFailure(deps, pushable);
-    if (failure) {
-      return {
-        committed: false,
-        retries,
-        conflicts: [...conflictPaths],
-        errorMessage: `Validation failed for ${failure.path}: ${failure.message}`,
-      };
-    }
-
-    const result = await attemptCommit(deps, pushable, retries, conflictPaths);
+    const result = await attemptCommit(deps, { pushable, skipped, retries, conflictPaths });
     // A committed:false result with an errorMessage (e.g. the rename-
     // collision guard above) is fatal, not a CAS race — retrying would just
     // waste 3 round-trips and then overwrite this specific message with the
@@ -215,6 +255,8 @@ export async function runPush(deps: SyncDeps): Promise<PushOutcome> {
     committed: false,
     retries,
     conflicts: [...(await getConflictPaths(deps.store))],
+    pushed: [],
+    skipped: [],
     errorMessage: "Push failed after 3 CAS retries; the remote kept moving under us.",
   };
 }

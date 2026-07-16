@@ -6,20 +6,30 @@ import type { EditorMode } from "../types";
 import { parseCommitTemplates } from "./state.deps";
 import { refresh } from "./state.entryActions";
 import type { ActionCtx, SetState, Toast } from "./state.types";
-import { editorModeMetaKey, KEYCHAIN_TOKEN_KEY, META_COMMIT_TEMPLATES_KEY } from "./state.types";
+import {
+  editorModeMetaKey,
+  KEYCHAIN_TOKEN_KEY,
+  META_COMMIT_TEMPLATES_KEY,
+  SYNC_LOG_CAP,
+} from "./state.types";
 
 interface SyncSubscriptionBox {
   unsubscribe: (() => void) | null;
+  unsubscribeLog: (() => void) | null;
 }
 
 function createSyncSubscriptionBox(): SyncSubscriptionBox {
-  return { unsubscribe: null };
+  return { unsubscribe: null, unsubscribeLog: null };
 }
 
 function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | null): void {
   box.unsubscribe?.();
   box.unsubscribe = null;
+  box.unsubscribeLog?.();
+  box.unsubscribeLog = null;
   if (!sync) {
+    // syncLog is deliberately left intact: the history of what happened
+    // before a disconnect is exactly what a user debugging one wants to see.
     ctx.set({ syncStatus: null });
     return;
   }
@@ -40,6 +50,9 @@ function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | nu
       // rather than rejecting, so there's nothing more to do with the result here.
       refresh(ctx);
     }
+  });
+  box.unsubscribeLog = sync.onLog((entry) => {
+    ctx.set((state) => ({ syncLog: [...state.syncLog, entry].slice(-SYNC_LOG_CAP) }));
   });
 }
 
@@ -154,18 +167,38 @@ function closeSettings(set: SetState): void {
   set({ settingsOpen: false });
 }
 
+function openSyncLog(set: SetState): void {
+  set({ syncLogOpen: true });
+}
+
+function closeSyncLog(set: SetState): void {
+  set({ syncLogOpen: false });
+}
+
+function openPublishDialog(set: SetState): void {
+  set({ publishDialogOpen: true });
+}
+
+function closePublishDialog(set: SetState): void {
+  set({ publishDialogOpen: false });
+}
+
 export type { SyncSubscriptionBox };
 export {
   addToast,
   attachSync,
   closeNewLinkDialog,
+  closePublishDialog,
   closeSettings,
+  closeSyncLog,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
   openNewLinkDialog,
+  openPublishDialog,
   openSettings,
+  openSyncLog,
   resolveConflict,
   saveToken,
   setCommitTemplates,

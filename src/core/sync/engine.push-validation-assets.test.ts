@@ -5,7 +5,7 @@ import { baseEntry, commitMessageFor } from "./testing/fixtures";
 import { createHarness } from "./testing/harness";
 
 describe("push: validation failure", () => {
-  it("aborts without committing and reports an error status", async () => {
+  it("skips the invalid entry but still pushes the valid ones — one bad file must not hold the blog hostage", async () => {
     const harness = await createHarness();
     const { remote, store, sync, model } = harness;
     remote.initRepo({ "seed.txt": "seed" });
@@ -18,20 +18,49 @@ describe("push: validation failure", () => {
     await store.upsertEntry(
       baseEntry({ path: badPath, kind: "post", workingContent: created.raw, title: "Bad Path" }),
     );
+    const good = model.newEntry({ kind: "post", title: "Good Post", date: "2026-01-11" });
+    await store.upsertEntry(
+      baseEntry({ path: good.path, kind: "post", workingContent: good.raw, title: "Good Post" }),
+    );
+
+    const result = await sync.push();
+
+    expect(result.committed).toBe(true);
+    expect(remote.readFile(good.path)).toBe(good.raw);
+    expect(remote.readFile(badPath)).toBeNull();
+    expect(result.pushed).toContain(good.path);
+    expect(result.skipped.map((s) => s.path)).toEqual([badPath]);
+    expect(result.skipped[0]?.reason).toContain("filename");
+
+    // The skipped entry stays dirty (still pending) and the round settles
+    // without an error state — the skip itself is reported via the log and
+    // the pending count, not by failing the entire push.
+    const entry = await store.getEntry(badPath);
+    expect(entry?.dirty).toBe(true);
+    expect(sync.status().state).toBe("idle");
+    expect(sync.status().pendingCount).toBe(1);
+  });
+
+  it("when every dirty entry fails validation, nothing commits and the status says why", async () => {
+    const harness = await createHarness();
+    const { remote, store, sync, model } = harness;
+    remote.initRepo({ "seed.txt": "seed" });
+    await sync.bootstrap();
+
+    const created = model.newEntry({ kind: "post", title: "Bad Path", date: "2026-01-10" });
+    const badPath = "content/blog/2026/not-a-dated-filename.md";
+    await store.upsertEntry(
+      baseEntry({ path: badPath, kind: "post", workingContent: created.raw, title: "Bad Path" }),
+    );
 
     const refBefore = await remote.getRef();
     const result = await sync.push();
 
     expect(result.committed).toBe(false);
     expect(await remote.getRef()).toBe(refBefore);
-    expect(remote.readFile(badPath)).toBeNull();
-
-    const status = sync.status();
-    expect(status.state).toBe("error");
-    expect(status.message).toBeDefined();
-
-    const entry = await store.getEntry(badPath);
-    expect(entry?.dirty).toBe(true);
+    expect(result.skipped).toHaveLength(1);
+    expect(sync.status().state).toBe("error");
+    expect(sync.status().message).toContain("validation");
   });
 });
 
@@ -153,6 +182,12 @@ describe("push: commit message batching", () => {
     await sync.bootstrap();
 
     const result = await sync.push();
-    expect(result).toEqual({ committed: false, retries: 0, conflicts: [] });
+    expect(result).toEqual({
+      committed: false,
+      retries: 0,
+      conflicts: [],
+      pushed: [],
+      skipped: [],
+    });
   });
 });

@@ -14,6 +14,14 @@ const SECTION_FOR_KIND: Record<EntryKind, Section> = {
   release: "releases",
 };
 
+/** Shared by the sidebar and the native View menu so section names never drift. */
+const SECTION_LABELS: Record<Section, string> = {
+  drafts: "Drafts",
+  posts: "Posts",
+  links: "Links",
+  releases: "Releases",
+};
+
 interface MonthGroup {
   /** "01".."12", or the UNDATED_KEY sentinel for entries with no date. */
   key: string;
@@ -124,6 +132,7 @@ export {
   filterBySection,
   groupByYearMonth,
   monthGroupLabel,
+  SECTION_LABELS,
   sectionForEntry,
   sectionForKind,
   visibleEntries,

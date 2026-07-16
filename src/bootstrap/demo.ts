@@ -9,61 +9,84 @@ import type { EntryRecord } from "../core/store/types";
 import { makeEntry, makeRaw } from "../ui/app/testing/builders";
 import { buildFakeServices } from "../ui/app/testing/fakes";
 
+/** Demo seeds that pretend to have been synced: base == working, exactly what
+ *  a real bootstrap produces — so editing one exercises the dirty save-state
+ *  and Discard-changes flows the way the real app does. */
+function synced(record: EntryRecord): EntryRecord {
+  return { ...record, baseSha: `demo-${record.path}`, baseContent: record.workingContent };
+}
+
+/** A long, never-synced dirty draft: exercises entry-list wrapping, long-
+ *  document scrolling, and the local-only save state. */
+function longDraftSeed(): EntryRecord {
+  return makeEntry({
+    path: "content/drafts/2026-07-10-notes-on-offline-sync.md",
+    kind: "draft",
+    title:
+      "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list",
+    date: "2026-07-10",
+    dirty: true,
+    workingContent: `---\ntitle: "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list"\ndate: 2026-07-10\ndraft: true\n---\n${Array.from(
+      { length: 40 },
+      (_, i) =>
+        `Paragraph ${i + 1}. Offline-first means writing never waits on the network — sync is a background concern, not a gate. This seed paragraph exists so scrolling long documents is exercised in the demo.`,
+    ).join("\n\n")}`,
+  });
+}
+
 function seedEntries(): EntryRecord[] {
   return [
-    makeEntry({
-      path: "content/drafts/2026-07-10-notes-on-offline-sync.md",
-      kind: "draft",
-      title:
-        "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list",
-      date: "2026-07-10",
-      dirty: true,
-      workingContent: `---\ntitle: "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list"\ndate: 2026-07-10\ndraft: true\n---\n${Array.from(
-        { length: 40 },
-        (_, i) =>
-          `Paragraph ${i + 1}. Offline-first means writing never waits on the network — sync is a background concern, not a gate. This seed paragraph exists so scrolling long documents is exercised in the demo.`,
-      ).join("\n\n")}`,
-    }),
-    makeEntry({
-      path: "content/blog/2004/2004-01-24-orkut.html",
-      kind: "post",
-      title: "Orkut (legacy HTML)",
-      date: "2004-01-24",
-      workingContent: `---\ntitle: Orkut (legacy HTML)\ndate: 2004-01-24 00:04:00 -08:00\n---\n<p>So <a href="https://example.com">orkut</a> launched. <em>Everyone</em> is joining.</p>\n<p>Second paragraph with a list:</p>\n<ul><li>one</li><li>two</li></ul>`,
-    }),
-    makeEntry({
-      path: "content/blog/2026/2026-06-01-a-week-with-crepe.md",
-      kind: "post",
-      title: "A week with Crepe for WYSIWYG markdown",
-      date: "2026-06-01",
-    }),
-    makeEntry({
-      path: "content/blog/2025/2025-11-20-split-keyboard-redux.md",
-      kind: "post",
-      title: "Split keyboard, redux",
-      date: "2025-11-20",
-    }),
-    makeEntry({
-      path: "content/_linkblog/2026-07-12-cool-find.md",
-      kind: "link",
-      title: "A neat piece on three-way merges",
-      date: "2026-07-12",
-      // makeEntry doesn't thread url/type through to its auto-generated
-      // workingContent (they aren't EntryRecord fields), so build the raw
-      // front matter directly to get a realistic link post.
-      workingContent: makeRaw({
+    longDraftSeed(),
+    synced(
+      makeEntry({
+        path: "content/blog/2004/2004-01-24-orkut.html",
+        kind: "post",
+        title: "Orkut (legacy HTML)",
+        date: "2004-01-24",
+        workingContent: `---\ntitle: Orkut (legacy HTML)\ndate: 2004-01-24 00:04:00 -08:00\n---\n<p>So <a href="https://example.com">orkut</a> launched. <em>Everyone</em> is joining.</p>\n<p>Second paragraph with a list:</p>\n<ul><li>one</li><li>two</li></ul>`,
+      }),
+    ),
+    synced(
+      makeEntry({
+        path: "content/blog/2026/2026-06-01-a-week-with-crepe.md",
+        kind: "post",
+        title: "A week with Crepe for WYSIWYG markdown",
+        date: "2026-06-01",
+      }),
+    ),
+    synced(
+      makeEntry({
+        path: "content/blog/2025/2025-11-20-split-keyboard-redux.md",
+        kind: "post",
+        title: "Split keyboard, redux",
+        date: "2025-11-20",
+      }),
+    ),
+    synced(
+      makeEntry({
+        path: "content/_linkblog/2026-07-12-cool-find.md",
+        kind: "link",
         title: "A neat piece on three-way merges",
         date: "2026-07-12",
-        url: "https://example.com/diff3",
-        type: "link",
+        // makeEntry doesn't thread url/type through to its auto-generated
+        // workingContent (they aren't EntryRecord fields), so build the raw
+        // front matter directly to get a realistic link post.
+        workingContent: makeRaw({
+          title: "A neat piece on three-way merges",
+          date: "2026-07-12",
+          url: "https://example.com/diff3",
+          type: "link",
+        }),
       }),
-    }),
-    makeEntry({
-      path: "content/releases/2026/2026-05-01-v0-1.md",
-      kind: "release",
-      title: "Blogosphere v0.1",
-      date: "2026-05-01",
-    }),
+    ),
+    synced(
+      makeEntry({
+        path: "content/releases/2026/2026-05-01-v0-1.md",
+        kind: "release",
+        title: "Blogosphere v0.1",
+        date: "2026-05-01",
+      }),
+    ),
   ];
 }
 

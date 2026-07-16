@@ -41,21 +41,65 @@ function useEditorCommitHandlers(path: string) {
   );
 }
 
+/** Margin past the store's edit debounce before the deferred reconcile runs,
+ *  so the burst's own commit has landed by then. */
+const RECONCILE_MARGIN_MS = 250;
+
+/** How long after the user's last keystroke the reconciling effect keeps its
+ *  hands off the local echo. Longer than the store's edit debounce on
+ *  purpose: by the time the deferred pass runs, the burst's own commit has
+ *  landed, so reconciling from the store is a visual no-op for plain typing
+ *  (same strings) instead of a flicker back to a not-yet-committed snapshot. */
+const LOCAL_EDIT_WINDOW_MS = DEFAULT_EDIT_DEBOUNCE_MS + RECONCILE_MARGIN_MS;
+
 /**
  * Local-echo title/tags/body, kept in sync with `record.workingContent`
  * without a remount, since EditorScreenBody is keyed only by path
  * (EditorScreen.tsx), so it never remounts when the *content* at the same
- * path changes underneath it. pull()'s fast-forward/diff3-merge and conflict
- * resolution all write straight to the store, bypassing this component
- * entirely; without the reconciling effect below, the editor would keep
- * showing stale pre-merge/pre-resolution text until the user switched
- * entries and back, and resuming typing on that stale text would silently
- * blow away whatever landed externally. `markLocalEditPending` defers that
- * reconciliation for a short window after the user's own last keystroke, so
- * an external change landing mid-burst doesn't blow away in-progress typing
- * the moment it arrives — it's deferred until the burst's own debounce would
- * have settled, not dropped.
+ * path changes underneath it. pull()'s fast-forward/diff3-merge, conflict
+ * resolution, and discardChanges all write straight to the store, bypassing
+ * this component entirely; without the reconciling effect below, the editor
+ * would keep showing stale text until the user switched entries and back,
+ * and resuming typing on that stale text would silently blow away whatever
+ * landed externally.
+ *
+ * Two guards shape when reconciliation runs:
+ *  - `localEditPendingRef` defers it for LOCAL_EDIT_WINDOW_MS after the
+ *    user's own last keystroke, so an external change landing mid-burst
+ *    doesn't blow away in-progress typing. The window's expiry bumps
+ *    `reconcileTick` so the deferred pass actually runs (deferred, never
+ *    dropped).
+ *  - `localDivergedRef` records that the user has typed since the last
+ *    reconcile. It closes the discard hole: discardChanges restores content
+ *    equal to the last-reconciled snapshot, which a bare "did
+ *    workingContent change?" check reads as nothing-to-do while the editor
+ *    still shows the discarded keystrokes. A store row that is clean
+ *    (dirty: false) while the echo has diverged means the store was
+ *    authoritatively reverted — reconcile even though the content string
+ *    never "changed".
  */
+/** Reconcile when the store's content moved, or when a revert landed: the
+ *  row is clean while the echo has diverged (discard restores content equal
+ *  to the last-reconciled snapshot, so the string alone can't signal it). */
+function needsReconcile(record: EntryRecord, syncedContent: string, diverged: boolean): boolean {
+  return record.workingContent !== syncedContent || (diverged && !record.dirty);
+}
+
+interface EchoSetters {
+  setTitleState: (value: string) => void;
+  setTagsState: (value: string[]) => void;
+  setBodyState: (value: string) => void;
+}
+
+function applyParsedToEcho(parsed: ParsedView | null, setters: EchoSetters): void {
+  if (!parsed) {
+    return;
+  }
+  setters.setTitleState(parsed.title ?? "");
+  setters.setTagsState(parsed.tags);
+  setters.setBodyState(parsed.body);
+}
+
 function useLocalEcho(record: EntryRecord, parsed: ParsedView | null) {
   // Ternaries on `parsed` narrowing it to non-null (rather than `parsed?.x
   // ?? fallback`) so both type checkers agree there's nothing left to guard:
@@ -66,26 +110,48 @@ function useLocalEcho(record: EntryRecord, parsed: ParsedView | null) {
   const [title, setTitleState] = useState(parsed ? (parsed.title ?? "") : "");
   const [tags, setTagsState] = useState<string[]>(parsed ? parsed.tags : []);
   const [body, setBodyState] = useState(parsed ? parsed.body : "");
+  const [reconcileTick, setReconcileTick] = useState(0);
   const syncedContentRef = useRef(record.workingContent);
   const localEditPendingRef = useRef(false);
+  const localDivergedRef = useRef(false);
+  const windowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(
+    () => () => {
+      if (windowTimerRef.current !== null) {
+        clearTimeout(windowTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  // reconcileTick is deliberately an extra dep — it re-runs the deferred
+  // pass after the local-edit window expires.
   useEffect(() => {
-    if (record.workingContent === syncedContentRef.current || localEditPendingRef.current) {
+    if (
+      localEditPendingRef.current ||
+      !needsReconcile(record, syncedContentRef.current, localDivergedRef.current)
+    ) {
       return;
     }
     syncedContentRef.current = record.workingContent;
-    if (parsed) {
-      setTitleState(parsed.title ?? "");
-      setTagsState(parsed.tags);
-      setBodyState(parsed.body);
-    }
-  }, [record.workingContent, parsed]);
+    localDivergedRef.current = false;
+    applyParsedToEcho(parsed, { setTitleState, setTagsState, setBodyState });
+  }, [record, parsed, reconcileTick]);
 
   function markLocalEditPending() {
     localEditPendingRef.current = true;
-    setTimeout(() => {
+    localDivergedRef.current = true;
+    // Reset (not stack) the timer: the window measures from the LAST
+    // keystroke — stacked timeouts from earlier keystrokes would clear the
+    // flag mid-burst.
+    if (windowTimerRef.current !== null) {
+      clearTimeout(windowTimerRef.current);
+    }
+    windowTimerRef.current = setTimeout(() => {
       localEditPendingRef.current = false;
-    }, DEFAULT_EDIT_DEBOUNCE_MS);
+      setReconcileTick((tick) => tick + 1);
+    }, LOCAL_EDIT_WINDOW_MS);
   }
 
   return { title, tags, body, setTitleState, setTagsState, setBodyState, markLocalEditPending };

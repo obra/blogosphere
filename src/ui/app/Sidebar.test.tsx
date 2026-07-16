@@ -25,7 +25,7 @@ it("sync button calls sync.sync(), not Settings", () => {
   expect(store.getState().settingsOpen).toBe(false);
 });
 
-it("sync button is disabled with helper copy when no sync is configured", () => {
+it("sync button opens Settings when no sync is configured — never a dead click", () => {
   const fake = buildFakeServices({ seedEntries: [] });
   const tokenless = { ...fake.services, sync: null };
   const store = createAppStore(tokenless);
@@ -36,9 +36,18 @@ it("sync button is disabled with helper copy when no sync is configured", () => 
       </AppStoreProvider>
     </ServicesProvider>,
   );
-  const button = screen.getByTitle("Connect to your blog to sync");
-  expect(button).toHaveProperty("disabled", true);
+  const button = screen.getByTitle("Not connected — open Settings to connect");
+  expect(button).toHaveProperty("disabled", false);
   expect(button.textContent).toContain("Not connected");
+
+  fireEvent.click(button);
+  expect(store.getState().settingsOpen).toBe(true);
+});
+
+it("the activity-log button opens the sync log panel", () => {
+  const { store } = renderWithStore(<Sidebar />, { seedEntries: [] });
+  fireEvent.click(screen.getByLabelText("Activity log"));
+  expect(store.getState().syncLogOpen).toBe(true);
 });
 
 it("the gear opens Settings", () => {

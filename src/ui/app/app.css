@@ -6,6 +6,7 @@
 @import "./app-editor.css";
 @import "./app-crepe.css";
 @import "./app-dialogs.css";
+@import "./app-synclog.css";
 @import "./app-connect.css";
 
 :root {

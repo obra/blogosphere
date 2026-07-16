@@ -65,21 +65,48 @@ function SaveStateIndicator(props: { record: EntryRecord }) {
   );
 }
 
+/** Only offered when there's actually something to go back to: unsynced
+ *  changes on top of a version that exists on GitHub. The action itself
+ *  (state.editingActions.ts) owns the confirm and cancels in-flight
+ *  keystrokes instead of committing them. */
+function DiscardButton(props: { record: EntryRecord }) {
+  const store = useAppStoreApi();
+  if (!(props.record.dirty && props.record.baseContent !== null)) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className="btn"
+      title="Throw away unsynced changes and restore the version on GitHub"
+      onClick={() => store.getState().discardChanges(props.record.path)}
+    >
+      Discard changes
+    </button>
+  );
+}
+
+/** Dialog open-state lives in the app store (not component state) so the
+ *  File menu's Publish… command can open the same dialog this button does. */
 function PublishSection(props: { path: string; opaqueId: string | null }) {
   const store = useAppStoreApi();
-  const [open, setOpen] = useState(false);
+  const open = useAppStore((state) => state.publishDialogOpen);
   return (
     <>
-      <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => store.getState().openPublishDialog()}
+      >
         Publish
       </button>
       {open ? (
         <PublishDialog
           today={todayIso(Date.now())}
           hasOpaqueId={Boolean(props.opaqueId)}
-          onCancel={() => setOpen(false)}
+          onCancel={() => store.getState().closePublishDialog()}
           onPublish={(opts) => {
-            setOpen(false);
+            store.getState().closePublishDialog();
             store.getState().publishDraft(props.path, opts);
           }}
         />
@@ -108,6 +135,7 @@ function EditorToolbar(props: EditorToolbarProps) {
       )}
       <SaveStateIndicator record={props.record} />
       <div className="editor-actions">
+        <DiscardButton record={props.record} />
         <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
         <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
         <DeleteButton path={props.record.path} />

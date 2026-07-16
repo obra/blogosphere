@@ -5,6 +5,8 @@ import { ASSETS_ROOT, CONTENT_ROOTS } from "../model/types";
 import type { EntryRecord } from "../store/types";
 import { denormalize, fallbackFrom, fetchCurrentRemote } from "./entry-fields";
 import { SyncError } from "./errors";
+import type { LogFn } from "./logging";
+import { createLogChannel, describeResolution, logPullResult, logPushResult } from "./logging";
 import {
   clearConflictRemote,
   getConflictPaths,
@@ -102,7 +104,7 @@ async function bootstrapOneEntry(deps: SyncDeps, entry: TreeEntry): Promise<void
   });
 }
 
-async function runBootstrap(deps: SyncDeps): Promise<void> {
+async function runBootstrap(deps: SyncDeps): Promise<number> {
   const headSha = await deps.github.getRef();
   const commit = await deps.github.getCommit(headSha);
   const entries = await deps.github.getTreeRecursive(commit.treeSha);
@@ -120,6 +122,7 @@ async function runBootstrap(deps: SyncDeps): Promise<void> {
     META_ASSETS_INDEX,
     JSON.stringify(imageIndexFor(entries, ASSETS_ROOT, Object.values(CONTENT_ROOTS))),
   );
+  return managed.length;
 }
 
 async function resolveViaMine(deps: SyncDeps, path: string, entry: EntryRecord): Promise<void> {
@@ -204,17 +207,24 @@ async function runWithStatus<T>(status: StatusTracker, fn: () => Promise<T>): Pr
   }
 }
 
-async function pushWithStatus(deps: SyncDeps, status: StatusTracker): Promise<PushResult> {
+async function pushWithStatus(
+  deps: SyncDeps,
+  status: StatusTracker,
+  log: LogFn,
+): Promise<PushResult> {
   status.begin();
   try {
     const outcome = await runPush(deps);
+    const result = toPushResult(outcome);
+    logPushResult(log, result, outcome.errorMessage);
     if (outcome.errorMessage === undefined) {
       await status.finishOk();
     } else {
       await status.finishError(outcome.errorMessage);
     }
-    return toPushResult(outcome);
+    return result;
   } catch (err) {
+    log("error", `Push failed: ${messageForError(err)}`);
     await status.finishError(messageForError(err));
     throw err;
   }
@@ -223,22 +233,28 @@ async function pushWithStatus(deps: SyncDeps, status: StatusTracker): Promise<Pu
 async function syncWithStatus(
   deps: SyncDeps,
   status: StatusTracker,
+  log: LogFn,
 ): Promise<{ pull: PullResult | null; push: PushResult | null }> {
   status.begin();
   try {
     const pullResult = await runPull(deps);
+    logPullResult(log, pullResult);
     const pushOutcome = await runPush(deps);
+    const pushResult = toPushResult(pushOutcome);
+    logPushResult(log, pushResult, pushOutcome.errorMessage);
     if (pushOutcome.errorMessage === undefined) {
       await status.finishOk();
     } else {
       await status.finishError(pushOutcome.errorMessage);
     }
-    return { pull: pullResult, push: toPushResult(pushOutcome) };
+    return { pull: pullResult, push: pushResult };
   } catch (err) {
     if (err instanceof GitHubError && err.kind === "network") {
+      log("warn", "Offline — couldn't reach GitHub. Changes stay saved on this device.");
       await status.finishOffline(err.message);
       return { pull: null, push: null };
     }
+    log("error", `Sync failed: ${messageForError(err)}`);
     await status.finishError(messageForError(err));
     throw err;
   }
@@ -246,15 +262,32 @@ async function syncWithStatus(
 
 export function createSync(deps: SyncDeps): SyncApi {
   const status = createStatusTracker(deps);
+  const logs = createLogChannel(deps);
+
+  async function loggedPull(): Promise<PullResult> {
+    const result = await runWithStatus(status, () => runPull(deps));
+    logPullResult(logs.log, result);
+    return result;
+  }
+
+  async function loggedResolve(path: string, resolution: ConflictResolution): Promise<void> {
+    await runWithStatus(status, () => runResolveConflict(deps, path, resolution));
+    logs.log("info", `Resolved conflict in ${path} — ${describeResolution(resolution)}`);
+  }
+
+  async function loggedBootstrap(): Promise<void> {
+    const count = await runWithStatus(status, () => runBootstrap(deps));
+    logs.log("info", `Loaded ${count} entr${count === 1 ? "y" : "ies"} from GitHub`);
+  }
 
   return {
     status: status.get,
     onStatus: status.subscribe,
-    pull: () => runWithStatus(status, () => runPull(deps)),
-    push: () => pushWithStatus(deps, status),
-    sync: () => syncWithStatus(deps, status),
-    resolveConflict: (path, resolution) =>
-      runWithStatus(status, () => runResolveConflict(deps, path, resolution)),
-    bootstrap: () => runWithStatus(status, () => runBootstrap(deps)),
+    onLog: logs.subscribe,
+    pull: loggedPull,
+    push: () => pushWithStatus(deps, status, logs.log),
+    sync: () => syncWithStatus(deps, status, logs.log),
+    resolveConflict: loggedResolve,
+    bootstrap: loggedBootstrap,
   };
 }

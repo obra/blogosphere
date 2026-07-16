@@ -9,11 +9,13 @@ import { ConnectScreen } from "./ConnectScreen";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
+import { installAppMenu } from "./menu";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { handleCloseRequested } from "./quitFlush";
 import { useServices } from "./ServicesContext";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
+import { SyncLogPanel } from "./SyncLogPanel";
 import type { BoundAppStore } from "./state";
 import { useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
@@ -68,13 +70,43 @@ function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
   }
 }
 
+/** Browser/dev only: in the Tauri app the native menu (menu.ts) owns these
+ *  accelerators — a DOM handler on top of it would double-fire every one. */
 function useKeyboardShortcuts(store: BoundAppStore): void {
   useEffect(() => {
+    if (isTauri()) {
+      return;
+    }
     function onKeyDown(event: KeyboardEvent) {
       handleShortcut(store, event);
     }
     globalThis.window.addEventListener("keydown", onKeyDown);
     return () => globalThis.window.removeEventListener("keydown", onKeyDown);
+  }, [store]);
+}
+
+/** Installs the real macOS menu bar (File/Edit/View/Window with working
+ *  commands) once the shell mounts. A no-op outside Tauri. */
+function useNativeMenu(store: BoundAppStore): void {
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+    let dispose: (() => void) | undefined;
+    let cancelled = false;
+    installAppMenu(store)
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+          return;
+        }
+        dispose = fn;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      dispose?.();
+    };
   }, [store]);
 }
 
@@ -148,6 +180,7 @@ function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   useKeyboardShortcuts(store);
+  useNativeMenu(store);
   useSyncOnFocus(store);
   useFlushBeforeQuit(store);
 
@@ -167,6 +200,7 @@ function AppShell(props: AppShellProps) {
       </div>
       <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
       <SettingsScreen onTokenSaved={props.onTokenSaved} />
+      <SyncLogPanel />
       <ConflictHost />
       <Toasts />
     </div>

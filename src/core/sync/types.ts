@@ -27,12 +27,34 @@ export interface PullResult {
   conflicts: string[];
 }
 
+/** A dirty entry excluded from a push because it failed validateForCommit.
+ *  It stays dirty (still pending) and is reported via the log — one bad file
+ *  must never block the rest of the blog from pushing. */
+export interface PushSkip {
+  path: string;
+  reason: string;
+}
+
 export interface PushResult {
   committed: boolean;
   commitSha?: string;
   /** Ref CAS failures retried (pull+rebuild loops). */
   retries: number;
   conflicts: string[];
+  /** Paths included in the commit (edits and deletions alike). */
+  pushed: string[];
+  skipped: PushSkip[];
+}
+
+export type SyncLogLevel = "info" | "warn" | "error";
+
+/** One line of the sync activity log — what an operation actually did. */
+export interface SyncLogEntry {
+  at: number;
+  level: SyncLogLevel;
+  message: string;
+  /** Optional multi-line detail (e.g. the list of pushed paths). */
+  detail?: string;
 }
 
 /** Pure three-way merge result. */
@@ -70,6 +92,9 @@ export interface SyncApi {
   status(): SyncStatus;
   /** Subscribe to status changes; returns unsubscribe. */
   onStatus(cb: (s: SyncStatus) => void): () => void;
+  /** Subscribe to the activity log (what each operation actually did —
+   *  pushes with paths, pulls, skips, conflicts, errors); returns unsubscribe. */
+  onLog(cb: (entry: SyncLogEntry) => void): () => void;
 
   /** Fetch remote state; update clean entries; merge or flag dirty ones. */
   pull(): Promise<PullResult>;
