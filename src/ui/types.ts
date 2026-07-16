@@ -23,3 +23,6 @@ export interface EditorProps {
 /** Sections shown in the sidebar, in order. */
 export const SECTIONS = ["drafts", "posts", "links", "releases"] as const;
 export type Section = (typeof SECTIONS)[number];
+
+/** View mode for legacy .html entries: rendered preview or raw source. */
+export type HtmlViewMode = "preview" | "source";

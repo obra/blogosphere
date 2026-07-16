@@ -1,6 +1,6 @@
 // ABOUTME: Small controlled-field subcomponents used by EditorScreen: title
 // ABOUTME: input, date field, draft-state chip, and the WYSIWYG/source toggle.
-import type { EditorMode } from "../types";
+import type { EditorMode, HtmlViewMode } from "../types";
 
 interface TitleFieldProps {
   value: string;
@@ -78,15 +78,31 @@ function ModeToggle(props: ModeToggleProps) {
   );
 }
 
-/** Shown instead of ModeToggle for a legacy .html entry — there's no
- *  Write/Markdown choice to make (source editing only), so a static chip
- *  replaces the toggle rather than disabling it in place. */
-function HtmlModeChip() {
+interface HtmlModeToggleProps {
+  mode: HtmlViewMode;
+  onChange: (mode: HtmlViewMode) => void;
+}
+
+/** Legacy .html entries: rendered preview or raw-HTML source (no WYSIWYG). */
+function HtmlModeToggle(props: HtmlModeToggleProps) {
   return (
-    <span className="state-chip" data-kind="html" title="Legacy HTML post — source editing only">
-      HTML
-    </span>
+    <fieldset className="mode-toggle" aria-label="View mode">
+      <button
+        type="button"
+        aria-pressed={props.mode === "preview"}
+        onClick={() => props.onChange("preview")}
+      >
+        Preview
+      </button>
+      <button
+        type="button"
+        aria-pressed={props.mode === "source"}
+        onClick={() => props.onChange("source")}
+      >
+        HTML
+      </button>
+    </fieldset>
   );
 }
 
-export { DateField, DraftStateChip, HtmlModeChip, ModeToggle, TitleField };
+export { DateField, DraftStateChip, HtmlModeToggle, ModeToggle, TitleField };

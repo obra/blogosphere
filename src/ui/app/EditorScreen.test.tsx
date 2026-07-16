@@ -252,7 +252,7 @@ function queryProseMirror(container: HTMLElement): HTMLElement | null {
   return container.querySelector(".milkdown .ProseMirror");
 }
 
-it("a legacy .html entry shows an HTML chip instead of the Write/Markdown toggle", async () => {
+it("a legacy .html entry shows the Preview/HTML toggle instead of Write/Markdown", async () => {
   const post = makeEntry({
     path: "content/blog/2004/2004-01-24-orkut.html",
     kind: "post",
@@ -260,10 +260,8 @@ it("a legacy .html entry shows an HTML chip instead of the Write/Markdown toggle
   });
   await renderEditorFor(post);
 
-  expect(screen.getByTitle("Legacy HTML post — source editing only")).toHaveProperty(
-    "textContent",
-    "HTML",
-  );
+  expect(screen.getByRole("button", { name: "Preview" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "HTML" })).not.toBeNull();
   expect(screen.queryByText("Write")).toBeNull();
   expect(screen.queryByText("Markdown")).toBeNull();
 });
@@ -277,7 +275,7 @@ it("an ordinary .md entry shows the Write/Markdown toggle, not an HTML chip", as
   expect(screen.queryByTitle("Legacy HTML post — source editing only")).toBeNull();
 });
 
-it("a legacy .html entry renders the body in source mode (CodeMirror), never WYSIWYG", async () => {
+it("a legacy .html entry opens in rendered preview; HTML mode is CodeMirror, never WYSIWYG", async () => {
   const post = makeEntry({
     path: "content/blog/2004/2004-01-24-orkut.html",
     kind: "post",
@@ -285,12 +283,15 @@ it("a legacy .html entry renders the body in source mode (CodeMirror), never WYS
   });
   const { store } = await renderEditorFor(post);
 
-  expect(queryCmContent(document.body)).not.toBeNull();
+  // Default view: the sandboxed rendered preview, no editors mounted.
+  const frame = document.body.querySelector("iframe.html-preview");
+  expect(frame).not.toBeNull();
+  expect(frame?.getAttribute("sandbox")).toBe("");
   expect(queryProseMirror(document.body)).toBeNull();
 
-  // Force source mode ignores any per-entry persisted mode — even if
-  // "wysiwyg" was saved before this file existed (or never cleared), a
-  // legacy .html entry must still never reach Milkdown.
+  // Switch to source: CodeMirror, still never Milkdown — even if a stale
+  // per-entry "wysiwyg" mode was persisted before this file existed.
+  fireEvent.click(screen.getByRole("button", { name: "HTML" }));
   await act(async () => {
     await store.getState().setEditorMode(post.path, "wysiwyg");
   });

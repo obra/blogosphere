@@ -175,6 +175,7 @@
 .entry-list-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 6px 0 16px;
 }
 
@@ -232,15 +233,24 @@
 }
 
 .entry-row-title {
-  font-weight: 500;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .entry-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
   color: var(--text-muted);
   font-size: 11px;
+  white-space: nowrap;
 }
 
 .dot-badge {

@@ -14,9 +14,22 @@ function seedEntries(): EntryRecord[] {
     makeEntry({
       path: "content/drafts/2026-07-10-notes-on-offline-sync.md",
       kind: "draft",
-      title: "Notes on building offline-first sync",
+      title:
+        "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list",
       date: "2026-07-10",
       dirty: true,
+      workingContent: `---\ntitle: "Notes on building offline-first sync — a very long draft title to exercise wrapping in the entry list"\ndate: 2026-07-10\ndraft: true\n---\n${Array.from(
+        { length: 40 },
+        (_, i) =>
+          `Paragraph ${i + 1}. Offline-first means writing never waits on the network — sync is a background concern, not a gate. This seed paragraph exists so scrolling long documents is exercised in the demo.`,
+      ).join("\n\n")}`,
+    }),
+    makeEntry({
+      path: "content/blog/2004/2004-01-24-orkut.html",
+      kind: "post",
+      title: "Orkut (legacy HTML)",
+      date: "2004-01-24",
+      workingContent: `---\ntitle: Orkut (legacy HTML)\ndate: 2004-01-24 00:04:00 -08:00\n---\n<p>So <a href="https://example.com">orkut</a> launched. <em>Everyone</em> is joining.</p>\n<p>Second paragraph with a list:</p>\n<ul><li>one</li><li>two</li></ul>`,
     }),
     makeEntry({
       path: "content/blog/2026/2026-06-01-a-week-with-crepe.md",

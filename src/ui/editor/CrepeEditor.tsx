@@ -274,5 +274,7 @@ export function CrepeEditor(props: CrepeEditorProps) {
 
   useImperativeHandle(props.ref, () => buildEditorHandle(crepeRef), []);
 
-  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+  // This host is the Write-mode scroll container: Crepe/ProseMirror grows to
+  // its content height and does not scroll itself (unlike CodeMirror).
+  return <div ref={containerRef} style={{ height: "100%", width: "100%", overflowY: "auto" }} />;
 }

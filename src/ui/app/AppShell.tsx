@@ -154,7 +154,10 @@ function AppShell(props: AppShellProps) {
   }, [store]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-shell={isTauri() ? "tauri" : "web"}>
+      {/* Overlay-titlebar drag strip: the top 30px moves the window, like any
+          native Mac app. Interactive controls all sit below it. */}
+      <div className="titlebar-drag" data-tauri-drag-region="" />
       <Sidebar />
       <EntryList />
       <div className="detail-pane pane">

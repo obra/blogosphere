@@ -3,15 +3,16 @@
 import { useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import { Editor } from "../editor";
-import type { EditorMode } from "../types";
+import type { EditorMode, HtmlViewMode } from "../types";
 import {
   DateField,
   DraftStateChip,
-  HtmlModeChip,
+  HtmlModeToggle,
   ModeToggle,
   TitleField,
 } from "./EditorFieldControls";
 import { formatDisplayDate, todayIso } from "./format";
+import { HtmlPreview } from "./HtmlPreview";
 import { PublishDialog } from "./PublishDialog";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
@@ -78,6 +79,8 @@ interface EditorToolbarProps {
   mode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
   isLegacyHtml: boolean;
+  htmlView: HtmlViewMode;
+  onHtmlViewChange: (mode: HtmlViewMode) => void;
 }
 
 function EditorToolbar(props: EditorToolbarProps) {
@@ -85,7 +88,7 @@ function EditorToolbar(props: EditorToolbarProps) {
     <div className="editor-toolbar">
       <DraftStateChip draft={props.record.draft} />
       {props.isLegacyHtml ? (
-        <HtmlModeChip />
+        <HtmlModeToggle mode={props.htmlView} onChange={props.onHtmlViewChange} />
       ) : (
         <ModeToggle mode={props.mode} onChange={props.onModeChange} />
       )}
@@ -98,7 +101,10 @@ function EditorToolbar(props: EditorToolbarProps) {
 
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
+  // Legacy HTML entries open in the rendered view; editing is one click away.
+  const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: parseEntry genuinely fails on malformed front matter — parsed is ParsedView | null; Biome's checker mis-narrows here.
   if (!s.parsed) {
     return <div className="editor-empty">Couldn't read this entry's front matter.</div>;
   }
@@ -110,6 +116,8 @@ function EditorScreenBody(props: { record: EntryRecord }) {
         mode={s.editorMode}
         onModeChange={s.commitMode}
         isLegacyHtml={s.isLegacyHtml}
+        htmlView={htmlView}
+        onHtmlViewChange={setHtmlView}
       />
       <TitleField value={s.title} onChange={s.setTitle} />
       <div className="editor-meta-row">
@@ -123,15 +131,19 @@ function EditorScreenBody(props: { record: EntryRecord }) {
         </p>
       ) : null}
       <div className="editor-body-wrap">
-        <Editor
-          value={s.body}
-          onChange={s.setBody}
-          mode={s.editorMode}
-          sourceLanguage={s.sourceLanguage}
-          resolveImage={s.resolveImage}
-          onImage={s.onImage}
-          readOnly={s.isConflicted}
-        />
+        {s.isLegacyHtml && htmlView === "preview" ? (
+          <HtmlPreview html={s.body} />
+        ) : (
+          <Editor
+            value={s.body}
+            onChange={s.setBody}
+            mode={s.editorMode}
+            sourceLanguage={s.sourceLanguage}
+            resolveImage={s.resolveImage}
+            onImage={s.onImage}
+            readOnly={s.isConflicted}
+          />
+        )}
       </div>
     </div>
   );
