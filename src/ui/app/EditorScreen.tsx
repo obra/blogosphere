@@ -14,6 +14,7 @@ import {
 import { todayIso } from "./format";
 import { HtmlPreview } from "./HtmlPreview";
 import { PublishDialog } from "./PublishDialog";
+import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
 import { useEditorScreenState } from "./useEditorScreenState";
@@ -48,6 +49,19 @@ function DeleteButton(props: { path: string }) {
     <button type="button" className="btn" onClick={() => store.getState().deleteEntry(props.path)}>
       Delete
     </button>
+  );
+}
+
+/** Answers "did I just make this public, and is my work safe?" without a Save
+ *  button: edits autosave locally and background-sync to GitHub — drafts sync
+ *  as drafts, and only Publish makes one public (see saveStateLabel.ts). */
+function SaveStateIndicator(props: { record: EntryRecord }) {
+  const status = useAppStore((state) => state.syncStatus);
+  const label = saveStateLabel(props.record, status);
+  return (
+    <span className="save-state" title={label.title}>
+      {label.text}
+    </span>
   );
 }
 
@@ -92,6 +106,7 @@ function EditorToolbar(props: EditorToolbarProps) {
       ) : (
         <ModeToggle mode={props.mode} onChange={props.onModeChange} />
       )}
+      <SaveStateIndicator record={props.record} />
       <div className="editor-actions">
         <SecretLinkButton path={props.record.path} opaqueId={props.record.opaqueId} />
         <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />

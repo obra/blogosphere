@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, expect, it } from "vitest";
 import "../editor/jsdom-layout-shim";
 import { EditorScreen } from "./EditorScreen";
+import { todayIso } from "./format";
 import { ServicesProvider } from "./ServicesContext";
 import { AppStoreProvider, createAppStore } from "./state";
 import { makeEntry } from "./testing/builders";
@@ -51,7 +52,10 @@ it("Publish opens a dialog defaulting the date to today", async () => {
 
   fireEvent.click(screen.getByText("Publish"));
 
-  expect(screen.getByLabelText("Publish date")).toHaveProperty("value", "2026-07-15");
+  // PublishSection reads the real clock (todayIso(Date.now())), not the
+  // store's injected one — compare against the same clock, not a literal
+  // that silently expires at midnight.
+  expect(screen.getByLabelText("Publish date")).toHaveProperty("value", todayIso(Date.now()));
 });
 
 it("does not show the keep-secret-link checkbox when there is no opaqueId", async () => {

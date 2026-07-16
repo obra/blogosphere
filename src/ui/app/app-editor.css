@@ -139,13 +139,31 @@
 
 /* ---------- In-column alignment + chrome bar ---------- */
 
+/* One 46px line in any normal window; every control is fixed-width and the
+   save-state indicator shrinks first, so wrapping (from the base rule above)
+   only engages in a truly tiny pane — where a second line beats pushing
+   Publish/Delete out of reach. */
 .editor-toolbar {
-  flex-wrap: nowrap;
   min-height: 46px;
   padding: 6px 14px;
 }
-.editor-actions {
+/* The save-state indicator doubles as the toolbar's flexible spacer: its
+   margin-left:auto pins the action cluster right, and as its text changes
+   ("Saving…" → "Saved to GitHub · not public") only its own left edge moves —
+   the buttons never jiggle. It shrinks (with ellipsis) before anything else. */
+.save-state {
   margin-left: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.editor-actions {
   display: flex;
   align-items: center;
   gap: 8px;
