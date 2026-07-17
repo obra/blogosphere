@@ -145,6 +145,18 @@ function NewEntryButtons() {
   );
 }
 
+/** The sync pill + activity/settings icons — the sidebar's footer on desktop,
+ *  the header's right side on the phone shell (MobileShell). */
+function SidebarFooterWidgets() {
+  return (
+    <>
+      <SyncButton />
+      <ActivityLogButton />
+      <SettingsButton />
+    </>
+  );
+}
+
 function Sidebar() {
   const section = useAppStore((state) => state.section);
   const entries = useAppStore((state) => state.entries);
@@ -160,12 +172,10 @@ function Sidebar() {
         ))}
       </ul>
       <div className="sidebar-footer">
-        <SyncButton />
-        <ActivityLogButton />
-        <SettingsButton />
+        <SidebarFooterWidgets />
       </div>
     </nav>
   );
 }
 
-export { Sidebar };
+export { Sidebar, SidebarFooterWidgets };

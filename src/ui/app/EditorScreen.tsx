@@ -11,15 +11,16 @@ import {
   ModeToggle,
   TitleField,
 } from "./EditorFieldControls";
-import { todayIso } from "./format";
 import { HtmlPreview } from "./HtmlPreview";
 import { LiveView } from "./LiveView";
+import { MobileEditorBar } from "./MobileEditorBar";
 import { openExternal } from "./openExternal";
-import { PublishDialog } from "./PublishDialog";
+import { PublishButton, PublishDialogHost } from "./PublishControls";
 import { SecretLinkControl } from "./SecretLinkControl";
 import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
+import { useCompactLayout } from "./useCompactLayout";
 import { useEditorScreenState } from "./useEditorScreenState";
 
 function EditorEmptyState() {
@@ -70,37 +71,6 @@ function DiscardButton(props: { record: EntryRecord }) {
     >
       Discard changes
     </button>
-  );
-}
-
-/** Dialog open-state lives in the app store (not component state) so the
- *  File menu's Publish… command can open the same dialog this button does. */
-function PublishSection(props: { path: string; opaqueId: string | null; title: string | null }) {
-  const store = useAppStoreApi();
-  const open = useAppStore((state) => state.publishDialogOpen);
-  return (
-    <>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => store.getState().openPublishDialog()}
-      >
-        Publish
-      </button>
-      {open ? (
-        <PublishDialog
-          today={todayIso(Date.now())}
-          opaqueId={props.opaqueId}
-          path={props.path}
-          title={props.title}
-          onCancel={() => store.getState().closePublishDialog()}
-          onPublish={(opts) => {
-            store.getState().closePublishDialog();
-            store.getState().publishDraft(props.path, opts);
-          }}
-        />
-      ) : null}
-    </>
   );
 }
 
@@ -196,11 +166,7 @@ function EditorToolbar(props: EditorToolbarProps) {
         <SecretLinkControl record={props.record} />
         <ViewOnSiteButton url={props.liveUrl} />
         <HistoryButton path={props.record.path} />
-        <PublishSection
-          path={props.record.path}
-          opaqueId={props.record.opaqueId}
-          title={props.record.title}
-        />
+        <PublishButton />
         <DeleteButton path={props.record.path} />
       </div>
     </div>
@@ -209,6 +175,7 @@ function EditorToolbar(props: EditorToolbarProps) {
 
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
+  const compact = useCompactLayout();
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);
@@ -220,19 +187,21 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   const showLive = live && s.liveUrl !== null;
   const showHtmlPreview = !showLive && s.isLegacyHtml && htmlView === "preview";
   const fill = showLive && s.liveUrl ? <LiveView url={s.liveUrl} /> : <HtmlPreview html={s.body} />;
+  const chromeProps = {
+    record: props.record,
+    mode: s.editorMode,
+    onModeChange: s.commitMode,
+    isLegacyHtml: s.isLegacyHtml,
+    htmlView,
+    onHtmlViewChange: setHtmlView,
+    liveUrl: s.liveUrl,
+    live: showLive,
+    onLive: setLive,
+  };
   return (
     <div className="editor-screen">
-      <EditorToolbar
-        record={props.record}
-        mode={s.editorMode}
-        onModeChange={s.commitMode}
-        isLegacyHtml={s.isLegacyHtml}
-        htmlView={htmlView}
-        onHtmlViewChange={setHtmlView}
-        liveUrl={s.liveUrl}
-        live={showLive}
-        onLive={setLive}
-      />
+      {compact ? <MobileEditorBar {...chromeProps} /> : <EditorToolbar {...chromeProps} />}
+      <PublishDialogHost record={props.record} />
       {showLive || showHtmlPreview ? (
         <div className="editor-fill">{fill}</div>
       ) : (

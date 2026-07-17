@@ -9,6 +9,7 @@ import { ConnectScreen } from "./ConnectScreen";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
+import { MobileShell } from "./MobileShell";
 import { installAppMenu } from "./menu";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { QuickOpenPalette } from "./QuickOpenPalette";
@@ -20,6 +21,7 @@ import { SyncLogPanel } from "./SyncLogPanel";
 import type { BoundAppStore } from "./state";
 import { useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
+import { useCompactLayout } from "./useCompactLayout";
 import { VersionsPanel } from "./VersionsPanel";
 
 interface AppShellProps {
@@ -193,10 +195,58 @@ function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
   return <EditorScreen />;
 }
 
+/** Dismissible UI layers, topmost first — Android back pops exactly one. */
+const BACK_LAYERS: Array<{
+  open: (state: ReturnType<BoundAppStore["getState"]>) => boolean;
+  close: (state: ReturnType<BoundAppStore["getState"]>) => void;
+}> = [
+  { open: (s) => s.quickOpenOpen, close: (s) => s.closeQuickOpen() },
+  { open: (s) => s.versionsPath !== null, close: (s) => s.closeVersions() },
+  { open: (s) => s.publishDialogOpen, close: (s) => s.closePublishDialog() },
+  { open: (s) => s.syncLogOpen, close: (s) => s.closeSyncLog() },
+  { open: (s) => s.settingsOpen, close: (s) => s.closeSettings() },
+  { open: (s) => s.newLinkDialogOpen, close: (s) => s.closeNewLinkDialog() },
+  { open: (s) => s.selectedPath !== null, close: (s) => s.select(null) },
+];
+
+/** Android's hardware/gesture back pops one UI layer per press — dialog, then
+ *  editor→library — matching platform expectations. A no-op everywhere else
+ *  (the listener registration simply fails outside Android and is swallowed). */
+function useAndroidBack(store: BoundAppStore): void {
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    import("@tauri-apps/api/app")
+      .then((app) =>
+        app.onBackButtonPress(() => {
+          const state = store.getState();
+          BACK_LAYERS.find((layer) => layer.open(state))?.close(state);
+        }),
+      )
+      .then((fn) => {
+        if (cancelled) {
+          fn.unregister();
+          return;
+        }
+        unlisten = () => fn.unregister();
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [store]);
+}
+
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
+  const compact = useCompactLayout();
   const menuInstalled = useNativeMenu(store);
   useKeyboardShortcuts(store, menuInstalled);
+  useAndroidBack(store);
   useSyncOnFocus(store);
   useFlushBeforeQuit(store);
 
@@ -205,15 +255,25 @@ function AppShell(props: AppShellProps) {
   }, [store]);
 
   return (
-    <div className="app-shell" data-shell={isTauri() ? "tauri" : "web"}>
+    <div
+      className="app-shell"
+      data-shell={isTauri() ? "tauri" : "web"}
+      data-layout={compact ? "compact" : "wide"}
+    >
       {/* Overlay-titlebar drag strip: the top 30px moves the window, like any
           native Mac app. Interactive controls all sit below it. */}
       <div className="titlebar-drag" data-tauri-drag-region="" />
-      <Sidebar />
-      <EntryList />
-      <div className="detail-pane pane">
-        <DetailPane onTokenSaved={props.onTokenSaved} />
-      </div>
+      {compact ? (
+        <MobileShell onTokenSaved={props.onTokenSaved} />
+      ) : (
+        <>
+          <Sidebar />
+          <EntryList />
+          <div className="detail-pane pane">
+            <DetailPane onTokenSaved={props.onTokenSaved} />
+          </div>
+        </>
+      )}
       <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
       <SettingsScreen onTokenSaved={props.onTokenSaved} />
       <SyncLogPanel />

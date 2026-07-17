@@ -1,0 +1,264 @@
+/* ABOUTME: Phone-width shell styles: the Library screen, compact editor bar,
+   ABOUTME: bottom actions sheet, safe areas, and touch-sized targets. */
+
+/* Compact mode replaces the three-pane grid with a single stacked column. */
+.app-shell[data-layout="compact"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell[data-layout="compact"] .titlebar-drag {
+  display: none;
+}
+
+/* ---------- Library screen ---------- */
+
+.mobile-library {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.mobile-brand {
+  font-weight: 700;
+  font-size: 15px;
+  flex: 1;
+}
+
+.mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mobile-header-actions .sync-pill {
+  max-width: 40vw;
+}
+
+.mobile-chips {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  padding: 7px 13px;
+  font-size: 13.5px;
+  min-height: 36px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mobile-chip[aria-selected="true"] {
+  background: var(--bg-selected);
+  border-color: var(--accent);
+}
+.mobile-chip-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.app-shell[data-layout="compact"] .entry-list-pane {
+  flex: 1;
+  min-height: 0;
+  border-right: none;
+}
+
+/* Thumb zone: the create actions live at the bottom, above the home indicator. */
+.mobile-new-bar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+/* ---------- Compact editor chrome ---------- */
+
+.mobile-editor-bar {
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.mobile-editor-topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.mobile-back {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 15px;
+  padding: 8px 10px;
+  min-height: 44px;
+  cursor: pointer;
+  flex: none;
+}
+
+.mobile-editor-topline .save-state {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-more {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  min-width: 44px;
+  min-height: 38px;
+  cursor: pointer;
+  flex: none;
+}
+
+.mobile-editor-toggles {
+  display: flex;
+  justify-content: center;
+  padding: 0 8px 8px;
+}
+.mobile-editor-toggles .mode-toggle {
+  width: 100%;
+  display: flex;
+}
+.mobile-editor-toggles .mode-toggle button {
+  flex: 1;
+  min-height: 38px;
+}
+
+/* ---------- Bottom actions sheet ---------- */
+
+.mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 20, 0.35);
+  display: flex;
+  align-items: flex-end;
+  z-index: 120;
+}
+
+.mobile-sheet {
+  width: 100%;
+  background: var(--bg-raised);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--shadow-sheet, var(--shadow));
+  animation: mobile-sheet-in 190ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes mobile-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet {
+    animation: none;
+  }
+}
+
+.mobile-sheet-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15.5px;
+  padding: 13px 12px;
+  min-height: 48px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.mobile-sheet-row:active {
+  background: var(--bg-hover);
+}
+.mobile-sheet-row[data-destructive] {
+  color: var(--danger);
+}
+.mobile-sheet-cancel {
+  justify-content: center;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  margin-top: 4px;
+}
+
+.mobile-sheet-detail {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+/* ---------- Compact-wide touch + input adjustments ---------- */
+
+@media (max-width: 760px) {
+  /* iOS Safari zooms the page when a focused input's font-size is <16px —
+     bump the small controls so focus never triggers a zoom jump. */
+  .entry-list-search input,
+  .editor-date-input,
+  .tag-chips input,
+  .dialog-field input {
+    font-size: 16px;
+  }
+
+  .entry-row {
+    padding-top: 11px;
+    padding-bottom: 11px;
+  }
+
+  .btn {
+    min-height: 40px;
+  }
+
+  .editor-doc {
+    padding: 18px 16px 30vh;
+  }
+
+  /* Sheets become full-width cards on phones. */
+  .dialog {
+    width: 94vw;
+  }
+  .dialog-backdrop {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  }
+}
