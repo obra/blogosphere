@@ -21,11 +21,13 @@ import {
 } from "./request";
 import type {
   CommitInfo,
+  CommitSummary,
   GitHubApi,
   GitHubConfig,
   TreeChange,
   TreeEntry,
   UpdateRefResult,
+  WorkflowRun,
 } from "./types";
 import { GitHubError } from "./types";
 
@@ -174,6 +176,94 @@ async function updateRef(ctx: ClientContext, newSha: string): Promise<UpdateRefR
   throw await readMappedError(response, "updateRef");
 }
 
+function parseCommitList(data: unknown, context: string): CommitSummary[] {
+  if (!Array.isArray(data)) {
+    throw new GitHubError("protocol", `${context}: expected an array of commits`);
+  }
+  return data.map((item) => {
+    const raw = item as {
+      sha?: unknown;
+      commit?: { message?: unknown; author?: { date?: unknown } | null } | null;
+    } | null;
+    const sha = raw?.sha;
+    if (typeof sha !== "string") {
+      throw new GitHubError("protocol", `${context}: commit without a sha`);
+    }
+    const message = typeof raw?.commit?.message === "string" ? raw.commit.message : "";
+    const date = raw?.commit?.author?.date;
+    return { sha, message, authoredAt: typeof date === "string" ? date : null };
+  });
+}
+
+async function listCommitsForPath(
+  ctx: ClientContext,
+  path: string,
+  limit: number,
+): Promise<CommitSummary[]> {
+  const query = `sha=${encodeURIComponent(ctx.config.branch)}&path=${encodeURIComponent(path)}&per_page=${limit}`;
+  const data = await getJson(ctx, `/commits?${query}`, "listCommitsForPath");
+  return parseCommitList(data, "listCommitsForPath");
+}
+
+async function getFileAtCommit(
+  ctx: ClientContext,
+  path: string,
+  commitSha: string,
+): Promise<string | null> {
+  try {
+    // The contents API returns the same {content, encoding: "base64"} shape
+    // as git/blobs, so the blob parser applies as-is.
+    const data = await getJson(
+      ctx,
+      `/contents/${path}?ref=${encodeURIComponent(commitSha)}`,
+      "getFileAtCommit",
+    );
+    const content = extractBlobContent(data, "getFileAtCommit");
+    return new TextDecoder().decode(base64ToBytes(content));
+  } catch (err) {
+    if (err instanceof GitHubError && err.kind === "not-found") {
+      return null;
+    }
+    throw err;
+  }
+}
+
+function parseWorkflowRuns(data: unknown, context: string): WorkflowRun[] {
+  // biome-ignore lint/style/useNamingConvention: GitHub's wire key, not ours to rename.
+  const runs = (data as { workflow_runs?: unknown } | null)?.workflow_runs;
+  if (!Array.isArray(runs)) {
+    throw new GitHubError("protocol", `${context}: expected workflow_runs array`);
+  }
+  return runs.map((item) => {
+    const raw = item as {
+      name?: unknown;
+      status?: unknown;
+      conclusion?: unknown;
+      // biome-ignore lint/style/useNamingConvention: GitHub's wire key, not ours to rename.
+      html_url?: unknown;
+    } | null;
+    return {
+      name: typeof raw?.name === "string" ? raw.name : "workflow",
+      status: typeof raw?.status === "string" ? raw.status : "unknown",
+      conclusion: typeof raw?.conclusion === "string" ? raw.conclusion : null,
+      htmlUrl: typeof raw?.html_url === "string" ? raw.html_url : "",
+    };
+  });
+}
+
+const WORKFLOW_RUNS_PAGE_SIZE = 10;
+
+async function listWorkflowRunsForSha(
+  ctx: ClientContext,
+  commitSha: string,
+): Promise<WorkflowRun[]> {
+  const params = new URLSearchParams();
+  params.set("head_sha", commitSha);
+  params.set("per_page", String(WORKFLOW_RUNS_PAGE_SIZE));
+  const data = await getJson(ctx, `/actions/runs?${params.toString()}`, "listWorkflowRuns");
+  return parseWorkflowRuns(data, "listWorkflowRuns");
+}
+
 export function createGitHubApi(config: GitHubConfig): GitHubApi {
   const ctx: ClientContext = {
     config,
@@ -189,5 +279,8 @@ export function createGitHubApi(config: GitHubConfig): GitHubApi {
     createTree: (baseTreeSha, changes) => createTree(ctx, baseTreeSha, changes),
     createCommit: (input) => createCommit(ctx, input),
     updateRef: (newSha) => updateRef(ctx, newSha),
+    listCommitsForPath: (path, limit) => listCommitsForPath(ctx, path, limit),
+    getFileAtCommit: (path, commitSha) => getFileAtCommit(ctx, path, commitSha),
+    listWorkflowRunsForSha: (commitSha) => listWorkflowRunsForSha(ctx, commitSha),
   };
 }

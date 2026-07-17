@@ -6,11 +6,13 @@
 // surface as a rejected Promise, matching GitHubApi's real (network-backed) contract.
 import {
   type CommitInfo,
+  type CommitSummary,
   type GitHubApi,
   GitHubError,
   type TreeChange,
   type TreeEntry,
   type UpdateRefResult,
+  type WorkflowRun,
 } from "../../github/types";
 
 function utf8Bytes(text: string): Uint8Array {
@@ -311,6 +313,56 @@ export class FakeRemote implements GitHubApi {
       return null;
     }
     return this.trees.get(head.treeSha)?.find((entry) => entry.path === path)?.sha ?? null;
+  }
+
+  private workflowRuns: WorkflowRun[] = [];
+
+  /** Test-only: what listWorkflowRunsForSha returns (any sha). */
+  setWorkflowRuns(runs: WorkflowRun[]): void {
+    this.workflowRuns = runs;
+  }
+
+  async listWorkflowRunsForSha(_commitSha: string): Promise<WorkflowRun[]> {
+    this.assertOnline();
+    return [...this.workflowRuns];
+  }
+
+  private blobShaAtCommit(path: string, commitSha: string): string | null {
+    const commit = this.commits.get(commitSha);
+    if (!commit) {
+      return null;
+    }
+    return this.trees.get(commit.treeSha)?.find((entry) => entry.path === path)?.sha ?? null;
+  }
+
+  async getFileAtCommit(path: string, commitSha: string): Promise<string | null> {
+    this.assertOnline();
+    const sha = this.blobShaAtCommit(path, commitSha);
+    if (sha === null) {
+      return null;
+    }
+    const bytes = this.blobs.get(sha);
+    return bytes ? decodeUtf8(bytes) : null;
+  }
+
+  async listCommitsForPath(path: string, limit: number): Promise<CommitSummary[]> {
+    this.assertOnline();
+    const out: CommitSummary[] = [];
+    let cursor = this.ref;
+    while (cursor !== null && out.length < limit) {
+      const commit = this.commits.get(cursor);
+      if (!commit) {
+        break;
+      }
+      const here = this.blobShaAtCommit(path, commit.sha);
+      const parentSha = commit.parents[0] ?? null;
+      const inParent = parentSha === null ? null : this.blobShaAtCommit(path, parentSha);
+      if (here !== inParent) {
+        out.push({ sha: commit.sha, message: commit.message, authoredAt: null });
+      }
+      cursor = parentSha;
+    }
+    return out;
   }
 
   /** Current text content for a path in HEAD, or null if absent. */

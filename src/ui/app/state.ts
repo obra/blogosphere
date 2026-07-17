@@ -6,6 +6,7 @@ import { create } from "zustand";
 import type { Services } from "../../core/services";
 import { useServices } from "./ServicesContext";
 import { newDraft, newLink, newPost, publishDraft } from "./state.creationActions";
+import { watchDeploy } from "./state.deployActions";
 import { buildDeps } from "./state.deps";
 import { deleteEntry, discardChanges, shareSecretLink } from "./state.editingActions";
 import type { PendingEdits, SearchDebouncer } from "./state.entryActions";
@@ -27,16 +28,20 @@ import {
   attachSync,
   closeNewLinkDialog,
   closePublishDialog,
+  closeQuickOpen,
   closeSettings,
   closeSyncLog,
+  closeVersions,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
   openNewLinkDialog,
   openPublishDialog,
+  openQuickOpen,
   openSettings,
   openSyncLog,
+  openVersions,
   resolveConflict,
   saveToken,
   setCommitTemplates,
@@ -47,6 +52,7 @@ import {
 import { renameEntry } from "./state.renameActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
 import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY } from "./state.types";
+import { restoreVersion } from "./state.versionsActions";
 
 type BoundAppStore = UseBoundStore<ZustandStoreApi<AppState>>;
 
@@ -68,6 +74,8 @@ function initialAppData(services: Services): AppData {
     settingsOpen: false,
     syncLogOpen: false,
     publishDialogOpen: false,
+    quickOpenOpen: false,
+    versionsPath: null,
   };
 }
 
@@ -115,6 +123,12 @@ function bindActions(resources: ActionResources): AppActions {
     closeSyncLog: () => closeSyncLog(ctx.set),
     openPublishDialog: () => openPublishDialog(ctx.set),
     closePublishDialog: () => closePublishDialog(ctx.set),
+    openQuickOpen: () => openQuickOpen(ctx.set),
+    closeQuickOpen: () => closeQuickOpen(ctx.set),
+    openVersions: (path) => openVersions(ctx.set, path),
+    closeVersions: () => closeVersions(ctx.set),
+    restoreVersion: (path, raw) => restoreVersion(ctx, path, raw),
+    watchDeploy: (commitSha) => watchDeploy(ctx, commitSha),
   };
 }
 

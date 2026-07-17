@@ -59,9 +59,13 @@ interface FileMenu {
   share: MenuItem;
   discard: MenuItem;
   deleteItem: MenuItem;
+  history: MenuItem;
 }
 
-async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
+type EntryItems = Omit<FileMenu, "submenu">;
+
+/** The selection-gated commands; each starts disabled until something is selected. */
+async function buildEntryCommandItems(store: BoundAppStore): Promise<EntryItems> {
   const act = () => store.getState();
   const withSelection = (fn: (path: string) => void) => () => {
     const path = act().selectedPath;
@@ -69,26 +73,38 @@ async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
       fn(path);
     }
   };
-  const publish = await MenuItem.new({
-    text: "Publish…",
-    enabled: false,
-    action: withSelection(() => act().openPublishDialog()),
-  });
-  const share = await MenuItem.new({
-    text: "Copy Secret Link",
-    enabled: false,
-    action: withSelection((path) => act().shareSecretLink(path)),
-  });
-  const discard = await MenuItem.new({
-    text: "Discard Changes…",
-    enabled: false,
-    action: withSelection((path) => act().discardChanges(path)),
-  });
-  const deleteItem = await MenuItem.new({
-    text: "Delete…",
-    enabled: false,
-    action: withSelection((path) => act().deleteEntry(path)),
-  });
+  return {
+    publish: await MenuItem.new({
+      text: "Publish…",
+      enabled: false,
+      action: withSelection(() => act().openPublishDialog()),
+    }),
+    share: await MenuItem.new({
+      text: "Copy Secret Link",
+      enabled: false,
+      action: withSelection((path) => act().shareSecretLink(path)),
+    }),
+    discard: await MenuItem.new({
+      text: "Discard Changes…",
+      enabled: false,
+      action: withSelection((path) => act().discardChanges(path)),
+    }),
+    deleteItem: await MenuItem.new({
+      text: "Delete…",
+      enabled: false,
+      action: withSelection((path) => act().deleteEntry(path)),
+    }),
+    history: await MenuItem.new({
+      text: "Versions…",
+      enabled: false,
+      action: withSelection((path) => act().openVersions(path)),
+    }),
+  };
+}
+
+async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
+  const act = () => store.getState();
+  const { publish, share, discard, deleteItem, history } = await buildEntryCommandItems(store);
   const submenu = await Submenu.new({
     text: "File",
     items: [
@@ -118,11 +134,12 @@ async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
       publish,
       share,
       discard,
+      history,
       await separator(),
       deleteItem,
     ],
   });
-  return { submenu, publish, share, discard, deleteItem };
+  return { submenu, publish, share, discard, deleteItem, history };
 }
 
 /** Standard Edit bindings — without these, replacing the default app menu
@@ -155,6 +172,12 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<Submenu> {
   return Submenu.new({
     text: "View",
     items: [
+      await MenuItem.new({
+        text: "Quick Open…",
+        accelerator: "CmdOrCtrl+K",
+        action: () => store.getState().openQuickOpen(),
+      }),
+      await separator(),
       ...sectionItems,
       await separator(),
       await MenuItem.new({
@@ -183,6 +206,7 @@ function applyEnabledFlags(file: FileMenu, flags: MenuEnabledFlags): void {
   file.publish.setEnabled(flags.hasSelection).catch(() => undefined);
   file.share.setEnabled(flags.hasSelection).catch(() => undefined);
   file.deleteItem.setEnabled(flags.hasSelection).catch(() => undefined);
+  file.history.setEnabled(flags.hasSelection).catch(() => undefined);
   file.discard.setEnabled(flags.canDiscard).catch(() => undefined);
 }
 

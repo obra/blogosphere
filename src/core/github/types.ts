@@ -60,6 +60,24 @@ export class GitHubError extends Error {
  * Thin, typed wrapper over the REST v3 Git Data API. No caching, no retry —
  * that's the sync engine's job. One class, one responsibility.
  */
+/** One commit touching a path — the per-entry Versions timeline. */
+export interface CommitSummary {
+  sha: string;
+  message: string;
+  /** ISO timestamp of the author date, or null if GitHub omitted it. */
+  authoredAt: string | null;
+}
+
+/** One Actions run — deploy-watch polls these for the pushed head sha. */
+export interface WorkflowRun {
+  name: string;
+  /** "queued" | "in_progress" | "completed" (GitHub's vocabulary, not ours). */
+  status: string;
+  /** "success" | "failure" | … — null until status is "completed". */
+  conclusion: string | null;
+  htmlUrl: string;
+}
+
 export interface GitHubApi {
   /** Resolve refs/heads/{branch} to a commit sha. */
   getRef(): Promise<string>;
@@ -89,6 +107,16 @@ export interface GitHubApi {
 
   /** Compare-and-swap ref update. force is never used. */
   updateRef(newSha: string): Promise<UpdateRefResult>;
+
+  /** Commits on the branch that touched `path`, newest first (capped at `limit`). */
+  listCommitsForPath(path: string, limit: number): Promise<CommitSummary[]>;
+
+  /** The file's text as of `commitSha`, or null if it didn't exist there. */
+  getFileAtCommit(path: string, commitSha: string): Promise<string | null>;
+
+  /** Actions runs whose head is `commitSha` — how deploy-watch follows a push.
+   *  Requires a token with Actions read; callers must tolerate an auth error. */
+  listWorkflowRunsForSha(commitSha: string): Promise<WorkflowRun[]>;
 }
 
 export type GitHubApiFactory = (config: GitHubConfig) => GitHubApi;

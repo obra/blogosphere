@@ -58,6 +58,8 @@ export interface SyncLogEntry {
   message: string;
   /** Optional multi-line detail (e.g. the list of pushed paths). */
   detail?: string;
+  /** Set on "Pushed …" entries: the commit that landed — deploy-watch keys off it. */
+  commitSha?: string;
 }
 
 /** Pure three-way merge result. */

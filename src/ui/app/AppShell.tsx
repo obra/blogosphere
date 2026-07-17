@@ -11,6 +11,7 @@ import { EntryList } from "./EntryList";
 import { debounce } from "./format";
 import { installAppMenu } from "./menu";
 import { NewLinkDialog } from "./NewLinkDialog";
+import { QuickOpenPalette } from "./QuickOpenPalette";
 import { handleCloseRequested } from "./quitFlush";
 import { useServices } from "./ServicesContext";
 import { SettingsScreen } from "./SettingsScreen";
@@ -19,6 +20,7 @@ import { SyncLogPanel } from "./SyncLogPanel";
 import type { BoundAppStore } from "./state";
 import { useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
+import { VersionsPanel } from "./VersionsPanel";
 
 interface AppShellProps {
   /** Integration wires the real og:title/<title> fetch for "+ Link". */
@@ -49,6 +51,10 @@ function isSyncShortcut(event: KeyboardEvent): boolean {
   return (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "r";
 }
 
+function isQuickOpenShortcut(event: KeyboardEvent): boolean {
+  return (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "k";
+}
+
 function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
   if (isSaveShortcut(event)) {
     event.preventDefault();
@@ -67,6 +73,9 @@ function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
     // strictly worse than the sync the user actually asked for.
     event.preventDefault();
     store.getState().syncNow();
+  } else if (isQuickOpenShortcut(event)) {
+    event.preventDefault();
+    store.getState().openQuickOpen();
   }
 }
 
@@ -208,6 +217,8 @@ function AppShell(props: AppShellProps) {
       <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
       <SettingsScreen onTokenSaved={props.onTokenSaved} />
       <SyncLogPanel />
+      <QuickOpenPalette />
+      <VersionsPanel />
       <ConflictHost />
       <Toasts />
     </div>

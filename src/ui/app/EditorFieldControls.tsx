@@ -52,7 +52,16 @@ function DraftStateChip(props: { draft: boolean }) {
   );
 }
 
-interface ModeToggleProps {
+/** The Live segment: the entry as the real site serves it. Rendered inside
+ *  both toggles whenever the entry has a reachable URL. */
+interface LiveSegmentProps {
+  /** null = no live URL (unpushed draft without a secret link, some legacy). */
+  liveAvailable: boolean;
+  live: boolean;
+  onLive: () => void;
+}
+
+interface ModeToggleProps extends LiveSegmentProps {
   mode: EditorMode;
   onChange: (mode: EditorMode) => void;
 }
@@ -62,23 +71,28 @@ function ModeToggle(props: ModeToggleProps) {
     <fieldset className="mode-toggle" aria-label="Editor mode">
       <button
         type="button"
-        aria-pressed={props.mode === "wysiwyg"}
+        aria-pressed={!props.live && props.mode === "wysiwyg"}
         onClick={() => props.onChange("wysiwyg")}
       >
         Write
       </button>
       <button
         type="button"
-        aria-pressed={props.mode === "source"}
+        aria-pressed={!props.live && props.mode === "source"}
         onClick={() => props.onChange("source")}
       >
         Markdown
       </button>
+      {props.liveAvailable ? (
+        <button type="button" aria-pressed={props.live} onClick={props.onLive}>
+          Live
+        </button>
+      ) : null}
     </fieldset>
   );
 }
 
-interface HtmlModeToggleProps {
+interface HtmlModeToggleProps extends LiveSegmentProps {
   mode: HtmlViewMode;
   onChange: (mode: HtmlViewMode) => void;
 }
@@ -89,18 +103,23 @@ function HtmlModeToggle(props: HtmlModeToggleProps) {
     <fieldset className="mode-toggle" aria-label="View mode">
       <button
         type="button"
-        aria-pressed={props.mode === "preview"}
+        aria-pressed={!props.live && props.mode === "preview"}
         onClick={() => props.onChange("preview")}
       >
         Preview
       </button>
       <button
         type="button"
-        aria-pressed={props.mode === "source"}
+        aria-pressed={!props.live && props.mode === "source"}
         onClick={() => props.onChange("source")}
       >
         HTML
       </button>
+      {props.liveAvailable ? (
+        <button type="button" aria-pressed={props.live} onClick={props.onLive}>
+          Live
+        </button>
+      ) : null}
     </fieldset>
   );
 }

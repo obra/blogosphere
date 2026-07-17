@@ -119,6 +119,10 @@ interface AppData {
   settingsOpen: boolean;
   syncLogOpen: boolean;
   publishDialogOpen: boolean;
+  /** ⌘K fuzzy jump-to-entry palette. */
+  quickOpenOpen: boolean;
+  /** Path whose git history the Versions panel is showing, or null (closed). */
+  versionsPath: string | null;
 }
 
 /** Everything that mutates the store. */
@@ -171,6 +175,19 @@ interface AppActions {
   closeSyncLog(): void;
   openPublishDialog(): void;
   closePublishDialog(): void;
+  openQuickOpen(): void;
+  closeQuickOpen(): void;
+  openVersions(path: string): void;
+  closeVersions(): void;
+
+  /** Replace an entry's working copy with `raw` (a past version from git
+   *  history), marked dirty — the Versions panel's "Restore". */
+  restoreVersion(path: string, raw: string): Promise<void>;
+
+  /** Follow the Actions run for a just-pushed commit until the deploy lands
+   *  (or fails), reporting through the activity log. Fire-and-forget; must
+   *  tolerate tokens without Actions read scope. */
+  watchDeploy(commitSha: string): Promise<void>;
 }
 
 type AppState = AppData & AppActions;

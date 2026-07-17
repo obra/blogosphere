@@ -13,6 +13,8 @@ import {
 } from "./EditorFieldControls";
 import { todayIso } from "./format";
 import { HtmlPreview } from "./HtmlPreview";
+import { LiveView } from "./LiveView";
+import { openExternal } from "./openExternal";
 import { PublishDialog } from "./PublishDialog";
 import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
@@ -197,6 +199,52 @@ function PublishSection(props: { path: string; opaqueId: string | null }) {
   );
 }
 
+/** History (git versions) — always offered; the panel explains when there's
+ *  no connection or no remote history yet. */
+function HistoryButton(props: { path: string }) {
+  const store = useAppStoreApi();
+  return (
+    <button
+      type="button"
+      className="editor-icon-button"
+      title="Versions — this entry's history on GitHub"
+      aria-label="Versions"
+      onClick={() => store.getState().openVersions(props.path)}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 7v5l3.2 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+}
+
+function ViewOnSiteButton(props: { url: string | null }) {
+  const { url } = props;
+  if (!url) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className="editor-icon-button"
+      title={`View on blog.fsck.com — ${url}`}
+      aria-label="View on site"
+      onClick={() => openExternal(url)}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M8 6h10v10M18 6 6 18"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
 interface EditorToolbarProps {
   record: EntryRecord;
   mode: EditorMode;
@@ -204,21 +252,45 @@ interface EditorToolbarProps {
   isLegacyHtml: boolean;
   htmlView: HtmlViewMode;
   onHtmlViewChange: (mode: HtmlViewMode) => void;
+  liveUrl: string | null;
+  live: boolean;
+  onLive: (live: boolean) => void;
 }
 
 function EditorToolbar(props: EditorToolbarProps) {
+  const liveSegment = {
+    liveAvailable: props.liveUrl !== null,
+    live: props.live,
+    onLive: () => props.onLive(true),
+  };
   return (
     <div className="editor-toolbar">
       <DraftStateChip draft={props.record.draft} />
       {props.isLegacyHtml ? (
-        <HtmlModeToggle mode={props.htmlView} onChange={props.onHtmlViewChange} />
+        <HtmlModeToggle
+          mode={props.htmlView}
+          onChange={(mode) => {
+            props.onLive(false);
+            props.onHtmlViewChange(mode);
+          }}
+          {...liveSegment}
+        />
       ) : (
-        <ModeToggle mode={props.mode} onChange={props.onModeChange} />
+        <ModeToggle
+          mode={props.mode}
+          onChange={(mode) => {
+            props.onLive(false);
+            props.onModeChange(mode);
+          }}
+          {...liveSegment}
+        />
       )}
       <SaveStateIndicator record={props.record} />
       <div className="editor-actions">
         <DiscardButton record={props.record} />
         <SecretLinkControl record={props.record} />
+        <ViewOnSiteButton url={props.liveUrl} />
+        <HistoryButton path={props.record.path} />
         <PublishSection path={props.record.path} opaqueId={props.record.opaqueId} />
         <DeleteButton path={props.record.path} />
       </div>
@@ -230,12 +302,15 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
+  const [live, setLive] = useState(false);
 
   if (!s.parsed) {
     return <div className="editor-empty">Couldn't read this entry's front matter.</div>;
   }
 
-  const showHtmlPreview = s.isLegacyHtml && htmlView === "preview";
+  const showLive = live && s.liveUrl !== null;
+  const showHtmlPreview = !showLive && s.isLegacyHtml && htmlView === "preview";
+  const fill = showLive && s.liveUrl ? <LiveView url={s.liveUrl} /> : <HtmlPreview html={s.body} />;
   return (
     <div className="editor-screen">
       <EditorToolbar
@@ -245,11 +320,12 @@ function EditorScreenBody(props: { record: EntryRecord }) {
         isLegacyHtml={s.isLegacyHtml}
         htmlView={htmlView}
         onHtmlViewChange={setHtmlView}
+        liveUrl={s.liveUrl}
+        live={showLive}
+        onLive={setLive}
       />
-      {showHtmlPreview ? (
-        <div className="editor-fill">
-          <HtmlPreview html={s.body} />
-        </div>
+      {showLive || showHtmlPreview ? (
+        <div className="editor-fill">{fill}</div>
       ) : (
         <div className="editor-scroll">
           <div className="editor-doc">

@@ -87,6 +87,10 @@ export interface PublishOptions {
   date: string;
   /** Keep the opaqueId (and its /private/ URL) alive. Default false. */
   keepOpaqueId?: boolean;
+  /** URL slug for the published path. Defaults to the current filename's slug
+   *  — but a ⌘N draft's filename is "untitled", so the Publish sheet offers
+   *  a title-derived slug and lets the user edit it before committing to a URL. */
+  slug?: string;
 }
 
 export interface PublishPlan {

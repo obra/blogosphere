@@ -9,17 +9,20 @@ import type {
   SyncLogLevel,
 } from "./types";
 
-type LogFn = (level: SyncLogLevel, message: string, detail?: string) => void;
+type LogFn = (level: SyncLogLevel, message: string, detail?: string, commitSha?: string) => void;
 
 const SHORT_SHA_LENGTH = 7;
 
 function createLogChannel(deps: SyncDeps) {
   const listeners = new Set<(entry: SyncLogEntry) => void>();
-  const log: LogFn = (level, message, detail) => {
-    const entry: SyncLogEntry =
-      detail === undefined
-        ? { at: deps.now(), level, message }
-        : { at: deps.now(), level, message, detail };
+  const log: LogFn = (level, message, detail, commitSha) => {
+    const entry: SyncLogEntry = {
+      at: deps.now(),
+      level,
+      message,
+      ...(detail === undefined ? {} : { detail }),
+      ...(commitSha === undefined ? {} : { commitSha }),
+    };
     for (const listener of listeners) {
       listener(entry);
     }
@@ -71,6 +74,7 @@ function logPushResult(log: LogFn, result: PushResult, errorMessage?: string): v
       "info",
       `Pushed ${result.pushed.length} change${result.pushed.length === 1 ? "" : "s"} to GitHub${sha}`,
       result.pushed.join("\n"),
+      result.commitSha,
     );
     return;
   }

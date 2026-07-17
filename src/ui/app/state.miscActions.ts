@@ -53,6 +53,11 @@ function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | nu
   });
   box.unsubscribeLog = sync.onLog((entry) => {
     ctx.set((state) => ({ syncLog: [...state.syncLog, entry].slice(-SYNC_LOG_CAP) }));
+    if (entry.commitSha !== undefined) {
+      // A push landed — follow its Actions run to "live on the site".
+      // Fire-and-forget; watchDeploy owns its own error handling.
+      ctx.get().watchDeploy(entry.commitSha);
+    }
   });
 }
 
@@ -183,22 +188,42 @@ function closePublishDialog(set: SetState): void {
   set({ publishDialogOpen: false });
 }
 
+function openQuickOpen(set: SetState): void {
+  set({ quickOpenOpen: true });
+}
+
+function closeQuickOpen(set: SetState): void {
+  set({ quickOpenOpen: false });
+}
+
+function openVersions(set: SetState, path: string): void {
+  set({ versionsPath: path });
+}
+
+function closeVersions(set: SetState): void {
+  set({ versionsPath: null });
+}
+
 export type { SyncSubscriptionBox };
 export {
   addToast,
   attachSync,
   closeNewLinkDialog,
   closePublishDialog,
+  closeQuickOpen,
   closeSettings,
   closeSyncLog,
+  closeVersions,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
   openNewLinkDialog,
   openPublishDialog,
+  openQuickOpen,
   openSettings,
   openSyncLog,
+  openVersions,
   resolveConflict,
   saveToken,
   setCommitTemplates,
