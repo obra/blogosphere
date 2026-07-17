@@ -86,8 +86,8 @@ function ConnectScreen(props: ConnectScreenProps) {
       <form className="connect-card" onSubmit={handleSubmit}>
         <h1 className="connect-title">Blogosphere</h1>
         <p className="connect-lede">
-          Writes, edits, and publishes <strong>{repoLabel}</strong> — every post on this Mac, online
-          or offline. Connect GitHub to bring your blog in.
+          Writes, edits, and publishes <strong>{repoLabel}</strong> — every post on this device,
+          online or offline. Connect GitHub to bring your blog in.
         </p>
         <div className="dialog-field">
           <label htmlFor={fieldId}>GitHub token</label>
