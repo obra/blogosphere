@@ -96,7 +96,13 @@ mod android_store {
         std::fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
         let safe: String = key
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         Ok(dir.join(safe))
     }
