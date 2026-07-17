@@ -120,7 +120,7 @@ function ConnectScreen(props: ConnectScreenProps) {
           )}
         </button>
         <p className="connect-footnote">
-          The token is stored in the macOS keychain and never leaves this Mac.
+          The token is stored securely on this device and never leaves it.
         </p>
       </form>
     </div>

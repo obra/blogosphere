@@ -58,22 +58,45 @@ function buildTokenSavedHandler(
 export function App() {
   const tauri = isTauri();
   const [services, setServices] = useState<Services | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
 
-  // Runs once, on mount only: builds Services (Tauri vs demo) and runs the
+  // Runs once per boot attempt: builds Services (Tauri vs demo) and runs the
   // first bootstrap-or-sync before handing them to the tree. A later token
   // save (buildTokenSavedHandler above) updates this same state from an
-  // event handler, not from this effect, so the two never race.
+  // event handler, not from this effect, so the two never race. A failure
+  // (e.g. SQLite can't be created on a full disk — seen live on the iOS
+  // simulator) must surface with a retry, never an eternal spinner.
   useEffect(() => {
     let cancelled = false;
-    boot().then((booted) => {
-      if (!cancelled) {
-        setServices(booted);
-      }
-    });
+    setBootError(null);
+    boot()
+      .then((booted) => {
+        if (!cancelled) {
+          setServices(booted);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setBootError(err instanceof Error ? err.message : String(err));
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bootAttempt]);
+
+  if (bootError !== null) {
+    return (
+      <div className="boot-error">
+        <h2>Couldn't start</h2>
+        <p>{bootError}</p>
+        <button type="button" className="btn" onClick={() => setBootAttempt((n) => n + 1)}>
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (!services) {
     return <LoadingScreen />;
