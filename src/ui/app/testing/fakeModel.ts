@@ -185,7 +185,10 @@ function newEntry(input: NewEntryInput): { path: string; raw: string } {
 
 function planPublish(entry: ParsedEntry, opts: PublishOptions): PublishPlan {
   const parts = pathParts(entry.path);
-  const slug = parts ? parts.slug : slugify(entry.title ?? "untitled");
+  const fallbackSlug = parts ? parts.slug : slugify(entry.title ?? "untitled");
+  // Mirrors the real planPublish: a caller-provided slug (the Publish
+  // sheet's editable field) wins, run through slugify defensively.
+  const slug = opts.slug === undefined ? fallbackSlug : slugify(opts.slug);
   const newPath = pathFor("post", opts.date, slug);
   const edits: FieldEdit[] = [
     { field: "date", value: opts.date },

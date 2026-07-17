@@ -2,7 +2,15 @@
 // ABOUTME: slugify, and permalinkFor, including the corpus's real edge cases.
 
 import { describe, expect, it } from "vitest";
-import { isManagedPath, kindForPath, pathFor, pathParts, permalinkFor, slugify } from "./paths";
+import {
+  isManagedPath,
+  kindForPath,
+  pathFor,
+  pathParts,
+  permalinkFor,
+  slugForPath,
+  slugify,
+} from "./paths";
 import type { ParsedEntry } from "./types";
 
 describe("kindForPath", () => {
@@ -161,6 +169,26 @@ describe("pathFor", () => {
     // publish.test.ts). Callers that need to keep a legacy entry's .html
     // extension across a rename/publish must post-process this result.
     expect(pathFor("post", "2026-07-15", "orkut")).toBe("content/blog/2026/2026-07-15-orkut.md");
+  });
+});
+
+describe("slugForPath", () => {
+  it("uses the filename's slug for a conventional dated filename", () => {
+    expect(slugForPath("content/blog/2026/2026-07-15-a-post.md")).toBe("a-post");
+  });
+
+  it("uses the filename's slug for a dateless file under a YYYY directory", () => {
+    expect(slugForPath("content/blog/2026/plain-slug.md")).toBe("plain-slug");
+  });
+
+  it("falls back to the bare filename (minus extension) when pathParts can't parse the shape", () => {
+    // A managed-but-uncanonical shape: no date prefix, parent isn't a year.
+    // The on-disk name IS the slug — it must never be discarded.
+    expect(slugForPath("content/releases/some-real-notes.md")).toBe("some-real-notes");
+  });
+
+  it("strips .html in the fallback too", () => {
+    expect(slugForPath("content/blog/legacy-import.html")).toBe("legacy-import");
   });
 });
 

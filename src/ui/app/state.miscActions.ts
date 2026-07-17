@@ -5,6 +5,7 @@ import type { CommitMessageTemplates, ConflictResolution, SyncApi } from "../../
 import type { EditorMode } from "../types";
 import { parseCommitTemplates } from "./state.deps";
 import { refresh } from "./state.entryActions";
+import { restoreLastPosition } from "./state.lastPositionActions";
 import type { ActionCtx, SetState, Toast } from "./state.types";
 import {
   editorModeMetaKey,
@@ -78,6 +79,9 @@ async function init(ctx: ActionCtx): Promise<void> {
     }
   }
   await refresh(ctx);
+  // Restore the section/entry the user had open last time — needs `entries`
+  // populated (just above) to check the selected path still exists.
+  await restoreLastPosition(ctx);
 }
 
 async function resolveConflict(

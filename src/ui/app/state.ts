@@ -51,7 +51,7 @@ import {
 } from "./state.miscActions";
 import { renameEntry } from "./state.renameActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
-import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY } from "./state.types";
+import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY, INITIAL_SECTION } from "./state.types";
 import { restoreVersion } from "./state.versionsActions";
 
 type BoundAppStore = UseBoundStore<ZustandStoreApi<AppState>>;
@@ -61,7 +61,7 @@ function initialAppData(services: Services): AppData {
     services,
     entries: [],
     selectedPath: null,
-    section: "drafts",
+    section: INITIAL_SECTION,
     searchQuery: "",
     searchResults: null,
     syncStatus: null,

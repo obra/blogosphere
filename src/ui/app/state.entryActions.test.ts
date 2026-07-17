@@ -47,6 +47,43 @@ it("setSection changes the section and clears the selection", () => {
   expect(store.getState().selectedPath).toBeNull();
 });
 
+it("select persists the selected path to store meta (fire-and-forget)", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+
+  store.getState().select("content/drafts/2026-01-01-a.md");
+  await settle();
+
+  expect(await services.store.getMeta("ui:lastSelectedPath")).toBe(
+    "content/drafts/2026-01-01-a.md",
+  );
+});
+
+it("select(null) clears the persisted selected-path meta", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+  store.getState().select("content/drafts/2026-01-01-a.md");
+  await settle();
+
+  store.getState().select(null);
+  await settle();
+
+  expect(await services.store.getMeta("ui:lastSelectedPath")).toBeNull();
+});
+
+it("setSection persists the section and the (now-cleared) selected-path meta", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+  store.getState().select("content/drafts/2026-01-01-a.md");
+  await settle();
+
+  store.getState().setSection("posts");
+  await settle();
+
+  expect(await services.store.getMeta("ui:lastSection")).toBe("posts");
+  expect(await services.store.getMeta("ui:lastSelectedPath")).toBeNull();
+});
+
 it("setSearchQuery debounces a call to store.searchEntries", async () => {
   const match = makeEntry({
     path: "content/drafts/2026-01-01-match.md",

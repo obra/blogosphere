@@ -153,3 +153,103 @@ it("clicking a row selects that entry", async () => {
 
   expect(store.getState().selectedPath).toBe("a.md");
 });
+
+function rowFor(title: string): HTMLButtonElement {
+  const row = screen.getByText(title).closest("button");
+  if (!row) {
+    throw new Error(`no row button found for "${title}"`);
+  }
+  return row as HTMLButtonElement;
+}
+
+it("ArrowDown moves selection to the next row in visible order and focuses it", async () => {
+  const entries = [
+    makeEntry({ path: "a.md", kind: "draft", date: "2026-01-02", title: "First" }),
+    makeEntry({ path: "b.md", kind: "draft", date: "2026-01-01", title: "Second" }),
+  ];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  const first = rowFor("First");
+  first.focus();
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+
+  expect(store.getState().selectedPath).toBe("b.md");
+  expect(document.activeElement).toBe(rowFor("Second"));
+});
+
+it("ArrowUp moves selection to the previous row and stops at the first", async () => {
+  const entries = [
+    makeEntry({ path: "a.md", kind: "draft", date: "2026-01-02", title: "First" }),
+    makeEntry({ path: "b.md", kind: "draft", date: "2026-01-01", title: "Second" }),
+  ];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  const second = rowFor("Second");
+  second.focus();
+  fireEvent.keyDown(second, { key: "ArrowUp" });
+  expect(store.getState().selectedPath).toBe("a.md");
+
+  const first = rowFor("First");
+  fireEvent.keyDown(first, { key: "ArrowUp" });
+  expect(store.getState().selectedPath).toBe("a.md");
+});
+
+it("Home and End jump to the first and last visible rows", async () => {
+  const entries = [
+    makeEntry({ path: "a.md", kind: "draft", date: "2026-01-03", title: "First" }),
+    makeEntry({ path: "b.md", kind: "draft", date: "2026-01-02", title: "Middle" }),
+    makeEntry({ path: "c.md", kind: "draft", date: "2026-01-01", title: "Last" }),
+  ];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  const middle = rowFor("Middle");
+  middle.focus();
+  fireEvent.keyDown(middle, { key: "End" });
+  expect(store.getState().selectedPath).toBe("c.md");
+
+  fireEvent.keyDown(rowFor("Last"), { key: "Home" });
+  expect(store.getState().selectedPath).toBe("a.md");
+});
+
+it("Enter moves focus to the editor surface without changing selection", async () => {
+  const entries = [makeEntry({ path: "a.md", kind: "draft", title: "Row" })];
+  const { store } = renderWithStore(
+    <>
+      <EntryList />
+      <div className="milkdown">
+        <div className="ProseMirror" tabIndex={-1} />
+      </div>
+    </>,
+    { seedEntries: entries },
+  );
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  const row = rowFor("Row");
+  row.focus();
+  fireEvent.keyDown(row, { key: "Enter" });
+
+  expect(document.activeElement).toBe(document.querySelector(".milkdown .ProseMirror"));
+});
+
+it("does not intercept arrow keys typed in the search input", async () => {
+  const entries = [makeEntry({ path: "a.md", kind: "draft", title: "Untouched" })];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  fireEvent.keyDown(screen.getByLabelText("Search entries"), { key: "ArrowDown" });
+
+  expect(store.getState().selectedPath).toBeNull();
+});

@@ -3,6 +3,7 @@
 // ABOUTME: persistence, toasts, and the sync-status mirror, against fakes.
 import { expect, it } from "vitest";
 import { createAppStore } from "./state";
+import { makeEntry } from "./testing/builders";
 import { buildFakeServices } from "./testing/fakes";
 
 it("the sync status mirror reflects the fake sync's initial status", () => {
@@ -107,6 +108,115 @@ it("init loads persisted commit templates before refreshing", async () => {
   await store.getState().init();
 
   expect(store.getState().commitTemplates.newPost).toBe("Custom post");
+});
+
+it("init restores the last section and selected path when the entry still exists", async () => {
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
+  const { services } = buildFakeServices({ seedEntries: [draft] });
+  await services.store.setMeta("ui:lastSection", "posts");
+  await services.store.setMeta("ui:lastSelectedPath", draft.path);
+  const store = createAppStore(services);
+
+  await store.getState().init();
+
+  expect(store.getState().section).toBe("posts");
+  expect(store.getState().selectedPath).toBe(draft.path);
+});
+
+it("init drops a restored selected path whose entry no longer exists", async () => {
+  const { services } = buildFakeServices();
+  await services.store.setMeta("ui:lastSection", "links");
+  await services.store.setMeta("ui:lastSelectedPath", "content/drafts/gone.md");
+  const store = createAppStore(services);
+
+  await store.getState().init();
+
+  expect(store.getState().section).toBe("links");
+  expect(store.getState().selectedPath).toBeNull();
+});
+
+it("init falls back to the default section when the persisted value is corrupt", async () => {
+  const { services } = buildFakeServices();
+  await services.store.setMeta("ui:lastSection", "not-a-real-section");
+  const store = createAppStore(services);
+
+  await store.getState().init();
+
+  expect(store.getState().section).toBe("drafts");
+  expect(store.getState().selectedPath).toBeNull();
+});
+
+/** Makes the two restore-key reads resolve only after `release()`, and always
+ *  with `staleMeta` (last session's values) — standing in for the real Tauri
+ *  SQL driver, whose async IPC read can be served from a pre-write snapshot
+ *  and resolve after the user has already navigated. AppShell fires init()
+ *  without gating interaction on it, so this interleaving is reachable. */
+function gateRestoreMetaReads(
+  services: ReturnType<typeof buildFakeServices>["services"],
+  staleMeta: { section: string | null; path: string | null },
+): { release: () => void } {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const originalGetMeta = services.store.getMeta;
+  services.store.getMeta = async (key: string) => {
+    if (key === "ui:lastSection") {
+      await gate;
+      return staleMeta.section;
+    }
+    if (key === "ui:lastSelectedPath") {
+      await gate;
+      return staleMeta.path;
+    }
+    return originalGetMeta(key);
+  };
+  return { release };
+}
+
+it("restore never clobbers a selection the user made while init was still reading meta", async () => {
+  const stale = makeEntry({ path: "content/drafts/2026-01-01-old.md", kind: "draft" });
+  const { services } = buildFakeServices({ seedEntries: [stale] });
+  const { release } = gateRestoreMetaReads(services, { section: "posts", path: stale.path });
+  const store = createAppStore(services);
+
+  const initPromise = store.getState().init();
+  // The user hits Cmd-N before the restore reads resolve.
+  const newPath = await store.getState().newDraft({ title: "Typed Right Away" });
+  release();
+  await initPromise;
+
+  expect(store.getState().selectedPath).toBe(newPath);
+  expect(store.getState().section).toBe("drafts");
+});
+
+it("restore leaves a section the user already switched to alone", async () => {
+  const { services } = buildFakeServices();
+  const { release } = gateRestoreMetaReads(services, { section: "links", path: null });
+  const store = createAppStore(services);
+
+  const initPromise = store.getState().init();
+  store.getState().setSection("posts");
+  release();
+  await initPromise;
+
+  expect(store.getState().section).toBe("posts");
+});
+
+it("init never crashes when store.getMeta rejects for the position keys", async () => {
+  const draft = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
+  const { services } = buildFakeServices({ seedEntries: [draft] });
+  const originalGetMeta = services.store.getMeta;
+  services.store.getMeta = (key: string) =>
+    key === "ui:lastSection" ? Promise.reject(new Error("disk error")) : originalGetMeta(key);
+  const store = createAppStore(services);
+
+  await expect(store.getState().init()).resolves.toBeUndefined();
+
+  expect(store.getState().section).toBe("drafts");
+  expect(store.getState().selectedPath).toBeNull();
+
+  services.store.getMeta = originalGetMeta;
 });
 
 it("addToast/dismissToast add and remove toasts by id", () => {

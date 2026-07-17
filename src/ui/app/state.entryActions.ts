@@ -6,6 +6,7 @@ import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode, Section } from "../types";
 import { debounce } from "./format";
 import { findEntryInCache, replaceEntryInCache, withParsedFields } from "./state.cache";
+import { persistSection, persistSelectedPath } from "./state.lastPositionActions";
 import type { ActionCtx, EditChange } from "./state.types";
 import { editorModeMetaKey } from "./state.types";
 
@@ -78,10 +79,13 @@ function select(ctx: ActionCtx, path: string | null): void {
   if (path && !(path in ctx.get().editorModes)) {
     hydrateEditorMode(ctx, path);
   }
+  persistSelectedPath(ctx, path);
 }
 
 function setSection(ctx: ActionCtx, section: Section): void {
   ctx.set({ section, selectedPath: null });
+  persistSection(ctx, section);
+  persistSelectedPath(ctx, null);
 }
 
 async function runSearch(ctx: ActionCtx, query: string): Promise<void> {

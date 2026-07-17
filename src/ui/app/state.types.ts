@@ -14,6 +14,10 @@ import type {
 import type { EditorMode, Section } from "../types";
 
 const KEYCHAIN_TOKEN_KEY = "github-token";
+/** The section a fresh launch starts in — shared by initialAppData and
+ *  restoreLastPosition's has-the-user-navigated-yet check, which must agree
+ *  on what "still the untouched default" looks like. */
+const INITIAL_SECTION: Section = "drafts";
 // Kept as a locally-named alias so call sites in this slice don't change,
 // but the value itself now comes from core/sync/meta.ts — the app store and
 // the sync engine must never again drift onto two different meta keys for
@@ -253,6 +257,7 @@ export {
   EMPTY_CONFLICTS,
   editorModeMetaKey,
   INITIAL_BUSY,
+  INITIAL_SECTION,
   KEYCHAIN_TOKEN_KEY,
   META_COMMIT_TEMPLATES_KEY,
   SITE_ORIGIN,

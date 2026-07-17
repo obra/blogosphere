@@ -63,6 +63,22 @@ it("renameEntry with a new slug moves the entry and tombstones the old path", as
   expect(newRecord?.renamedFrom).toBe(entry.path);
 });
 
+it("renameEntry moves the pick-up-where-you-left-off meta along with a selected entry", async () => {
+  const entry = makeEntry({ path: "content/drafts/2026-01-01-a.md", kind: "draft" });
+  const { services } = buildFakeServices({ seedEntries: [entry] });
+  const store = createAppStore(services);
+  store.getState().select(entry.path);
+
+  await store.getState().renameEntry(entry.path, { slug: "new-slug" });
+
+  expect(store.getState().selectedPath).toBe("content/drafts/2026-01-01-new-slug.md");
+  // Without this, the meta still holds the old (now-tombstoned) path and the
+  // next launch's restore existence check drops it — losing the user's place.
+  expect(await services.store.getMeta("ui:lastSelectedPath")).toBe(
+    "content/drafts/2026-01-01-new-slug.md",
+  );
+});
+
 it("renameEntry warns before changing a previously-synced entry's URL", async () => {
   const entry = makeEntry({
     path: "content/blog/2026/2026-01-01-a.md",

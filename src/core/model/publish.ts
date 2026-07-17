@@ -1,27 +1,11 @@
 // ABOUTME: planPublish — computes the date fixup, target path (moving drafts,
 // ABOUTME: fixing in place otherwise), and flag-removal edits for publishing.
 
-import { pathFor, pathParts } from "./paths";
+import { pathFor, slugForPath, slugify } from "./paths";
 import type { EntryKind, FieldEdit, ParsedEntry, PublishOptions, PublishPlan } from "./types";
 
 const MD_EXTENSION = ".md";
 const HTML_EXTENSION = ".html";
-
-function basenameOf(path: string): string {
-  const segments = path.split("/");
-  return segments.at(-1) ?? path;
-}
-
-function fallbackSlug(path: string): string {
-  const base = basenameOf(path);
-  if (base.endsWith(MD_EXTENSION)) {
-    return base.slice(0, -MD_EXTENSION.length);
-  }
-  if (base.endsWith(HTML_EXTENSION)) {
-    return base.slice(0, -HTML_EXTENSION.length);
-  }
-  return base;
-}
 
 /**
  * pathFor() only ever builds a canonical .md path — it's for new/canonical
@@ -40,8 +24,11 @@ function withSourceExtension(sourcePath: string, canonicalMdPath: string): strin
 }
 
 export function planPublishImpl(entry: ParsedEntry, opts: PublishOptions): PublishPlan {
-  const parts = pathParts(entry.path);
-  const slug = parts === null ? fallbackSlug(entry.path) : parts.slug;
+  const currentSlug = slugForPath(entry.path);
+  // opts.slug is user-typed (the Publish sheet's editable slug field) — run
+  // it back through slugify so a stray space or symbol can't land in the
+  // path unescaped, same as any other slug this model produces.
+  const slug = opts.slug === undefined ? currentSlug : slugify(opts.slug);
 
   // Drafts (content/drafts/) always become posts. Every other kind — most
   // notably a draft:true post already living under content/blog/ — keeps

@@ -113,6 +113,20 @@ export function pathParts(path: string): PathParts | null {
   return pathPartsFromDatedFilename(filename) ?? pathPartsFromYearDirectory(path, filename);
 }
 
+/** The slug `path` itself encodes: pathParts' slug for the dated and
+ * year-nested shapes, else the bare filename minus its managed extension —
+ * an entry's real on-disk name is never discarded just because its shape
+ * isn't canonical. Shared by planPublish and the Publish sheet's slug seed,
+ * which must agree on what "the current slug" means. */
+export function slugForPath(path: string): string {
+  const parts = pathParts(path);
+  if (parts !== null) {
+    return parts.slug;
+  }
+  const filename = basenameOf(path) ?? path;
+  return hasManagedExtension(filename) ? stripManagedExtension(filename) : filename;
+}
+
 /** Build the canonical repo path for a kind/date/slug (always the nested
  * shape for post/release — new writes follow the modern convention even
  * though reads tolerate the legacy flat one). */

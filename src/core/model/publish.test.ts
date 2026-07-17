@@ -128,3 +128,40 @@ describe("planPublish — always removes the draft flag", () => {
     expect(plan.edits).toContainEqual({ field: "draft", value: null });
   });
 });
+
+describe("planPublish — honors an explicit slug override", () => {
+  it("uses opts.slug for the new path instead of the filename's slug", () => {
+    const entry = makeEntry({ path: "content/drafts/2026-02-01-untitled.md" });
+    const plan = planPublishImpl(entry, { date: "2026-07-15", slug: "a-better-title" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-a-better-title.md");
+  });
+
+  it("slugifies opts.slug before using it in the new path", () => {
+    const entry = makeEntry({ path: "content/drafts/2026-02-01-untitled.md" });
+    const plan = planPublishImpl(entry, { date: "2026-07-15", slug: "A Better Title!" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-A-Better-Title.md");
+  });
+
+  it("falls back to the current filename's slug when opts.slug is omitted", () => {
+    const entry = makeEntry({ path: "content/drafts/2026-02-01-a-draft.md" });
+    const plan = planPublishImpl(entry, { date: "2026-07-15" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-a-draft.md");
+  });
+
+  it("falls back to 'untitled' when opts.slug is given but empty", () => {
+    const entry = makeEntry({ path: "content/drafts/2026-02-01-a-draft.md" });
+    const plan = planPublishImpl(entry, { date: "2026-07-15", slug: "" });
+    expect(plan.newPath).toBe("content/blog/2026/2026-07-15-untitled.md");
+  });
+
+  it("does not disturb the edits list (date/draft/opaqueId) when a slug override is given", () => {
+    const entry = makeEntry({
+      path: "content/drafts/2026-02-01-untitled.md",
+      opaqueId: "uuid-1",
+    });
+    const plan = planPublishImpl(entry, { date: "2026-07-15", slug: "renamed" });
+    expect(plan.edits).toContainEqual({ field: "date", value: "2026-07-15" });
+    expect(plan.edits).toContainEqual({ field: "draft", value: null });
+    expect(plan.edits).toContainEqual({ field: "opaqueId", value: null });
+  });
+});

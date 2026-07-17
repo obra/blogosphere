@@ -82,7 +82,11 @@ async function createNewInner(
   const record = buildNewRecord(ctx, kind, scaffold, { title: input.title, date });
   await svc.store.upsertEntry(record);
   replaceEntryInCache(ctx.set, record);
-  ctx.set({ selectedPath: record.path, section: sectionForKind(kind) });
+  // Through the ordinary actions — not a bare ctx.set — so the new entry
+  // reaches the "pick up where you left off" meta and hydrates its editor
+  // mode exactly like a manual pick (see state.lastPositionActions.ts).
+  ctx.get().setSection(sectionForKind(kind));
+  ctx.get().select(record.path);
   // A new post or link is public the moment it lands on main, so creating
   // one is a deliberate publish — push it. A new draft is the *start* of
   // writing: it stays local (like every edit after it) until the user syncs.

@@ -5,6 +5,7 @@ import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
 import { denormalize } from "../../core/sync/entry-fields";
 import { discardConflictIfAny } from "../../core/sync/meta";
+import { persistSelectedPath } from "./state.lastPositionActions";
 import type { ActionCtx, GetState, SetState } from "./state.types";
 
 type DenormalizedFields = Pick<EntryRecord, "title" | "date" | "draft" | "opaqueId">;
@@ -110,10 +111,17 @@ async function persistRenamedPair(
   // conflict-exclusion filter has no way to know a path that no longer
   // exists doesn't need resolving).
   await discardConflictIfAny(svc.store, record.path);
+  const followingSelection = ctx.get().selectedPath === record.path;
   ctx.set((state) => ({
     entries: [...state.entries.filter((entry) => entry.path !== record.path), updated],
     selectedPath: state.selectedPath === record.path ? updated.path : state.selectedPath,
   }));
+  if (followingSelection) {
+    // The selection just moved paths without going through select() — the
+    // "pick up where you left off" meta must follow, or the next launch's
+    // restore finds only the tombstoned old path and drops the user's place.
+    persistSelectedPath(ctx, updated.path);
+  }
 }
 
 /** True when `newPath` already belongs to a different, still-live entry —

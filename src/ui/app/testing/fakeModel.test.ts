@@ -26,6 +26,37 @@ describe("fakeModel path/slug rules agree with the real model", () => {
     expect(fake.pathParts(path)).not.toBeNull();
   });
 
+  it("planPublish honors opts.slug (slugified), exactly like the real model", () => {
+    const real = createModel();
+    const fake = createFakeModel();
+    const entry = {
+      path: "content/drafts/2026-03-01-old-name.md",
+      kind: "draft" as const,
+      raw: "",
+      frontMatterText: "",
+      body: "",
+      title: "Old Name",
+      date: "2026-03-01",
+      tags: [],
+      draft: true,
+      opaqueId: null,
+      url: null,
+      type: null,
+      unknownKeys: [],
+    };
+    const opts = { date: "2026-07-16", slug: "brand new name" };
+    expect(fake.planPublish(entry, opts)).toEqual(real.planPublish(entry, opts));
+    // Pin the actual shape too: the custom slug (run through slugify) wins
+    // over the filename's slug, same as the real planPublish.
+    expect(fake.planPublish(entry, opts).newPath).toBe(
+      "content/blog/2026/2026-07-16-brand-new-name.md",
+    );
+    // And without opts.slug the filename's slug still wins.
+    expect(fake.planPublish(entry, { date: "2026-07-16" }).newPath).toBe(
+      real.planPublish(entry, { date: "2026-07-16" }).newPath,
+    );
+  });
+
   it("permalinkFor agrees for a capitalized-slug entry", () => {
     const real = createModel();
     const fake = createFakeModel();
