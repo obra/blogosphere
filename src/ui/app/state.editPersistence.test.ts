@@ -39,9 +39,10 @@ it("continuous typing commits locally no later than editMaxUncommittedMs after t
   // timer resets forever and a hard kill mid-burst would lose everything
   // since the last commit. The cap must bound that window.
   vi.useFakeTimers();
-  for (let i = 1; i <= BURST_KEYSTROKES; i++) {
+  for (let i = 1; i <= BURST_KEYSTROKES; i += 1) {
     store.getState().edit(draft.path, { kind: "body", body: bodyAt(i) });
     clock += KEYSTROKE_GAP_MS;
+    // biome-ignore lint/performance/noAwaitInLoops: keystrokes are a timed sequence — advancing the fake clock between them is the premise.
     await vi.advanceTimersByTimeAsync(KEYSTROKE_GAP_MS);
   }
 
@@ -63,8 +64,9 @@ it("the trailing debounce still commits the final keystroke after the burst ends
   await store.getState().refresh();
 
   vi.useFakeTimers();
-  for (let i = 1; i <= BURST_KEYSTROKES; i++) {
+  for (let i = 1; i <= BURST_KEYSTROKES; i += 1) {
     store.getState().edit(draft.path, { kind: "body", body: bodyAt(i) });
+    // biome-ignore lint/performance/noAwaitInLoops: keystrokes are a timed sequence — advancing the fake clock between them is the premise.
     await vi.advanceTimersByTimeAsync(KEYSTROKE_GAP_MS);
   }
   await vi.advanceTimersByTimeAsync(DEBOUNCE_MS + KEYSTROKE_GAP_MS);
