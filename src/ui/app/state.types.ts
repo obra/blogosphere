@@ -27,6 +27,12 @@ const INITIAL_SECTION: Section = "drafts";
 const META_COMMIT_TEMPLATES_KEY = META_COMMIT_TEMPLATES;
 const META_EDITOR_MODE_PREFIX = "editorMode:";
 const DEFAULT_EDIT_DEBOUNCE_MS = 400;
+/** Upper bound between a keystroke and its local commit while typing
+ *  continuously: the debounce timer resets on every keystroke, so without
+ *  this cap an unbroken burst never commits and a hard kill (crash, force
+ *  quit, mobile OS reaping a backgrounded app) loses the whole burst —
+ *  this bounds that loss to ~2s of typing. */
+const DEFAULT_EDIT_MAX_UNCOMMITTED_MS = 2000;
 const DEFAULT_SEARCH_DEBOUNCE_MS = 150;
 /** Activity-log ring size — enough history to diagnose a session, bounded. */
 const SYNC_LOG_CAP = 200;
@@ -96,6 +102,7 @@ interface AppStoreDeps {
   writeClipboardText: (text: string) => Promise<void>;
   createId: () => string;
   editDebounceMs: number;
+  editMaxUncommittedMs: number;
   searchDebounceMs: number;
 }
 
@@ -253,6 +260,7 @@ export type {
 export {
   DEFAULT_COMMIT_TEMPLATES,
   DEFAULT_EDIT_DEBOUNCE_MS,
+  DEFAULT_EDIT_MAX_UNCOMMITTED_MS,
   DEFAULT_SEARCH_DEBOUNCE_MS,
   EMPTY_CONFLICTS,
   editorModeMetaKey,

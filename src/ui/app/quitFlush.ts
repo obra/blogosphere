@@ -1,6 +1,8 @@
-// ABOUTME: The flush-before-quit safety net's handler, kept out of
-// ABOUTME: AppShell.tsx (component-only exports) so it's directly
-// ABOUTME: unit-testable without mocking @tauri-apps/api.
+// ABOUTME: Flush-before-the-process-might-die safety nets: the close-requested
+// ABOUTME: handler (graceful quit) and the visibility-hidden flush (mobile OSes
+// ABOUTME: kill backgrounded apps with no close event). Kept out of
+// ABOUTME: AppShell.tsx (component-only exports) so both are unit-testable.
+import { useEffect } from "react";
 import type { BoundAppStore } from "./state";
 
 /** Minimal shape this module needs from Tauri's Window/CloseRequestedEvent —
@@ -32,4 +34,28 @@ export async function handleCloseRequested(
   // destroy() (not close()) so this doesn't re-emit closeRequested and
   // recurse back into this same handler.
   await win.destroy();
+}
+
+/**
+ * Flushes the typing buffer the moment the app stops being visible.
+ * Backgrounding is the last reliable moment before a mobile OS may kill the
+ * process — no close-requested event ever fires there. Desktop minimize hits
+ * this too; the commit is an idempotent local upsert, so the extra write is
+ * harmless (and never a push — see commitPending).
+ */
+export function useFlushOnHide(store: BoundAppStore): void {
+  useEffect(() => {
+    function onVisibilityChange(): void {
+      if (globalThis.document.visibilityState === "hidden") {
+        store
+          .getState()
+          .flushEdit()
+          .catch(() => undefined);
+      }
+    }
+    globalThis.document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      globalThis.document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [store]);
 }

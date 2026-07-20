@@ -3,7 +3,11 @@
 import { v4 as uuidv4 } from "uuid";
 import type { CommitMessageTemplates } from "../../core/sync/types";
 import type { AppStoreDeps } from "./state.types";
-import { DEFAULT_EDIT_DEBOUNCE_MS, DEFAULT_SEARCH_DEBOUNCE_MS } from "./state.types";
+import {
+  DEFAULT_EDIT_DEBOUNCE_MS,
+  DEFAULT_EDIT_MAX_UNCOMMITTED_MS,
+  DEFAULT_SEARCH_DEBOUNCE_MS,
+} from "./state.types";
 
 function browserConfirm(message: string): boolean {
   if (globalThis.window === undefined || typeof globalThis.window.confirm !== "function") {
@@ -28,6 +32,7 @@ function buildDeps(overrides: Partial<AppStoreDeps>): AppStoreDeps {
     writeClipboardText: overrides.writeClipboardText ?? browserWriteClipboardText,
     createId: overrides.createId ?? (() => uuidv4()),
     editDebounceMs: overrides.editDebounceMs ?? DEFAULT_EDIT_DEBOUNCE_MS,
+    editMaxUncommittedMs: overrides.editMaxUncommittedMs ?? DEFAULT_EDIT_MAX_UNCOMMITTED_MS,
     searchDebounceMs: overrides.searchDebounceMs ?? DEFAULT_SEARCH_DEBOUNCE_MS,
   };
 }

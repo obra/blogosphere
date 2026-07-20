@@ -37,6 +37,11 @@ tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 tauri-plugin-http = "2.5.9"
 tauri-plugin-fs = "2.5.1"
 tauri-plugin-clipboard-manager = "2.3.2"
-keyring = { version = "3.6.3", features = ["apple-native"] }
+# keyring's platform stores are opt-in features; on a target without its
+# feature the crate silently uses an in-memory mock — the token "saves" but
+# vanishes on relaunch. apple-native covers macOS+iOS; windows-native covers
+# Windows; Android uses the file fallback in keychain.rs (no keyring backend
+# exists there). keychain.rs has a test pinning "never the mock store".
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"

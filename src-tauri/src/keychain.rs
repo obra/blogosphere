@@ -141,6 +141,24 @@ pub fn keychain_delete(app: tauri::AppHandle, key: &str) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    /// The keyring crate silently falls back to an in-memory mock store on
+    /// any platform whose backend feature isn't enabled in Cargo.toml — the
+    /// token then "saves" fine but vanishes on relaunch (shipped exactly
+    /// that bug to Windows once). An Entry's Debug repr names its credential
+    /// type, so this pins "a real platform store, never the mock" on
+    /// whichever desktop platform runs the tests.
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn keychain_entries_use_a_real_platform_store_not_the_mock() {
+        let entry = entry_for("store-probe").expect("entry should build");
+        let repr = format!("{entry:?}");
+        assert!(
+            !repr.contains("MockCredential"),
+            "keyring fell back to its in-memory mock store — a platform \
+             backend feature is missing in Cargo.toml. Entry: {repr}"
+        );
+    }
+
     #[test]
     fn rejects_empty_key_without_touching_the_keychain() {
         assert_eq!(keychain_get(""), Err(EMPTY_KEY_MESSAGE.to_string()));

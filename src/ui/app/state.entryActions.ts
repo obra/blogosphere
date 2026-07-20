@@ -23,6 +23,11 @@ interface PendingEntry {
 
 interface PendingSlot extends PendingEntry {
   timer: ReturnType<typeof setTimeout>;
+  /** When the last mid-burst commit for this slot was kicked off. The
+   *  debounce timer resets on every keystroke, so an unbroken typing burst
+   *  would otherwise never commit — this clock caps how long keystrokes can
+   *  sit only in process memory (see edit()). */
+  burstCommittedAt: number;
   /** Set whenever a change lands after the last commit attempt (immediate
    *  or debounced); lets the debounce-fire callback skip a fully redundant
    *  re-commit — and, on failure, a redundant duplicate error toast — once
@@ -236,6 +241,16 @@ function edit(ctx: ActionCtx, pending: PendingEdits, path: string, change: EditC
     mergeChangeInto(existing, change);
     existing.uncommitted = true;
     existing.timer = scheduleDebouncedCommit(ctx, pending, path);
+    // Continuous typing resets the timer forever, so also commit on a
+    // bounded clock — otherwise a crash/force-quit/OS kill mid-burst loses
+    // the entire burst, not just the trailing debounce window. uncommitted
+    // stays true on purpose: the trailing debounce re-commit is an
+    // idempotent upsert, and skipping it would drop data if this commit
+    // fails (its error path only offers a retry toast).
+    if (ctx.deps.now() - existing.burstCommittedAt >= ctx.deps.editMaxUncommittedMs) {
+      existing.burstCommittedAt = ctx.deps.now();
+      commitPending(ctx, path, existing);
+    }
     return;
   }
 
@@ -243,6 +258,7 @@ function edit(ctx: ActionCtx, pending: PendingEdits, path: string, change: EditC
     body: null,
     fieldEdits: new Map(),
     uncommitted: false,
+    burstCommittedAt: ctx.deps.now(),
     timer: scheduleDebouncedCommit(ctx, pending, path),
   };
   mergeChangeInto(slot, change);

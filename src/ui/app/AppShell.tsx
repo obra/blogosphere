@@ -13,7 +13,7 @@ import { MobileShell } from "./MobileShell";
 import { installAppMenu } from "./menu";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { QuickOpenPalette } from "./QuickOpenPalette";
-import { handleCloseRequested } from "./quitFlush";
+import { handleCloseRequested, useFlushOnHide } from "./quitFlush";
 import { useServices } from "./ServicesContext";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
@@ -248,6 +248,7 @@ function AppShell(props: AppShellProps) {
   useKeyboardShortcuts(store, menuInstalled);
   useAndroidBack(store);
   useSyncOnFocus(store);
+  useFlushOnHide(store);
   useFlushBeforeQuit(store);
 
   useEffect(() => {
