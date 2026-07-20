@@ -31,7 +31,7 @@ import type {
   SyncStatus,
 } from "./types";
 
-export function messageForError(err: unknown): string {
+function messageForError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
@@ -295,3 +295,5 @@ export function createSync(deps: SyncDeps): SyncApi {
     bootstrap: () => enqueue(loggedBootstrap),
   };
 }
+
+export { messageForError };
