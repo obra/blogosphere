@@ -2,6 +2,7 @@
 // ABOUTME: extension preservation. Split from state.editingActions.ts (line cap).
 import type { FieldEdit } from "../../core/model/types";
 import type { EntryRecord } from "../../core/store/types";
+import { messageForError } from "../../core/sync/engine";
 import { todayIso } from "./format";
 import { applyRename, findEntryInCache } from "./state.cache";
 import type { ActionCtx } from "./state.types";
@@ -115,10 +116,10 @@ async function renameEntry(
   ctx.set((state) => ({ busy: { ...state.busy, renaming: true } }));
   try {
     await renameEntryInner(ctx, record, changes);
-  } catch {
+  } catch (err) {
     ctx.get().addToast({
       tone: "error",
-      message: "Couldn't rename this entry.",
+      message: `Couldn't rename this entry. (${messageForError(err)})`,
       retry: () => renameEntry(ctx, path, changes),
     });
   } finally {

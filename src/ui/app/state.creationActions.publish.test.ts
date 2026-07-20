@@ -152,3 +152,54 @@ it("publishDraft refuses to overwrite a different entry already at the target pa
   expect(store.getState().toasts.some((toast) => toast.tone === "error")).toBe(true);
   expect(store.getState().toasts.some((toast) => toast.tone === "success")).toBe(false);
 });
+
+it("publishDraft succeeds even when store.transaction is broken (tauri-plugin-sql pools connections)", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    draft: true,
+  });
+  const fake = buildFakeServices({ seedEntries: [draft] });
+  // The real Tauri driver's cross-call BEGIN/COMMIT lands on arbitrary pooled
+  // connections and dies under concurrency ("database is locked" — seen live
+  // on Windows). Publishing must not depend on transaction() at all.
+  const services = {
+    ...fake.services,
+    store: {
+      ...fake.services.store,
+      transaction: () => Promise.reject(new Error("database is locked")),
+    },
+  };
+  const store = createAppStore(services);
+
+  await store.getState().publishDraft(draft.path, { date: "2026-07-20" });
+
+  const newRecord = await services.store.getEntry("content/blog/2026/2026-07-20-a.md");
+  expect(newRecord?.draft).toBe(false);
+  expect((await services.store.getEntry(draft.path))?.deleted).toBe(true);
+  expect(store.getState().toasts.some((toast) => toast.tone === "success")).toBe(true);
+});
+
+it("a store failure during publish surfaces the underlying error in the toast", async () => {
+  const draft = makeEntry({
+    path: "content/drafts/2026-01-01-a.md",
+    kind: "draft",
+    draft: true,
+  });
+  const fake = buildFakeServices({ seedEntries: [draft] });
+  const services = {
+    ...fake.services,
+    store: {
+      ...fake.services.store,
+      upsertEntryPair: () => Promise.reject(new Error("database is locked")),
+    },
+  };
+  const store = createAppStore(services);
+
+  await store.getState().publishDraft(draft.path, { date: "2026-07-20" });
+
+  // "Couldn't publish this entry." alone made a live Windows failure
+  // undiagnosable — the toast must carry the real reason.
+  const errorToast = store.getState().toasts.find((toast) => toast.tone === "error");
+  expect(errorToast?.message).toContain("database is locked");
+});

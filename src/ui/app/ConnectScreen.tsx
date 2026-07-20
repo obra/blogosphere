@@ -40,8 +40,8 @@ function TokenHelp() {
   }
   return (
     <p className="connect-help">
-      Use a fine-grained personal access token with contents read &amp; write on the blog
-      repository.{" "}
+      Use a fine-grained personal access token with contents read &amp; write on the blog repository
+      — plus Actions read if you want deploy status after publishing.{" "}
       <button type="button" className="link-button" onClick={copyUrl}>
         {copied ? "Link copied" : "Copy the create-token link"}
       </button>

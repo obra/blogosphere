@@ -117,6 +117,32 @@ const UPSERT_ENTRY_SQL = `
     updated_at = excluded.updated_at
 `;
 
+/** Same upsert, two VALUES rows: one statement, so the pair is atomic on any
+ *  backend. Cross-call BEGIN/COMMIT transactions are NOT sound over
+ *  tauri-plugin-sql (each execute() checks a connection out of a sqlx pool,
+ *  so the transaction's connection and later statements' connections can
+ *  differ — "database is locked" under concurrency). Rename/publish pairs
+ *  must go through this instead. */
+const UPSERT_ENTRY_PAIR_SQL = `
+  INSERT INTO entries (
+    path, kind, base_sha, base_content, working_content, dirty, deleted,
+    renamed_from, title, date, draft, opaque_id, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(path) DO UPDATE SET
+    kind = excluded.kind,
+    base_sha = excluded.base_sha,
+    base_content = excluded.base_content,
+    working_content = excluded.working_content,
+    dirty = excluded.dirty,
+    deleted = excluded.deleted,
+    renamed_from = excluded.renamed_from,
+    title = excluded.title,
+    date = excluded.date,
+    draft = excluded.draft,
+    opaque_id = excluded.opaque_id,
+    updated_at = excluded.updated_at
+`;
+
 const UPSERT_ASSET_SQL = `
   INSERT INTO assets (repo_path, local_path, entry_path, created_at)
   VALUES (?, ?, ?, ?)
@@ -185,11 +211,18 @@ function createEntryWriters(driver: SqlDriver) {
     await driver.execute(UPSERT_ENTRY_SQL, entryToParams(record));
   }
 
+  async function upsertEntryPair(first: EntryRecord, second: EntryRecord): Promise<void> {
+    await driver.execute(UPSERT_ENTRY_PAIR_SQL, [
+      ...entryToParams(first),
+      ...entryToParams(second),
+    ]);
+  }
+
   async function removeEntry(path: string): Promise<void> {
     await driver.execute("DELETE FROM entries WHERE path = ?", [path]);
   }
 
-  return { upsertEntry, removeEntry };
+  return { upsertEntry, upsertEntryPair, removeEntry };
 }
 
 /** Outbox asset methods. */

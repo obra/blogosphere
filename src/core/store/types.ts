@@ -73,6 +73,11 @@ export interface StoreApi {
   /** FTS over title+body. */
   searchEntries(query: string): Promise<EntryRecord[]>;
   upsertEntry(record: EntryRecord): Promise<void>;
+  /** Both records in one SQL statement — atomic without a transaction.
+   *  Rename/publish pairs (tombstone old + create new) must use this:
+   *  cross-call BEGIN/COMMIT is not sound over tauri-plugin-sql's
+   *  connection pool (see store.ts's UPSERT_ENTRY_PAIR_SQL). */
+  upsertEntryPair(first: EntryRecord, second: EntryRecord): Promise<void>;
   /** Hard-remove a record (after its tombstone is pushed). */
   removeEntry(path: string): Promise<void>;
 

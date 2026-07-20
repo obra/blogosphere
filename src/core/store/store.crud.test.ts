@@ -80,6 +80,48 @@ describe("createStore: upsertEntry/removeEntry", () => {
   });
 });
 
+describe("createStore: upsertEntryPair", () => {
+  let store: StoreApi;
+
+  beforeEach(async () => {
+    ({ store } = await createTestStore());
+  });
+
+  it("writes both records — an update to an existing path and a brand-new path — in one call", async () => {
+    // The publish/rename shape: tombstone the old path, create the new one.
+    // A single statement so it can never half-apply: cross-call BEGIN/COMMIT
+    // transactions are not sound over tauri-plugin-sql's connection pool.
+    await store.upsertEntry(makeEntry({ path: "content/drafts/2026-01-01-a.md", title: "v1" }));
+    const tombstone = makeEntry({
+      path: "content/drafts/2026-01-01-a.md",
+      title: "v1",
+      deleted: true,
+      dirty: true,
+    });
+    const published = makeEntry({
+      path: "content/blog/2026/2026-07-20-a.md",
+      title: "v1",
+      draft: false,
+      dirty: true,
+      renamedFrom: "content/drafts/2026-01-01-a.md",
+    });
+
+    await store.upsertEntryPair(tombstone, published);
+
+    expect(await store.getEntry(tombstone.path)).toEqual(tombstone);
+    expect(await store.getEntry(published.path)).toEqual(published);
+  });
+
+  it("inserts two brand-new records together", async () => {
+    const a = makeEntry({ path: "a.md", title: "A" });
+    const b = makeEntry({ path: "b.md", title: "B" });
+
+    await store.upsertEntryPair(a, b);
+
+    expect((await store.listEntries()).map((e) => e.path)).toEqual(["a.md", "b.md"]);
+  });
+});
+
 describe("createStore: listEntries ordering", () => {
   let store: StoreApi;
 

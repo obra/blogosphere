@@ -2,6 +2,7 @@
 // ABOUTME: newDraft/newLink (via a shared createNew) and publishDraft.
 import type { PublishOptions } from "../../core/model/types";
 import type { EntryRecord } from "../../core/store/types";
+import { messageForError } from "../../core/sync/engine";
 import { todayIso } from "./format";
 import { sectionForKind } from "./grouping";
 import {
@@ -189,10 +190,12 @@ async function publishDraft(ctx: ActionCtx, path: string, opts: PublishOptions):
   ctx.set((state) => ({ busy: { ...state.busy, publishing: true } }));
   try {
     await publishDraftInner(ctx, path, opts);
-  } catch {
+  } catch (err) {
+    // Carry the real reason: a bare "couldn't publish" made a live failure
+    // ("database is locked", Windows) undiagnosable from the other side.
     ctx.get().addToast({
       tone: "error",
-      message: "Couldn't publish this entry.",
+      message: `Couldn't publish this entry. (${messageForError(err)})`,
       retry: () => publishDraft(ctx, path, opts),
     });
   } finally {

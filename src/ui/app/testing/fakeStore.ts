@@ -115,6 +115,10 @@ function createFakeStore(seedEntries: EntryRecord[] = []): StoreApi {
     listDirty: () => listDirty(state),
     searchEntries: (query) => searchEntries(state, query),
     upsertEntry: (record) => upsertEntry(state, record),
+    upsertEntryPair: async (first, second) => {
+      await upsertEntry(state, first);
+      await upsertEntry(state, second);
+    },
     removeEntry: (path) => removeEntry(state, path),
     addAsset: (asset) => addAsset(state, asset),
     listAssetsFor: (entryPaths) => listAssetsFor(state, entryPaths),

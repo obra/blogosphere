@@ -53,7 +53,8 @@ function disableDeployWatch(ctx: ActionCtx): void {
   deployWatchDisabled = true;
   appendLog(ctx, {
     level: "info",
-    message: "This token can't watch deploys (needs Actions read)",
+    message:
+      "Deploy status is off: the token can't read GitHub Actions. Publishing still works — add the Actions read permission to see deploy progress.",
   });
 }
 

@@ -9,6 +9,14 @@ type Execute = (sql: string, params?: unknown[]) => Promise<{ rowsAffected: numb
  * keeps better-sqlite3 and tauri-plugin-sql on identical BEGIN/COMMIT/ROLLBACK
  * behavior instead of two divergent implementations.
  *
+ * ONLY SOUND WHILE ALL DB ACCESS IS STRICTLY SERIAL (boot-time schema work).
+ * tauri-plugin-sql checks a connection out of a sqlx pool per execute() call:
+ * under concurrency, BEGIN's connection and later statements' connections can
+ * differ — the transaction never sees its own statements and writes collide
+ * ("database is locked", hit live during publish on Windows). Anything that
+ * runs after boot must get atomicity from a single statement instead (see
+ * StoreApi.upsertEntryPair).
+ *
  * Nested calls (transaction() invoked again while one is already running on
  * this runner) reject with a clear error instead of silently corrupting state.
  */

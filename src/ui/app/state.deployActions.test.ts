@@ -134,7 +134,9 @@ it("an auth error on the first poll logs one warning, never toasts, and disables
   const log = store.getState().syncLog;
   expect(log).toHaveLength(1);
   expect(log[0]?.level).toBe("info");
-  expect(log[0]?.message).toBe("This token can't watch deploys (needs Actions read)");
+  expect(log[0]?.message).toBe(
+    "Deploy status is off: the token can't read GitHub Actions. Publishing still works — add the Actions read permission to see deploy progress.",
+  );
   expect(store.getState().toasts).toHaveLength(0);
 });
 
@@ -177,7 +179,9 @@ it("a first-poll failure never disables deploy watching for later pushes", async
   await store.getState().watchDeploy("sha-next");
 
   const messages = store.getState().syncLog.map((entry) => entry.message);
-  expect(messages).not.toContain("This token can't watch deploys (needs Actions read)");
+  expect(messages).not.toContain(
+    "Deploy status is off: the token can't read GitHub Actions. Publishing still works — add the Actions read permission to see deploy progress.",
+  );
   expect(messages).toContain("Live on blog.fsck.com ✓");
 });
 

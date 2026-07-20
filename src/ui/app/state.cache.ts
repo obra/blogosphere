@@ -101,10 +101,10 @@ async function persistRenamedPair(
     dirty: true,
     updatedAt: ctx.deps.now(),
   };
-  await svc.store.transaction(async () => {
-    await svc.store.upsertEntry(tombstone);
-    await svc.store.upsertEntry(updated);
-  });
+  // One statement, not store.transaction(): cross-call BEGIN/COMMIT is not
+  // sound over tauri-plugin-sql's connection pool — this exact call site
+  // died with "database is locked" on Windows (see StoreApi.upsertEntryPair).
+  await svc.store.upsertEntryPair(tombstone, updated);
   // The old path is being tombstoned out from under whatever conflict state
   // it might have had — if it was flagged conflicted, that flag must be
   // cleared here too, or it can never be cleared again (push()'s
