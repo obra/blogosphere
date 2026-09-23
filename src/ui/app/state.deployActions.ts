@@ -4,7 +4,7 @@
 import type { WorkflowRun } from "../../core/github/types";
 import { GitHubError } from "../../core/github/types";
 import type { SyncLogEntry } from "../../core/sync/types";
-import type { ActionCtx } from "./state.types";
+import type { ActionCtx, DeployState } from "./state.types";
 import { SYNC_LOG_CAP } from "./state.types";
 
 /** Poll cadence and overall budget: check roughly every 10s, give up after
@@ -62,7 +62,28 @@ function findConcludedRun(runs: WorkflowRun[]): WorkflowRun | null {
   return runs.find((run) => run.status === "completed" && run.conclusion !== null) ?? null;
 }
 
-function reportConcludedRun(ctx: ActionCtx, run: WorkflowRun): void {
+/** Updates the deploy state the Activity popover shows, but only while it's
+ *  still about this push: an older push finishing late mustn't overwrite a
+ *  newer one's "Deploying…". */
+function setDeployState(ctx: ActionCtx, sha: string, state: DeployState["state"] | null): void {
+  ctx.set((current) => {
+    if (current.deploy?.sha !== sha) {
+      return {};
+    }
+    return { deploy: state === null ? null : { sha, state, at: ctx.deps.now() } };
+  });
+}
+
+/** Watching stopped with no answer (auth error, poll budget spent, a
+ *  throw): never leave the popover saying "Deploying…" forever. */
+function clearIfUnanswered(ctx: ActionCtx, sha: string): void {
+  if (ctx.get().deploy?.state === "deploying") {
+    setDeployState(ctx, sha, null);
+  }
+}
+
+function reportConcludedRun(ctx: ActionCtx, run: WorkflowRun, sha: string): void {
+  setDeployState(ctx, sha, run.conclusion === "success" ? "live" : "failed");
   if (run.conclusion === "success") {
     appendLog(ctx, { level: "info", message: "Live on blog.fsck.com ✓", detail: run.htmlUrl });
     ctx.get().addToast({ tone: "success", message: "Live on blog.fsck.com", source: "deploy" });
@@ -99,6 +120,7 @@ async function watchDeploy(ctx: ActionCtx, commitSha: string): Promise<void> {
     return;
   }
   activeWatches.add(commitSha);
+  ctx.set({ deploy: { sha: commitSha, state: "deploying", at: ctx.deps.now() } });
   try {
     let lastSeenRun: WorkflowRun | null = null;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
@@ -116,7 +138,7 @@ async function watchDeploy(ctx: ActionCtx, commitSha: string): Promise<void> {
       lastSeenRun = runs[0] ?? lastSeenRun;
       const concluded = findConcludedRun(runs);
       if (concluded) {
-        reportConcludedRun(ctx, concluded);
+        reportConcludedRun(ctx, concluded, commitSha);
         return;
       }
       if (attempt < MAX_ATTEMPTS - 1) {
@@ -126,6 +148,7 @@ async function watchDeploy(ctx: ActionCtx, commitSha: string): Promise<void> {
     reportTimeout(ctx, lastSeenRun);
   } finally {
     activeWatches.delete(commitSha);
+    clearIfUnanswered(ctx, commitSha);
   }
 }
 

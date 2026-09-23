@@ -3,10 +3,12 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../icons/Icon";
+import { clockTime } from "./format";
 import { type Placement, popoverPlacement } from "./popoverPlacement";
 import { useServices } from "./ServicesContext";
 import { SyncLogList } from "./SyncLogList";
 import { useAppStore, useAppStoreApi } from "./state";
+import type { DeployState } from "./state.types";
 import { type SyncButtonState, syncButtonState } from "./syncButtonState";
 import { useNowMs } from "./useNowMs";
 
@@ -83,6 +85,25 @@ function ConflictList() {
   );
 }
 
+const DEPLOY_LINES: Record<DeployState["state"], (at: number) => string> = {
+  deploying: () => "Deploying…",
+  live: (at) => `Live at ${clockTime(at)}`,
+  failed: () => "Deploy failed",
+};
+
+/** The latest push's site deploy, under the popover's headline. */
+function DeployLine() {
+  const deploy = useAppStore((state) => state.deploy);
+  if (!deploy) {
+    return null;
+  }
+  return (
+    <p className="activity-deploy" data-state={deploy.state}>
+      {DEPLOY_LINES[deploy.state](deploy.at)}
+    </p>
+  );
+}
+
 /** Fixed-position placement next to `anchor`, kept current on window resize. */
 function usePlacement(anchor: React.RefObject<HTMLElement | null>): Placement | null {
   const [placement, setPlacement] = useState<Placement | null>(null);
@@ -139,6 +160,7 @@ function ActivityPopover(props: {
           </button>
         )}
       </header>
+      <DeployLine />
       <ConflictList />
       <SyncLogList />
     </div>,
@@ -152,7 +174,8 @@ function SyncStatusButton() {
   const open = useAppStore((s) => s.syncLogOpen);
   const connected = useServices().sync !== null;
   const nowMs = useNowMs();
-  const state = syncButtonState(status, connected, nowMs);
+  const deploy = useAppStore((s) => s.deploy);
+  const state = syncButtonState(status, connected, nowMs, deploy);
   const root = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const popover = useRef<HTMLDivElement>(null);

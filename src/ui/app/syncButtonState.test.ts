@@ -105,3 +105,34 @@ describe("syncButtonState", () => {
     );
   });
 });
+
+describe("a failed deploy", () => {
+  const failed = { sha: "abc", state: "failed" as const, at: NOW - MINUTE };
+  const DeployFailed = "Deploy failed — the site still shows the previous version";
+
+  it("shows as an error, pending changes still badged", () => {
+    expect(
+      syncButtonState(status({ lastSyncAt: NOW - 2 * MINUTE, pendingCount: 1 }), true, NOW, failed),
+    ).toEqual({ kind: "error", icon: "syncError", badge: 1, tooltip: DeployFailed });
+  });
+
+  it("stops showing once a later sync succeeds, even with nothing to push", () => {
+    expect(syncButtonState(status({ lastSyncAt: NOW }), true, NOW, failed).kind).toBe("synced");
+  });
+
+  it("ranks below conflicts, offline and syncing", () => {
+    const early = { lastSyncAt: NOW - 2 * MINUTE };
+    expect(syncButtonState(status({ ...early, state: "syncing" }), true, NOW, failed).kind).toBe(
+      "syncing",
+    );
+    expect(syncButtonState(status({ ...early, state: "offline" }), true, NOW, failed).kind).toBe(
+      "offline",
+    );
+  });
+
+  it("a deploy in progress or live changes nothing", () => {
+    for (const state of ["deploying", "live"] as const) {
+      expect(syncButtonState(status({}), true, NOW, { ...failed, state }).kind).toBe("synced");
+    }
+  });
+});

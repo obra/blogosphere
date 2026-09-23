@@ -88,3 +88,14 @@ html[data-platform="macos"] .hud {
     animation: none;
   }
 }
+
+/* ---------- Activity popover: the latest deploy ---------- */
+
+html[data-platform="macos"] .activity-deploy {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+html[data-platform="macos"] .activity-deploy[data-state="failed"] {
+  color: var(--danger);
+}

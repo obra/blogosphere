@@ -80,6 +80,7 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     busy: INITIAL_BUSY,
     toasts: [],
     entriesLoadFailed: false,
+    deploy: null,
     hud: null,
     editorModes: {},
     commitTemplates: DEFAULT_COMMIT_TEMPLATES,

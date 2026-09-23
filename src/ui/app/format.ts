@@ -139,5 +139,18 @@ function relativeTimeLabel(fromMs: number, nowMs: number): string {
   return `${Math.floor(elapsed / DAY_MS)}d ago`;
 }
 
+/** A time of day in the person's locale, to the minute ("10:42 AM"). */
+function clockTime(at: number): string {
+  return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
 export type { Debouncer };
-export { debounce, formatDisplayDate, monthName, relativeTimeLabel, splitIsoDate, todayIso };
+export {
+  clockTime,
+  debounce,
+  formatDisplayDate,
+  monthName,
+  relativeTimeLabel,
+  splitIsoDate,
+  todayIso,
+};

@@ -65,6 +65,14 @@ interface Toast {
   source?: "sync" | "load" | "deploy";
 }
 
+/** The latest push's site deploy, as the Activity popover shows it. */
+interface DeployState {
+  sha: string;
+  state: "deploying" | "live" | "failed";
+  /** When it reached this state (ms since epoch). */
+  at: number;
+}
+
 interface BusyFlags {
   refreshing: boolean;
   creating: boolean;
@@ -133,6 +141,7 @@ interface AppData {
   /** The last attempt to read the entry list failed (macOS shows it in the
    *  list when there's nothing else to show). */
   entriesLoadFailed: boolean;
+  deploy: DeployState | null;
   /** macOS: the HUD message showing now (info and success notices). */
   hud: { id: string; message: string } | null;
 
@@ -278,6 +287,7 @@ export type {
   AppStoreDeps,
   BusyFlags,
   CreatableKind,
+  DeployState,
   EditChange,
   GetState,
   NewEntryFields,
