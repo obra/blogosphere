@@ -25,6 +25,12 @@ html[data-platform="macos"] {
   --warning: -apple-system-orange;
   --shadow: 0 6px 20px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
   --shadow-sheet: 0 16px 40px rgba(0, 0, 0, 0.24), 0 0 0 0.5px rgba(0, 0, 0, 0.14);
+
+  /* macOS's focus halo: wider and softer than the web default. Set through
+     the base :focus-visible rule's variables so that rules which remove the
+     outline on purpose (Crepe, the title field) still win. */
+  --focus-ring-width: 3px;
+  --focus-ring-color: color-mix(in srgb, AccentColor 50%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -50,4 +56,50 @@ html[data-platform="macos"] .editor-doc .milkdown {
   --crepe-color-selected: -apple-system-selected-text-background;
   --crepe-color-secondary: -apple-system-unemphasized-selected-content-background;
   --crepe-color-inline-code: var(--text);
+}
+
+/* Chrome type: 13pt body (already the base), 13pt semibold list titles,
+   11pt captions and counts — AppKit's defaults. Declared before the
+   selection rules below, which override these elements' colors. */
+html[data-platform="macos"] .entry-row-title {
+  font-weight: 600;
+}
+html[data-platform="macos"] .entry-row-meta,
+html[data-platform="macos"] .sidebar-section-count {
+  font-size: 11px;
+}
+
+/* Selection: AppKit draws the focused list's selection in the selection
+   color with white text, and any other list's in unemphasized gray with
+   normal text (focus-and-selection.md). */
+html[data-platform="macos"] .sidebar-section-button[aria-current="true"],
+html[data-platform="macos"] .entry-row[aria-current="true"] {
+  background: var(--bg-selected-inactive);
+  color: var(--text);
+  font-weight: 400;
+}
+html[data-platform="macos"] .sidebar:focus-within .sidebar-section-button[aria-current="true"],
+html[data-platform="macos"] .entry-list-pane:focus-within .entry-row[aria-current="true"] {
+  background: var(--bg-selected);
+  color: #ffffff;
+}
+html[data-platform="macos"]
+  .sidebar:focus-within
+  .sidebar-section-button[aria-current="true"]
+  .sidebar-section-count,
+html[data-platform="macos"]
+  .entry-list-pane:focus-within
+  .entry-row[aria-current="true"]
+  .entry-row-meta {
+  color: rgba(255, 255, 255, 0.8);
+}
+/* AppKit lists show focus through the selection color, never a ring around
+   the row. */
+html[data-platform="macos"] :is(.sidebar-section-button, .entry-row) {
+  --focus-ring-width: 0;
+}
+html[data-platform="macos"] .quick-open-row:hover,
+html[data-platform="macos"] .quick-open-row[data-active="true"] {
+  background: var(--bg-selected);
+  color: #ffffff;
 }

@@ -35,6 +35,8 @@
   --shadow: 0 8px 24px rgba(20, 22, 26, 0.14);
   /* Sheets hang from the titlebar; the shadow falls further below them. */
   --shadow-sheet: 0 18px 44px rgba(20, 22, 26, 0.22);
+  --focus-ring-width: 2px;
+  --focus-ring-color: color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -150,7 +152,7 @@ select {
 /* ---------- Focus + scrollbars (native feel) ---------- */
 
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 1px;
 }
 

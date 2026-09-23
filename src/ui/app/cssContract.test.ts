@@ -13,6 +13,18 @@ const TEXT_LABEL = /--text:\s*-apple-system-label/;
 const BORDER_SEPARATOR = /--border:\s*-apple-system-separator/;
 const ACCENT = /--accent:\s*AccentColor/;
 const ACCENT_TEXT = /--accent-text:\s*#ffffff/;
+const FOCUSED_SELECTION =
+  /:focus-within\s[^{]*\[aria-current="true"\][^{]*\{[^}]*background:\s*var\(--bg-selected\)[^}]*color:\s*#ffffff/;
+const UNFOCUSED_SELECTION =
+  /\[aria-current="true"\][^{]*\{[^}]*background:\s*var\(--bg-selected-inactive\)[^}]*color:\s*var\(--text\)/;
+const SELECTED_META =
+  /:focus-within\s[^{]*\[aria-current="true"\]\s+\.entry-row-meta[^{]*\{[^}]*color:\s*rgba\(255, 255, 255, 0\.8\)/;
+const BASE_FOCUS_RULE =
+  /(^|\n):focus-visible\s*\{[^}]*outline:\s*var\(--focus-ring-width\) solid var\(--focus-ring-color\)/;
+const MAC_FOCUS_WIDTH = /--focus-ring-width:\s*3px/;
+const MAC_FOCUS_COLOR = /--focus-ring-color:\s*color-mix\(in srgb, AccentColor 50%, transparent\)/;
+const LIST_ROWS_NO_RING =
+  /:is\(\.sidebar-section-button, \.entry-row\)\s*\{[^}]*--focus-ring-width:\s*0/;
 
 const APP_DIR = new URL("./", import.meta.url);
 
@@ -124,5 +136,33 @@ describe("macOS token block (app-macos.css)", () => {
   it("is loaded after the base tokens so it wins", () => {
     const imports = [...readCss("app.css").matchAll(IMPORT)].map((m) => m[1]);
     expect(imports.at(-1)).toBe("app-macos.css");
+  });
+});
+
+describe("macOS selection and focus", () => {
+  const mac = readCss("app-macos.css");
+
+  it("draws the focused list's selection as white text on the selection color", () => {
+    expect(mac).toMatch(FOCUSED_SELECTION);
+  });
+
+  it("draws an unfocused selection in unemphasized gray with label text", () => {
+    expect(mac).toMatch(UNFOCUSED_SELECTION);
+  });
+
+  it("keeps the date inside a focused selection readable", () => {
+    expect(mac).toMatch(SELECTED_META);
+  });
+
+  it("draws no ring on list rows: the focused selection already shows focus", () => {
+    expect(mac).toMatch(LIST_ROWS_NO_RING);
+  });
+
+  it("widens the focus ring through variables, so outline:none opt-outs still win", () => {
+    expect(readCss("app.css")).toMatch(BASE_FOCUS_RULE);
+    expect(mac).toMatch(MAC_FOCUS_WIDTH);
+    expect(mac).toMatch(MAC_FOCUS_COLOR);
+    // No Mac-specific :focus-visible rule: one would outrank the opt-outs.
+    expect(ruleHeads(mac).some((head) => head.includes(":focus-visible"))).toBe(false);
   });
 });
