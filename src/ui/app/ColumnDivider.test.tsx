@@ -61,4 +61,20 @@ describe("ColumnDivider", () => {
     fireEvent.pointerMove(globalThis as unknown as Window, { clientX: 300, pointerId: 1 });
     expect(store.getState().sidebarWidth).toBe(230);
   });
+
+  it("a cancelled drag stops following the pointer, restores the width, and saves nothing", async () => {
+    const { store, services, divider } = renderDivider();
+    const win = globalThis as unknown as Window;
+    fireEvent.pointerDown(divider, { clientX: 200, pointerId: 1 });
+    fireEvent.pointerMove(win, { clientX: 250, pointerId: 1 });
+    expect(store.getState().sidebarWidth).toBe(250);
+    await act(async () => {
+      fireEvent.pointerCancel(win, { pointerId: 1 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(store.getState().sidebarWidth).toBe(200);
+    fireEvent.pointerMove(win, { clientX: 300, pointerId: 1 });
+    expect(store.getState().sidebarWidth).toBe(200);
+    expect(await services.store.getMeta(META_SIDEBAR_WIDTH)).toBeNull();
+  });
 });

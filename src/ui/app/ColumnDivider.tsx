@@ -29,16 +29,27 @@ function startDrag(event: ReactPointerEvent<HTMLDivElement>, column: Column, sto
 
   const widthAt = (clientX: number) =>
     clampDividerDrag(column, startWidth + clientX - startX, columnInput(store));
+  const stop = () => {
+    globalThis.removeEventListener("pointermove", onMove);
+    globalThis.removeEventListener("pointerup", onUp);
+    globalThis.removeEventListener("pointercancel", onCancel);
+  };
   const onMove = (move: PointerEvent) => {
     store.getState().setColumnWidth(column, widthAt(move.clientX), false);
   };
   const onUp = (up: PointerEvent) => {
-    globalThis.removeEventListener("pointermove", onMove);
-    globalThis.removeEventListener("pointerup", onUp);
+    stop();
     store.getState().setColumnWidth(column, widthAt(up.clientX), true);
+  };
+  // A system gesture or app switch can cancel the pointer mid-drag: stop
+  // following it and put the column back, saving nothing.
+  const onCancel = () => {
+    stop();
+    store.getState().setColumnWidth(column, startWidth, false);
   };
   globalThis.addEventListener("pointermove", onMove);
   globalThis.addEventListener("pointerup", onUp);
+  globalThis.addEventListener("pointercancel", onCancel);
 }
 
 function ColumnDivider(props: { column: Column; at?: number }) {
