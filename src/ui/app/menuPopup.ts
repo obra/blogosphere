@@ -1,8 +1,9 @@
 // ABOUTME: Shows a menuModel item list as a native NSMenu under its button (Tauri
 // ABOUTME: Menu.popup). Thin wiring only; the items and enable rules are tested in menuModel.
 import { LogicalPosition } from "@tauri-apps/api/dpi";
-import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
+import { Menu, type MenuItem } from "@tauri-apps/api/menu";
 import type { MenuCommandId, MenuItemModel } from "./menuModel";
+import { applyEnabled, buildNativeItems } from "./nativeMenu";
 
 interface CachedMenu {
   menu: Menu;
@@ -22,50 +23,38 @@ interface CachedMenu {
 const cache = new Map<string, Promise<CachedMenu>>();
 
 async function build(models: readonly MenuItemModel[]): Promise<CachedMenu> {
-  const items = new Map<MenuCommandId, MenuItem>();
   const handler: CachedMenu["handler"] = { run: () => undefined };
-  const built = await Promise.all(
-    models.map(async (model) => {
-      if (model.kind === "separator") {
-        return PredefinedMenuItem.new({ item: "Separator" });
-      }
-      const item = await MenuItem.new({
-        text: model.text,
-        enabled: model.enabled,
-        action: () => handler.run(model.id),
-      });
-      items.set(model.id, item);
-      return item;
-    }),
-  );
-  return { menu: await Menu.new({ items: built }), items, handler };
+  const { items, byId } = await buildNativeItems(models, (id) => handler.run(id));
+  return { menu: await Menu.new({ items }), items: byId, handler };
 }
 
-/** Fire-and-forget: pops the menu with its top-left at the anchor's
- *  bottom-left corner, like a pull-down button. */
-function popupMenu(
+/** Pops the menu: under an anchor element's bottom-left corner, like a
+ *  pull-down button, or at a point (a context menu at the pointer). Resolves
+ *  once the menu is dismissed (macOS runs popup menus modally); never rejects. */
+async function popupMenu(
   key: string,
   models: readonly MenuItemModel[],
   run: (id: MenuCommandId) => void,
-  anchor: Element,
-): void {
+  at: Element | { x: number; y: number },
+): Promise<void> {
   let pending = cache.get(key);
   if (!pending) {
     pending = build(models);
     cache.set(key, pending);
   }
-  const rect = anchor.getBoundingClientRect();
-  pending
-    .then(async (cached) => {
-      cached.handler.run = run;
-      await Promise.all(
-        models.flatMap((model) =>
-          model.kind === "command" ? [cached.items.get(model.id)?.setEnabled(model.enabled)] : [],
-        ),
-      );
-      await cached.menu.popup(new LogicalPosition(rect.left, rect.bottom));
-    })
-    .catch(() => undefined);
+  const point =
+    at instanceof Element
+      ? { x: at.getBoundingClientRect().left, y: at.getBoundingClientRect().bottom }
+      : at;
+  try {
+    const cached = await pending;
+    cached.handler.run = run;
+    // Enabled states must land before the menu shows.
+    await applyEnabled(cached.items, models);
+    await cached.menu.popup(new LogicalPosition(point.x, point.y));
+  } catch {
+    // A menu that can't be shown has nothing to report; the click does nothing.
+  }
 }
 
 export { popupMenu };
