@@ -27,7 +27,12 @@ function EntryRow(props: EntryRowProps) {
       className="entry-row"
       data-path={props.entry.path}
       aria-current={props.selected ? "true" : undefined}
-      onClick={() => store.getState().select(props.entry.path)}
+      onClick={(event) => {
+        // WebKit doesn't focus a button on click; the list's focused-selection
+        // look (accent + white text on macOS) keys off focus being inside it.
+        event.currentTarget.focus();
+        store.getState().select(props.entry.path);
+      }}
       onKeyDown={(event) => handleRowKeyDown(event, props.orderedPaths, props.rowRefs, store)}
       ref={(el) => props.registerRow(props.entry.path, el)}
     >

@@ -114,7 +114,11 @@ function SidebarSectionButton(props: SidebarSectionButtonProps) {
         type="button"
         className="sidebar-section-button"
         aria-current={props.active ? "true" : undefined}
-        onClick={() => store.getState().setSection(props.section)}
+        onClick={(event) => {
+          // WebKit doesn't focus a button on click; see EntryRow.
+          event.currentTarget.focus();
+          store.getState().setSection(props.section);
+        }}
       >
         <span>{SECTION_LABELS[props.section]}</span>
         <span className="sidebar-section-count">{props.count}</span>

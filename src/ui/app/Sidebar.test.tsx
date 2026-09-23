@@ -55,3 +55,14 @@ it("the gear opens Settings", () => {
   fireEvent.click(screen.getByLabelText("Settings"));
   expect(store.getState().settingsOpen).toBe(true);
 });
+
+it("focuses a section when it's clicked, so the sidebar shows the focused selection", () => {
+  const { store } = renderWithStore(<Sidebar />, { seedEntries: [] });
+  const posts = screen.getByText("Posts").closest("button");
+  if (!posts) {
+    throw new Error("Posts section not rendered");
+  }
+  fireEvent.click(posts);
+  expect(document.activeElement).toBe(posts);
+  expect(store.getState().section).toBe("posts");
+});

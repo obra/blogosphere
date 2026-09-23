@@ -253,3 +253,19 @@ it("does not intercept arrow keys typed in the search input", async () => {
 
   expect(store.getState().selectedPath).toBeNull();
 });
+
+it("focuses a row when it's clicked, so its list shows the focused selection", async () => {
+  const entries = [makeEntry({ path: "a.md", kind: "draft", date: "2026-07-10", title: "Click me" })];
+  const { store } = renderWithStore(<EntryList />, { seedEntries: entries });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+
+  const row = screen.getByText("Click me").closest("button");
+  if (!row) {
+    throw new Error("row not rendered");
+  }
+  fireEvent.click(row);
+  expect(document.activeElement).toBe(row);
+  expect(store.getState().selectedPath).toBe("a.md");
+});
