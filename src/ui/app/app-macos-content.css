@@ -150,3 +150,26 @@ html[data-platform="macos"] .mode-toggle button:disabled {
     background: color-mix(in srgb, -apple-system-label 22%, transparent);
   }
 }
+
+/* ---------- Search field ---------- */
+
+html[data-platform="macos"] .entry-list-search {
+  position: relative;
+}
+html[data-platform="macos"] .search-magnifier {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  display: grid;
+  color: var(--text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+html[data-platform="macos"] .toolbar-row .entry-list-search input {
+  padding-left: 26px;
+  border: 0;
+  background: var(--bg-hover);
+}
+html[data-platform="macos"] .entry-list-search input::-webkit-search-cancel-button {
+  cursor: default;
+}

@@ -2,6 +2,7 @@
 // ABOUTME: with its search box and empty states. Each row is an EntryRow.
 import { useRef } from "react";
 import type { EntryRecord } from "../../core/store/types";
+import { Icon } from "../icons/Icon";
 import type { Section } from "../types";
 import { EntryRow } from "./EntryRow";
 import type { YearGroup } from "./grouping";
@@ -92,11 +93,19 @@ function EntriesLoadFailed() {
   );
 }
 
+/** A search field. On macOS, rounded with a leading magnifier; WebKit draws
+ *  the clear button and clears on Escape itself (both fire `input`). */
 function EntrySearchBox() {
   const store = useAppStoreApi();
   const query = useAppStore((state) => state.searchQuery);
+  const mac = useServices().shell.platform() === "macos";
   return (
     <div className="entry-list-search">
+      {mac ? (
+        <span className="search-magnifier" aria-hidden="true">
+          <Icon name="search" size={13} />
+        </span>
+      ) : null}
       <input
         type="search"
         placeholder="Search"

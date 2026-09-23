@@ -16,6 +16,7 @@ import {
   PanelLeft,
   PenLine,
   RefreshCw,
+  Search,
   SquarePen,
   TriangleAlert,
   WifiOff,
@@ -44,6 +45,7 @@ const ICONS = {
   posts: { sfSymbol: "doc.text", lucide: FileText },
   links: { sfSymbol: "link", lucide: Link },
   releases: { sfSymbol: "shippingbox", lucide: Package },
+  search: { sfSymbol: "magnifyingglass", lucide: Search },
 } satisfies Record<string, IconSource>;
 
 type IconName = keyof typeof ICONS;
