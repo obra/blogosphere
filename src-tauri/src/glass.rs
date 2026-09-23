@@ -9,6 +9,9 @@ pub struct GlassState(AtomicBool);
 
 /// Glass goes behind the window unless the person asked macOS to reduce
 /// transparency.
+// Only macOS applies glass; elsewhere this would be dead code, which
+// `warnings = "deny"` turns into a failed iOS/Android build.
+#[cfg(any(target_os = "macos", test))]
 #[must_use]
 pub fn glass_wanted(reduce_transparency: bool) -> bool {
     !reduce_transparency
