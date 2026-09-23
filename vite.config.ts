@@ -1,5 +1,6 @@
 // ABOUTME: Vite build/dev-server config. Tuned for the Tauri shell (fixed port,
 // ABOUTME: ignores src-tauri/inspo, exposes TAURI_ENV_* to import.meta.env).
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -40,5 +41,12 @@ export default defineConfig({
     // separate devDependency, which we don't otherwise need.
     minify: !process.env.TAURI_ENV_DEBUG,
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+    // Two pages: the app, and the macOS Settings window (open_settings).
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL("index.html", import.meta.url)),
+        settings: fileURLToPath(new URL("settings.html", import.meta.url)),
+      },
+    },
   },
 });

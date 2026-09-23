@@ -292,3 +292,10 @@
 .link-button:hover {
   opacity: 0.8;
 }
+
+/* A save that didn't work, said where it was asked for. */
+.settings-error {
+  margin: 6px 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}

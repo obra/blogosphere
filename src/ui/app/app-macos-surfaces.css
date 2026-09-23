@@ -103,3 +103,9 @@ html[data-platform="macos"] .activity-deploy[data-state="failed"] {
 html[data-platform="macos"] .save-state[data-state="failed"] {
   color: var(--danger);
 }
+
+/* ---------- The Settings window (its own page, settings.html) ---------- */
+
+html[data-platform="macos"] .settings-window {
+  padding: 8px 20px 20px;
+}
