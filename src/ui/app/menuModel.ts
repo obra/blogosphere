@@ -1,6 +1,8 @@
 // ABOUTME: Pure menu models — the compose menu, the entry "…" menu, and View ›
 // ABOUTME: Hide/Show Sidebar — plus runMenuCommand, which both menu kinds call.
 import type { EntryRecord } from "../../core/store/types";
+import { type FormatTarget, getActiveEditor } from "../editor/activeEditor";
+import { extensionForImageFile } from "../editor/markdown-utils";
 import type { Section } from "../types";
 import { entryLiveUrl } from "./liveUrl";
 import { openExternal } from "./openExternal";
@@ -15,7 +17,10 @@ type MenuCommandId =
   | "copySecretLink"
   | "discard"
   | "delete"
-  | "toggleSidebar";
+  | "toggleSidebar"
+  | FormatCommandId;
+
+type FormatCommandId = "bold" | "italic" | "code" | "heading" | "link" | "image";
 
 type MenuItemModel =
   | { kind: "command"; id: MenuCommandId; text: string; enabled: boolean; accelerator?: string }
@@ -90,6 +95,84 @@ function sectionMenuItems(section: Section): MenuItemModel[] {
   }
 }
 
+/** The Format menu. Enabled only while a body editor has focus (see
+ *  activeEditor.ts); Link gets no ⌘K, which Quick Open owns. */
+function formatMenuItems(enabled: boolean): MenuItemModel[] {
+  const item = (id: FormatCommandId, text: string, accelerator?: string): MenuItemModel => ({
+    ...command(id, text, enabled),
+    ...(accelerator === undefined ? {} : { accelerator }),
+  });
+  return [
+    item("bold", "Bold", "CmdOrCtrl+B"),
+    item("italic", "Italic", "CmdOrCtrl+I"),
+    item("code", "Code", "CmdOrCtrl+E"),
+    item("heading", "Heading"),
+    { kind: "separator" },
+    item("link", "Link…"),
+    item("image", "Image…"),
+  ];
+}
+
+/** Picks an image, stores it the way a pasted one is stored, and inserts it
+ *  into the editor that was focused when the command ran (the open panel
+ *  takes focus away while it's up). */
+async function insertPickedImage(store: BoundAppStore, target: FormatTarget): Promise<void> {
+  const picked = await store.getState().services.shell.pickImage();
+  if (picked === null) {
+    return;
+  }
+  const ref = await target.onImage(
+    picked.bytes,
+    extensionForImageFile({ type: "", name: picked.name }),
+  );
+  if (ref !== null) {
+    target.handle()?.insertImage(ref);
+  }
+}
+
+function runFormatCommand(id: FormatCommandId, store: BoundAppStore): void {
+  const target = getActiveEditor();
+  const handle = target?.handle();
+  if (!(target && handle)) {
+    return;
+  }
+  switch (id) {
+    case "bold":
+      handle.toggleBold();
+      return;
+    case "italic":
+      handle.toggleItalic();
+      return;
+    case "code":
+      handle.toggleInlineCode();
+      return;
+    case "heading":
+      handle.toggleHeading2();
+      return;
+    case "link":
+      handle.insertLink();
+      return;
+    case "image":
+      insertPickedImage(store, target).catch(() => undefined);
+      return;
+    default:
+      return;
+  }
+}
+
+const FORMAT_COMMANDS: ReadonlySet<MenuCommandId> = new Set<FormatCommandId>([
+  "bold",
+  "italic",
+  "code",
+  "heading",
+  "link",
+  "image",
+]);
+
+function isFormatCommand(id: MenuCommandId): id is FormatCommandId {
+  return FORMAT_COMMANDS.has(id);
+}
+
 /** The File menu's commands that also live in toolbar and context menus. */
 const FILE_MENU_COMMANDS = ["newPost", "newLink"] as const satisfies readonly MenuCommandId[];
 
@@ -125,6 +208,10 @@ function runMenuCommand(
   store: BoundAppStore,
   path: string | null = store.getState().selectedPath,
 ): void {
+  if (isFormatCommand(id)) {
+    runFormatCommand(id, store);
+    return;
+  }
   const state = store.getState();
   switch (id) {
     case "newPost":
@@ -176,6 +263,7 @@ export {
   entryMenuItems,
   entryRowItems,
   FILE_MENU_COMMANDS,
+  formatMenuItems,
   type MenuCommandId,
   type MenuItemModel,
   runMenuCommand,

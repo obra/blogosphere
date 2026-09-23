@@ -12,6 +12,12 @@ export interface SymbolImage {
   height: number;
 }
 
+/** A file the person picked: its bytes and its file name (for the extension). */
+export interface PickedFile {
+  bytes: Uint8Array;
+  name: string;
+}
+
 /** A share-sheet payload captured by the OS extension / intent. */
 export interface SharePayload {
   id: string;
@@ -45,6 +51,10 @@ export interface ShellApi {
 
   /** Best-effort clipboard URL read (for the desktop "+ Link" prefill). */
   clipboardReadUrl(): Promise<string | null>;
+
+  /** Asks for one image with the system's open panel. Null when the person
+   *  cancels, or the file can't be read. Never rejects. */
+  pickImage(): Promise<PickedFile | null>;
 
   /** An SF Symbol rendered by the OS (Apple platforms only). Resolves null
    *  when unavailable — callers fall back to their own icon. Never rejects. */

@@ -4,9 +4,10 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { appDataDir, dirname, join } from "@tauri-apps/api/path";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
+import { open } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { extractClipboardUrl } from "./clipboardUrl";
-import type { Platform, ShellApi } from "./types";
+import type { PickedFile, Platform, ShellApi } from "./types";
 
 /** Absolute path for a cached asset, mirroring the repo layout under assets/. */
 async function assetAbsolutePath(repoPath: string): Promise<string> {
@@ -20,6 +21,27 @@ async function assetAbsolutePath(repoPath: string): Promise<string> {
  * sibling modules and is unit-tested there; this file only wires plugin
  * calls to the ShellApi contract, so it is verified by typechecking alone.
  */
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+
+/** The system open panel for one image, then its bytes. */
+async function pickImageFile(): Promise<PickedFile | null> {
+  try {
+    // The dialog plugin adds the picked path to the fs scope, so the read
+    // below is allowed outside the app-data directory.
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
+    });
+    if (path === null) {
+      return null;
+    }
+    return { bytes: await readFile(path), name: path.split("/").pop() ?? path };
+  } catch {
+    return null;
+  }
+}
+
 export function createTauriShell(platform: Platform): ShellApi {
   return {
     platform(): Platform {
@@ -78,6 +100,8 @@ export function createTauriShell(platform: Platform): ShellApi {
         return null;
       }
     },
+
+    pickImage: pickImageFile,
 
     async clipboardReadUrl() {
       try {

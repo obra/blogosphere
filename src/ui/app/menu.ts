@@ -4,6 +4,7 @@
 import { Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import type { ModelApi } from "../../core/model/types";
 import type { EntryRecord } from "../../core/store/types";
+import { getActiveEditor, subscribeActiveEditor } from "../editor/activeEditor";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { SECTION_LABELS } from "./grouping";
@@ -11,6 +12,7 @@ import { entryLiveUrl } from "./liveUrl";
 import {
   entryMenuItems,
   FILE_MENU_COMMANDS,
+  formatMenuItems,
   type MenuItemModel,
   runMenuCommand,
   sidebarToggleItem,
@@ -133,6 +135,20 @@ async function buildEditSubmenu(): Promise<Submenu> {
   });
 }
 
+interface FormatMenu {
+  submenu: Submenu;
+  byId: NativeItems["byId"];
+}
+
+/** Bold, Italic, Code, Heading, Link…, Image… for the focused body editor. */
+async function buildFormatSubmenu(store: BoundAppStore): Promise<FormatMenu> {
+  const { items, byId } = await buildNativeItems(
+    formatMenuItems(getActiveEditor() !== null),
+    (id) => runMenuCommand(id, store),
+  );
+  return { submenu: await Submenu.new({ text: "Format", items }), byId };
+}
+
 interface ViewMenu {
   submenu: Submenu;
   /** View › Hide/Show Sidebar — macOS only (the sidebar hides only there). */
@@ -211,23 +227,28 @@ function enabledSignature(models: readonly MenuItemModel[]): string {
  * store subscription.
  */
 async function installAppMenu(store: BoundAppStore): Promise<() => void> {
-  const [appSubmenu, file, entry, edit, view, windowSubmenu] = await Promise.all([
+  const [appSubmenu, file, entry, edit, format, view, windowSubmenu] = await Promise.all([
     buildAppSubmenu(store),
     buildFileSubmenu(store),
     buildEntrySubmenu(store),
     buildEditSubmenu(),
+    buildFormatSubmenu(store),
     buildViewSubmenu(store),
     buildWindowSubmenu(),
   ]);
   const menu = await Menu.new({
-    items: [appSubmenu, file, entry.submenu, edit, view.submenu, windowSubmenu],
+    items: [appSubmenu, file, entry.submenu, edit, format.submenu, view.submenu, windowSubmenu],
   });
   await menu.setAsAppMenu();
+
+  const stopFormat = subscribeActiveEditor(() => {
+    applyEnabled(format.byId, formatMenuItems(getActiveEditor() !== null));
+  });
 
   let lastRecordKey = { record: null as EntryRecord | null, services: store.getState().services };
   let lastSignature = enabledSignature(currentEntryItems(store.getState()));
   let lastSidebarHidden = store.getState().sidebarHidden;
-  return store.subscribe((state) => {
+  const stopEntry = store.subscribe((state) => {
     if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
       lastSidebarHidden = state.sidebarHidden;
       view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
@@ -244,6 +265,10 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
       applyEnabled(entry.byId, models);
     }
   });
+  return () => {
+    stopEntry();
+    stopFormat();
+  };
 }
 
 export type { EntryMenuState };

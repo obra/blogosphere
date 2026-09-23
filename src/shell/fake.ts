@@ -3,7 +3,7 @@
 
 import { bytesToBase64 } from "../core/github/base64";
 import { extractClipboardUrl } from "./clipboardUrl";
-import type { Platform, SharePayload, ShellApi } from "./types";
+import type { PickedFile, Platform, SharePayload, ShellApi } from "./types";
 
 const ASSET_LOCAL_PATH_PREFIX = "memory://asset/";
 
@@ -43,6 +43,17 @@ function fakeDisplayUrl(assets: Map<string, Uint8Array>, localPath: string): str
   return `data:${mimeForPath(localPath)};base64,${bytesToBase64(bytes)}`;
 }
 
+/** The OS-drawn answers a test can script: the picked image, SF Symbols. */
+function scriptedAnswers(options: FakeShellOptions): Pick<ShellApi, "pickImage" | "renderSymbol"> {
+  return {
+    pickImage: () => Promise.resolve(options.pickedImage ?? null),
+    renderSymbol: (name, pointSize, weight, scale) =>
+      options.renderSymbol
+        ? options.renderSymbol(name, pointSize, weight, scale)
+        : Promise.resolve(null),
+  };
+}
+
 /** Extra test-only hooks for driving the fake, beyond the ShellApi contract. */
 export interface FakeShell extends ShellApi {
   /** Replaces the simulated OS clipboard contents. */
@@ -57,6 +68,8 @@ export interface FakeShellOptions {
   shareInbox?: SharePayload[];
   clipboardText?: string;
   renderSymbol?: ShellApi["renderSymbol"];
+  /** What pickImage resolves to; null (cancelled) by default. */
+  pickedImage?: PickedFile | null;
 }
 
 /** In-memory ShellApi: no filesystem, no OS keychain, no Tauri runtime required. */
@@ -68,11 +81,7 @@ export function createFakeShell(options: FakeShellOptions = {}): FakeShell {
   let clipboardText = options.clipboardText ?? "";
 
   return {
-    renderSymbol(name, pointSize, weight, scale) {
-      return options.renderSymbol
-        ? options.renderSymbol(name, pointSize, weight, scale)
-        : Promise.resolve(null);
-    },
+    ...scriptedAnswers(options),
 
     platform(): Platform {
       return options.platform ?? "web";

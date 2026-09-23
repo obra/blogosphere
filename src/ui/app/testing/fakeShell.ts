@@ -1,6 +1,6 @@
 // ABOUTME: In-memory ShellApi fake — keychain/assets/share-inbox/clipboard held
 // ABOUTME: in plain JS structures, with test-only setters to drive scenarios.
-import type { Platform, SharePayload, ShellApi } from "../../../shell/types";
+import type { PickedFile, Platform, SharePayload, ShellApi } from "../../../shell/types";
 
 interface FakeShellState {
   platform: Platform;
@@ -15,6 +15,8 @@ interface FakeShellOptions {
   platform?: Platform;
   clipboardUrl?: string | null;
   renderSymbol?: ShellApi["renderSymbol"];
+  /** What pickImage resolves to; null (cancelled) by default. */
+  pickedImage?: PickedFile | null;
 }
 
 interface FakeShell extends ShellApi {
@@ -82,6 +84,7 @@ function createFakeShell(options: FakeShellOptions = {}): FakeShell {
       Promise.resolve(state.assetLocalPathByRepoPath.get(repoPath) ?? null),
     assetDisplayUrl: (localPath) => localPath,
     clipboardReadUrl: () => Promise.resolve(state.clipboardUrl),
+    pickImage: () => Promise.resolve(options.pickedImage ?? null),
     renderSymbol: (name, pointSize, weight, scale) =>
       options.renderSymbol
         ? options.renderSymbol(name, pointSize, weight, scale)
