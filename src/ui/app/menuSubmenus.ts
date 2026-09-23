@@ -72,13 +72,13 @@ async function buildWindowSubmenu(): Promise<Submenu> {
 
 const HELP_URL = "https://github.com/obra/blogosphere#readme";
 
-/** macOS puts its menu-search field in whichever menu is marked as Help. */
+/** Blogosphere Help. installAppMenu marks it as the app's Help menu once
+ *  the menu bar is installed. */
 async function buildHelpSubmenu(): Promise<Submenu> {
   const help = await Submenu.new({
     text: "Help",
     items: [await MenuItem.new({ text: "Blogosphere Help", action: () => openExternal(HELP_URL) })],
   });
-  await help.setAsHelpMenuForNSApp().catch(() => undefined);
   return help;
 }
 

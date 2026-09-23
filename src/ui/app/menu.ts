@@ -10,6 +10,7 @@ import { SECTIONS } from "../types";
 import { SECTION_LABELS } from "./grouping";
 import { entryLiveUrl } from "./liveUrl";
 import {
+  createEnabledTracker,
   entryMenuItems,
   FILE_MENU_COMMANDS,
   formatMenuItems,
@@ -22,6 +23,7 @@ import {
   buildFormatSubmenu,
   buildHelpSubmenu,
   buildWindowSubmenu,
+  type FormatMenu,
   separator,
 } from "./menuSubmenus";
 import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
@@ -174,10 +176,41 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   return { submenu, sidebarItem };
 }
 
-/** The enabled flags as one comparable string: typing replaces the record
- *  object on every keystroke, but the flags rarely change. */
-function enabledSignature(models: readonly MenuItemModel[]): string {
-  return models.map((model) => (model.kind === "command" && model.enabled ? "1" : "0")).join("");
+/* Building the menu takes many IPC round trips, and the store (a restored
+   selection) or the focused editor may move meanwhile: each tracker brings
+   its items up to date right away, then follows changes. */
+
+function trackFormatMenu(format: FormatMenu): () => void {
+  const update = createEnabledTracker((models) => applyEnabled(format.byId, models));
+  const sync = () => update(formatMenuItems(getActiveEditor() !== null));
+  const stop = subscribeActiveEditor(sync);
+  sync();
+  return stop;
+}
+
+/** The Entry menu's enabled states and View › Hide/Show Sidebar's title. */
+function trackStoreItems(store: BoundAppStore, entry: EntryMenu, view: ViewMenu): () => void {
+  const updateEntry = createEnabledTracker((models) => applyEnabled(entry.byId, models));
+  // Parsing the entry for its live URL is only worth it when the selected
+  // record (or the services parsing it) actually changed.
+  let lastRecord: EntryRecord | null | undefined;
+  let lastServices: AppState["services"] | undefined;
+  // Starts opposite to the store so the first sync always sets the title.
+  let lastSidebarHidden = !store.getState().sidebarHidden;
+  const sync = (state: AppState) => {
+    if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
+      lastSidebarHidden = state.sidebarHidden;
+      view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
+    }
+    const record = state.entries.find((e) => e.path === state.selectedPath) ?? null;
+    if (record !== lastRecord || state.services !== lastServices) {
+      lastRecord = record;
+      lastServices = state.services;
+      updateEntry(currentEntryItems(state));
+    }
+  };
+  sync(store.getState());
+  return store.subscribe(sync);
 }
 
 /**
@@ -210,33 +243,15 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
     ],
   });
   await menu.setAsAppMenu();
+  // Only submenus of the installed menu can take these roles: Help gets the
+  // menu-search field, Window gets the list of open windows.
+  await help.setAsHelpMenuForNSApp().catch(() => undefined);
+  await windowSubmenu.setAsWindowsMenuForNSApp().catch(() => undefined);
 
-  const stopFormat = subscribeActiveEditor(() => {
-    applyEnabled(format.byId, formatMenuItems(getActiveEditor() !== null));
-  });
-
-  let lastRecordKey = { record: null as EntryRecord | null, services: store.getState().services };
-  let lastSignature = enabledSignature(currentEntryItems(store.getState()));
-  let lastSidebarHidden = store.getState().sidebarHidden;
-  const stopEntry = store.subscribe((state) => {
-    if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
-      lastSidebarHidden = state.sidebarHidden;
-      view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
-    }
-    const record = state.entries.find((e) => e.path === state.selectedPath) ?? null;
-    if (record === lastRecordKey.record && state.services === lastRecordKey.services) {
-      return;
-    }
-    lastRecordKey = { record, services: state.services };
-    const models = currentEntryItems(state);
-    const signature = enabledSignature(models);
-    if (signature !== lastSignature) {
-      lastSignature = signature;
-      applyEnabled(entry.byId, models);
-    }
-  });
+  const stopFormat = trackFormatMenu(format);
+  const stopStore = trackStoreItems(store, entry, view);
   return () => {
-    stopEntry();
+    stopStore();
     stopFormat();
   };
 }

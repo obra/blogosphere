@@ -27,7 +27,7 @@ interface EntryRowProps {
 /** macOS: right-click opens the row's own menu, acting on this row whatever
  *  is selected. The row keeps an outline (Finder's context ring) while the
  *  menu is up. Elsewhere, right-click is left to the platform. */
-function useRowContextMenu(entry: EntryRecord) {
+function useRowContextMenu(path: string) {
   const store = useAppStoreApi();
   const services = useServices();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -38,11 +38,17 @@ function useRowContextMenu(entry: EntryRecord) {
     menuOpen,
     onContextMenu: (event: MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
+      // Search results are a snapshot; the menu's enable rules must see the
+      // entry as it is now, like the Entry menu does.
+      const current = store.getState().entries.find((e) => e.path === path);
+      if (!current) {
+        return;
+      }
       setMenuOpen(true);
       popupMenu(
         "entryRow",
-        entryRowItems(entry, entryLiveUrl(services.model, entry)),
-        (id) => runMenuCommand(id, store, entry.path),
+        entryRowItems(current, entryLiveUrl(services.model, current)),
+        (id) => runMenuCommand(id, store, path),
         { x: event.clientX, y: event.clientY },
       ).finally(() => setMenuOpen(false));
     },
@@ -51,7 +57,7 @@ function useRowContextMenu(entry: EntryRecord) {
 
 function EntryRow(props: EntryRowProps) {
   const store = useAppStoreApi();
-  const contextMenu = useRowContextMenu(props.entry);
+  const contextMenu = useRowContextMenu(props.entry.path);
   return (
     <button
       type="button"

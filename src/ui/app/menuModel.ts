@@ -173,6 +173,26 @@ function isFormatCommand(id: MenuCommandId): id is FormatCommandId {
   return FORMAT_COMMANDS.has(id);
 }
 
+/**
+ * Keeps a built menu's enabled states current without an IPC call per store
+ * change: `apply` runs for the first models it's given (the menu may have
+ * been built from an older state) and afterwards only when a flag changes.
+ */
+function createEnabledTracker(
+  apply: (models: readonly MenuItemModel[]) => void,
+): (models: readonly MenuItemModel[]) => void {
+  let last: string | null = null;
+  return (models) => {
+    const signature = models
+      .map((model) => (model.kind === "command" && model.enabled ? "1" : "0"))
+      .join("");
+    if (signature !== last) {
+      last = signature;
+      apply(models);
+    }
+  };
+}
+
 /** The File menu's commands that also live in toolbar and context menus. */
 const FILE_MENU_COMMANDS = ["newPost", "newLink"] as const satisfies readonly MenuCommandId[];
 
@@ -231,6 +251,10 @@ function runMenuCommand(
   }
   switch (id) {
     case "publish":
+      // Drafts only, rechecked here: a menu's enabled state can lag the store.
+      if (state.entries.find((entry) => entry.path === path)?.draft !== true) {
+        return;
+      }
       // The Publish sheet publishes the selected entry.
       if (state.selectedPath !== path) {
         state.select(path);
@@ -259,6 +283,7 @@ function runMenuCommand(
 
 export {
   composeMenuItems,
+  createEnabledTracker,
   entryActionItems,
   entryMenuItems,
   entryRowItems,

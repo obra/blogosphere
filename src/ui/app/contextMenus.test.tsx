@@ -107,3 +107,25 @@ it("sections offer New Post or New Link…, each list under its own key", () => 
     ["section:links", ["newLink"]],
   ]);
 });
+
+it("uses the entry as it is now, not a stale search result", async () => {
+  const { store } = await renderList("macos");
+  const publishedNow = { ...second, draft: false, kind: "post" as const };
+  act(() => {
+    store.setState({ searchResults: [second], entries: [first, publishedNow] });
+  });
+  fireEvent.contextMenu(screen.getByText("Second"));
+  const publish = popups[0]?.models.find(
+    (model) => model.kind === "command" && model.id === "publish",
+  );
+  expect(publish).toMatchObject({ enabled: false });
+});
+
+it("offers no menu for a search result that no longer exists", async () => {
+  const { store } = await renderList("macos");
+  act(() => {
+    store.setState({ searchResults: [second], entries: [first] });
+  });
+  fireEvent.contextMenu(screen.getByText("Second"));
+  expect(popups).toHaveLength(0);
+});
