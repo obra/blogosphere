@@ -10,11 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-23-native-mac-redesign-design.md` §4 (controls), §6 (View editor modes), §7 (visual system, typography), §11 phase 4, and "Changes made while building phase 3".
 
+**Plan review (/par, 2026-09-23):** 13 + 12 findings, nearly all legitimate, folded in below. Biggest: Crepe's own `p`/`h3` rules and CodeMirror's code-block font would have defeated the typography as written; the title field renders in every mode; ⌥⌘1–3 is Milkdown's H1–H3 shortcut (the modes move to ⌃⌘1–3, a spec change recorded there); WebKit already draws a search clear button and clears on Escape; `<Icon>` can't be used inside the editor package.
+
 ## Global Constraints
 
 - Mac-only look is gated on `html[data-platform="macos"]`; markup changes must render the same on other platforms or be gated on `shell.platform() === "macos"`. iOS, Android, web, and the phone layout look unchanged.
 - No `light-dark()`; `-webkit-user-select`; Biome zero errors/warnings/infos; tests seen failing first; never bypass the pre-commit hook.
-- Fonts: only the weights and styles the blog uses (Crimson Pro variable roman + italic, DM Serif Display 400 roman + italic, JetBrains Mono 400 + 500), Latin subset only. Chrome stays `-apple-system`.
+- Fonts: only the weights and styles the blog uses (Crimson Pro variable roman + italic, DM Serif Display 400 roman + italic, JetBrains Mono 400 + 500). Latin only for DM Serif Display and JetBrains Mono; the Crimson Pro variable package has no Latin-only file, so its three subsets ship and `unicode-range` loads only what a post uses. Chrome stays `-apple-system`.
 - Semantic icons only; new names go in `iconNames.ts` with their SF Symbol and Lucide twin.
 - Small commits; real-app check through `scripts/dev-app.sh`; /par on the diff; ff-merge to main. Never Save & Sync or Publish from the dev app (it shares the real token).
 
@@ -39,11 +41,11 @@
 
 ### Task 2: Write mode in the blog's typography
 
-**Files:** Create `src/ui/app/app-macos-content.css` (imported last in `app.css`), extend `cssContract.test.ts`.
+**Files:** Create `src/ui/app/app-macos-content.css` (imported last in `app.css`), `EditorScreen.tsx` (`data-editor-mode="write|markdown|html"` on `.editor-doc`), extend `cssContract.test.ts`, a DOM test for the attribute.
 
-- [ ] Under `html[data-platform="macos"]`, scoped to the Write editor (`.milkdown .ProseMirror`) and the title field: body Crimson Pro 19px / 1.7, paragraph spacing 1.4em; h2 DM Serif Display 32px, margin 2em 0 0.6em; h3 JetBrains Mono 12px, same margins; code blocks JetBrains Mono 14px / 1.5; inline code 0.92em, `--text` on an 8% label chip; title DM Serif Display 40px, weight 400, letter-spacing -0.025em. Markdown mode (`.cm-content`) uses `ui-monospace`.
-- [ ] Tests (cssContract): every rule in the new file is Mac-scoped; the body/title/h2/h3/code declarations carry the spec values; nothing in the new file targets `.cm-content` with a serif.
-- [ ] Real-app screenshot of a post in Write mode (light).
+- [ ] Under `html[data-platform="macos"] .editor-doc[data-editor-mode="write"]`: Crepe's `--crepe-font-*` set to the three families; **paragraphs** (`.ProseMirror p`, and `li p`) Crimson Pro 19px / 1.7 with Crepe's 4px `p` padding zeroed and 1.4em spacing (Crepe's `reset.css` sets `p` 16px/24px, so rules on `.ProseMirror` alone never reach them); blockquotes and lists the same face; h2 DM Serif Display 32px **weight 400** (only 400 ships; `app-crepe.css` says 650), line-height 1.2, margin 2em 0 0.6em; h3 JetBrains Mono 12px **weight 500**, line-height 1.4 (Crepe says 40px), same margins; code blocks through CodeMirror's own scroller (`.milkdown-code-block .cm-scroller`) JetBrains Mono 14px / 1.5; inline code 0.92em, `--text` on an 8% label chip (Crepe's inline-code color var set to `--text`). Title (`.editor-title-input` inside a Write-mode doc only) DM Serif Display 40px, 400, letter-spacing -0.025em. No `.cm-content` rule: Markdown mode already uses `ui-monospace` (`sourceEditorSetup.ts`).
+- [ ] Tests: cssContract: Mac-scoped; values present on `p`, `h2` (weight 400), `h3` (weight 500), `.cm-scroller`; no rule without `[data-editor-mode="write"]` names a serif. DOM: `.editor-doc` carries the mode (write, markdown, and html for a legacy entry).
+- [ ] Real app: `getComputedStyle` on a paragraph, an h2, and the title in Write mode report the spec values and families; in Markdown mode the title and body aren't serif. Screenshot (light).
 - [ ] Commit "Write mode sets the post in the blog's own typography".
 
 ### Task 3: Native entry rows
@@ -51,44 +53,47 @@
 **Files:** `src/ui/app/EntryList.tsx`, `EntryList.test.tsx`, `app-macos-content.css`, `iconNames.ts` (`conflict: exclamationmark.triangle / TriangleAlert` if `syncConflict` isn't reused).
 
 - [ ] macOS rows: title 13px semibold; date 11px secondary; unsaved changes a small dot; legacy HTML "HTML" and draft "Draft" as secondary-label words (no pills); conflict an orange `exclamationmark.triangle`.
-- [ ] The conflict symbol is a `button` **beside** the row button (wrap each row in `li.entry-row-item` with the row button and, when conflicted, `button.entry-row-conflict` absolutely positioned at the trailing edge), labeled "Resolve conflict in <title>"; click → `openConflict(path)`. Other platforms keep the pill inside the row.
-- [ ] Tests: macOS row shows words not pills; clicking the conflict symbol opens the sheet for that row and leaves the selection alone; ↑/↓ keyboard nav unchanged (existing tests).
+- [ ] macOS only: each row sits in a `div.entry-row-item` (not `li`: rows live in month `div`s) holding the row button and, when conflicted, `button.entry-row-conflict` at the trailing edge (`tabIndex={-1}`: the editor's Resolve… bar is the keyboard path; ↑/↓ stay on rows), labeled "Resolve conflict in <title>"; click → `openConflict(path)`; right-click on it opens the row's context menu. Conflicted rows get trailing padding so titles don't run under it. On a focused selection the symbol turns white (`.entry-row-item[data-selected="true"]` inside a focused list), like the dot. Other platforms keep today's markup and pill.
+- [ ] Tests (with `platform: "macos"`): words not pills; the conflict symbol opens the sheet for that row and leaves the selection alone; ↑/↓/Home/End/Enter still move between rows on macOS (the existing nav tests run on web only); cssContract for the white-on-selection rule.
 - [ ] Commit "macOS entry rows: native indicators; the conflict symbol opens Resolve".
 
 ### Task 4: Segmented control
 
 **Files:** `app-macos-content.css`.
 
-- [ ] `.mode-toggle` on macOS: one rounded track (`--bg-hover` fill, 6px radius, 22px tall to fit the toolbar), selected segment raised (`--bg` with a 0 1px 2px shadow), 12px labels, `cursor: default`, no borders between segments.
+- [ ] `.mode-toggle` on macOS: one rounded track (`--bg-hover` fill, 6px radius, 22px tall to fit the toolbar), selected segment raised with a 0 1px 2px shadow: `--bg` in light, a lighter-than-track fill in dark (`color-mix(in srgb, -apple-system-label 22%, transparent)` under the `prefers-color-scheme: dark` pattern) so it never looks sunken; 12px labels, `cursor: default`, no borders between segments.
 - [ ] Screenshot light/dark (dark via `resize_window colorScheme` only if available for the dev app; otherwise Jesse's manual list).
 - [ ] Commit "macOS segmented control for the editor modes".
 
 ### Task 5: Search field
 
-**Files:** `EntryList.tsx` (`EntrySearchBox`), `iconNames.ts` (`search: magnifyingglass / Search`, `clear: xmark.circle.fill / CircleX`), `app-macos-content.css`, test.
+**Files:** `EntryList.tsx` (`EntrySearchBox`), `iconNames.ts` (`search: magnifyingglass / Search`), `app-macos-content.css`, test.
 
-- [ ] macOS: rounded field with a leading magnifier symbol; a trailing clear button when non-empty (clears the query, keeps focus in the field); Escape in a non-empty field clears it. Other platforms unchanged.
-- [ ] Tests: clear button appears only with text; click clears and focuses; Escape clears; non-Mac has no clear button.
-- [ ] Commit "macOS search field: magnifier, clear button, Escape clears".
+- [ ] macOS: rounded field with a leading magnifier symbol. WebKit's `type="search"` already draws the clear button and clears on Escape, so no custom button: style `::-webkit-search-cancel-button` to sit inside the rounded field, and make sure the React state follows (WebKit fires `input` on clear; the field uses `onChange`, which React maps to `input`). Other platforms unchanged.
+- [ ] Tests: the magnifier renders on macOS only; firing `input` with an empty value clears the query in the store. Real app: exactly one clear button; clicking it clears the list's search; Escape clears.
+- [ ] Commit "macOS search field: rounded, with a magnifier".
 
 ### Task 6: Date, tags, and the formatting bar
 
 **Files:** `app-macos-content.css`, `src/ui/editor/Toolbar.tsx` (+test), `iconNames.ts` (`bold: bold/Bold`, `italic: italic/Italic`, `code: chevron.left.forwardslash.chevron.right/Code`, `heading: textformat.size/Heading2`, `link: link` (reuse), `image: photo/Image`).
 
 - [ ] Date field: keep `<input type="date">`; macOS border/radius only. Tags: token-field look (rounded tokens, `--bg-hover` fill, 11px).
-- [ ] Formatting bar (Markdown mode): on macOS, symbol buttons (`<Icon>` + `aria-label`/`title` with the shortcut, e.g. "Bold (⌘B)"), borderless 28×28 like toolbar buttons; elsewhere today's text labels. The Toolbar gets the platform through a prop (`symbols: boolean`) from `Editor`, which takes it from EditorScreen, so the editor package stays platform-agnostic.
-- [ ] Tests: `symbols` renders icons with accessible names; default renders today's labels.
+- [ ] Formatting bar (Markdown mode): on macOS, symbol buttons, borderless 28×28 like toolbar buttons; elsewhere today's text labels. The editor package stays free of app imports (`<Icon>` needs the app's services): `Editor` and `Toolbar` take an optional `renderIcon?: (name: FormatIconName) => ReactNode` prop, and EditorScreen passes one that renders `<Icon>` on macOS. Accessible names stay plain ("Bold"); the shortcut goes in `title` ("Bold ⌘B") and `aria-keyshortcuts` for the three that have one (⌘B, ⌘I, ⌘E).
+- [ ] Tests: with `renderIcon` the buttons show its output and keep their names; without it, today's labels.
 - [ ] Commit "macOS date, tags and formatting bar".
 
-### Task 7: View › editor modes (⌥⌘1–3)
+### Task 7: View › editor modes (⌃⌘1–3)
 
 **Files:** Create `src/ui/app/viewModes.ts` (+test). Modify `EditorScreen.tsx` (register), `menuModel.ts` (`viewModeItems(segments)`, command ids `mode1|mode2|mode3`), `menu.ts` / `menuSubmenus.ts` (View items, retitled and re-enabled on change).
 
-**Produces:** `interface ModeSegment { title: string; enabled: boolean; selected: boolean }`; `setViewModes(target: { segments: ModeSegment[]; choose(index: number): void }): () => void`, `getViewModes()`, `subscribeViewModes(fn)`. EditorScreenBody registers its three segments (Write/Markdown/Live or Preview/HTML/Live; Live disabled without a live URL) and updates on change.
+Shortcut: **⌃⌘1–3**, not the spec's ⌥⌘1–3, which Milkdown binds to H1–H3 in Write mode (record in the spec's phase 4 changes). macOS only, like Hide/Show Sidebar (Ctrl+Alt+digit is AltGr+digit on Windows).
+
+**Produces:** `interface ModeSegment { title: string; enabled: boolean }`; `setViewModes(target: { segments: ModeSegment[]; choose(index: number): void }): () => void`, `getViewModes()`, `subscribeViewModes(fn)`. EditorScreenBody registers its three segments (Write/Markdown/Live or Preview/HTML/Live; Live disabled without a live URL) and updates on change.
 
 - [ ] Tests: registry semantics (like activeEditor); `viewModeItems` titles/enabled for a Markdown entry, a legacy HTML entry, no live URL, nothing registered (all disabled, default titles Write/Markdown/Live); `runMenuCommand("mode3")` chooses segment 3 of the registered target; a sheet open refuses it (existing modal guard).
-- [ ] Menu: View gets the three items after Hide/Show Sidebar with `Alt+CmdOrCtrl+1..3`; text and enabled follow `subscribeViewModes`.
-- [ ] Commit "View menu: the editor modes with ⌥⌘1–3".
+- [ ] Menu (macOS only): View gets the three items after Hide/Show Sidebar with `Ctrl+Cmd+1..3`; text and enabled follow `subscribeViewModes`, diffed (text and enabled compared before any `setText`/`setEnabled`) so typing, which re-renders the editor screen, causes no menu IPC. EditorScreen registers once per entry and updates the target only when a segment's title or enabled flag changes.
+- [ ] Tests also: re-registering identical segments triggers no update (the diff), and ⌥⌘1–3 stay unbound in the menu.
+- [ ] Commit "View menu: the editor modes with ⌃⌘1–3".
 
 ### Phase close
 
