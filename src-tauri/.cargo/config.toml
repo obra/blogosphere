@@ -1,0 +1,6 @@
+# Sign every macOS binary cargo runs (`tauri dev`, tests) with a stable
+# identity so the keychain's "Always Allow" survives rebuilds. See
+# scripts/dev-sign-and-run.sh. A relative runner path resolves against the
+# directory containing .cargo/ (src-tauri/).
+[target.'cfg(target_os = "macos")']
+runner = "../scripts/dev-sign-and-run.sh"

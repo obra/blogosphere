@@ -13,6 +13,9 @@ to /Applications/Blogosphere.app, replacing the existing copy.
 Refuses to run while Blogosphere is open, so the running app isn't swapped
 out from under itself. Quit it first.
 
+Signs with scripts/signing-identity.sh's identity when there is one, so the
+keychain approves the new build without asking for your password again.
+
 Full build output goes to a log file; only the tail is shown on failure.
 EOF
 }
@@ -35,6 +38,15 @@ log_file="$(mktemp -t blogosphere-build).log"
 if pgrep -f "$installed_app/Contents/MacOS/" >/dev/null; then
   echo "error: Blogosphere is running — quit it, then re-run." >&2
   exit 1
+fi
+
+# A stable signature keeps the keychain's "Always Allow" valid across installs;
+# ad-hoc builds re-prompt for the login password every time.
+if identity="$("$repo_root/scripts/signing-identity.sh")"; then
+  export APPLE_SIGNING_IDENTITY="$identity"
+  echo "Signing as: $identity"
+else
+  echo "warning: no signing identity; building ad-hoc (keychain will re-prompt)" >&2
 fi
 
 echo "Building (log: $log_file)..."
