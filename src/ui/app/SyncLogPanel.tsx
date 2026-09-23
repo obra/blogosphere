@@ -28,6 +28,7 @@ function SyncLogPanel() {
         aria-label="Activity log"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
+            event.preventDefault();
             store.getState().closeSyncLog();
           }
         }}

@@ -157,6 +157,7 @@ function SettingsScreen(props: SettingsScreenProps) {
         aria-label="Settings"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
+            event.preventDefault();
             store.getState().closeSettings();
           }
         }}

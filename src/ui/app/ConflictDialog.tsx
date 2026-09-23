@@ -12,8 +12,14 @@ interface ConflictDialogProps {
   onCancel: () => void;
 }
 
-function MergeEditor(props: ConflictDialogProps & { onBack: () => void }) {
-  const [merged, setMerged] = useState(props.mine);
+interface MergeEditorProps extends ConflictDialogProps {
+  merged: string;
+  setMerged: (text: string) => void;
+  onBack: () => void;
+}
+
+function MergeEditor(props: MergeEditorProps) {
+  const { merged, setMerged } = props;
   return (
     <>
       <h2>Edit merged version</h2>
@@ -80,7 +86,10 @@ function CompareView(props: ConflictDialogProps & { onEditMerged: () => void }) 
 
 function ConflictDialog(props: ConflictDialogProps) {
   const [editing, setEditing] = useState(false);
-  useEscapeToCancel(props.onCancel);
+  // Held here, not in MergeEditor, so going Back doesn't throw a hand merge away.
+  const [merged, setMerged] = useState(props.mine);
+  // In the merge editor Escape means Back, never "dismiss the whole dialog".
+  useEscapeToCancel(editing ? () => setEditing(false) : props.onCancel);
 
   return (
     <div className="dialog-backdrop">
@@ -90,7 +99,12 @@ function ConflictDialog(props: ConflictDialogProps) {
         aria-label={`Resolve conflict in ${props.path}`}
       >
         {editing ? (
-          <MergeEditor {...props} onBack={() => setEditing(false)} />
+          <MergeEditor
+            {...props}
+            merged={merged}
+            setMerged={setMerged}
+            onBack={() => setEditing(false)}
+          />
         ) : (
           <CompareView {...props} onEditMerged={() => setEditing(true)} />
         )}

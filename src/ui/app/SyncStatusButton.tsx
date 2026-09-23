@@ -37,6 +37,8 @@ function useDismissal(
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // Claimed, so a sheet's Escape handler doesn't also act on it.
+        event.preventDefault();
         close();
         refs.button.current?.focus();
       }

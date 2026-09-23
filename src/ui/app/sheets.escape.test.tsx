@@ -67,3 +67,23 @@ it("a closed sheet doesn't swallow Escape", () => {
   expect(event.defaultPrevented).toBe(false);
   expect(store.getState().newLinkDialogOpen).toBe(false);
 });
+
+it("Escape in the merge editor goes Back; the typed merge is still there after", () => {
+  const onCancel = vi.fn();
+  const { getByText, getByRole } = render(
+    <ConflictDialog
+      path="content/drafts/2026-01-01-a.md"
+      mine="mine"
+      theirs="theirs"
+      onChoose={vi.fn()}
+      onCancel={onCancel}
+    />,
+  );
+  fireEvent.click(getByText("Edit merged"));
+  fireEvent.change(getByRole("textbox"), { target: { value: "hand merged" } });
+  pressEscape();
+  expect(onCancel).not.toHaveBeenCalled();
+  expect(getByText("Keep mine")).not.toBeNull();
+  fireEvent.click(getByText("Edit merged"));
+  expect(getByRole("textbox")).toHaveProperty("value", "hand merged");
+});
