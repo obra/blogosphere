@@ -2,7 +2,12 @@
 // ABOUTME: detectPlatform / applyPlatformAttribute — the pre-render platform
 // ABOUTME: probe that picks the Mac look, with a safe "web" fallback.
 import { describe, expect, it, vi } from "vitest";
-import { applyPlatformAttribute, detectPlatform } from "./platform";
+import {
+  applyGlassAttribute,
+  applyPlatformAttribute,
+  detectGlass,
+  detectPlatform,
+} from "./platform";
 
 describe("detectPlatform", () => {
   it("is web outside Tauri, without calling the bridge", async () => {
@@ -39,5 +44,35 @@ describe("applyPlatformAttribute", () => {
     const root = document.createElement("html");
     applyPlatformAttribute(root, "macos");
     expect(root.getAttribute("data-platform")).toBe("macos");
+  });
+});
+
+describe("detectGlass", () => {
+  it("is off off macOS, without asking", async () => {
+    const invoke = vi.fn();
+    expect(await detectGlass("web", invoke)).toBe(false);
+    expect(await detectGlass("ios", invoke)).toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("asks Rust on macOS", async () => {
+    const invoke = vi.fn().mockResolvedValue(true);
+    expect(await detectGlass("macos", invoke)).toBe(true);
+    expect(invoke).toHaveBeenCalledWith("glass_active");
+  });
+
+  it("treats a failed or odd answer as off (opaque is always safe)", async () => {
+    expect(await detectGlass("macos", vi.fn().mockRejectedValue(new Error("no")))).toBe(false);
+    expect(await detectGlass("macos", vi.fn().mockResolvedValue("yes"))).toBe(false);
+  });
+});
+
+describe("applyGlassAttribute", () => {
+  it("writes data-glass on the root element", () => {
+    const root = document.createElement("html");
+    applyGlassAttribute(root, true);
+    expect(root.getAttribute("data-glass")).toBe("on");
+    applyGlassAttribute(root, false);
+    expect(root.getAttribute("data-glass")).toBe("off");
   });
 });

@@ -1,5 +1,5 @@
 // ABOUTME: Pre-render platform probe: asks Rust which OS this is (Tauri) or
-// ABOUTME: says "web", then stamps it on <html> so CSS can scope the Mac look.
+// ABOUTME: says "web" (and whether macOS glass is on), stamped on <html> for CSS.
 import type { Platform } from "../shell/types";
 
 interface PlatformProbeDeps {
@@ -33,4 +33,31 @@ function applyPlatformAttribute(root: HTMLElement, platform: Platform): void {
   root.dataset.platform = platform;
 }
 
-export { applyPlatformAttribute, detectPlatform, type PlatformProbeDeps };
+/** Whether the macOS glass sidebar is on. Anything but a clear "yes" means
+ *  off: an opaque sidebar is always safe, a transparent one over nothing is
+ *  not. */
+async function detectGlass(
+  platform: Platform,
+  invoke: PlatformProbeDeps["invoke"],
+): Promise<boolean> {
+  if (platform !== "macos") {
+    return false;
+  }
+  try {
+    return (await invoke("glass_active")) === true;
+  } catch {
+    return false;
+  }
+}
+
+function applyGlassAttribute(root: HTMLElement, on: boolean): void {
+  root.dataset.glass = on ? "on" : "off";
+}
+
+export {
+  applyGlassAttribute,
+  applyPlatformAttribute,
+  detectGlass,
+  detectPlatform,
+  type PlatformProbeDeps,
+};

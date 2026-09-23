@@ -6,6 +6,13 @@ import { describe, expect, it } from "vitest";
 
 /** Keyframe steps (`from`, `to`, `50%`) look like rule heads but aren't selectors. */
 const KEYFRAME_STEP = /^(from|to|[\d.]+%)$/;
+const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
+const TRANSPARENT = /background:\s*transparent/;
+/** The element a selector finally styles: the page, the shell, or the sidebar. */
+const GLASS_TARGET = /^(html\[[^\]]*\](\[[^\]]*\])*|body|\.app-shell|\.sidebar)$/;
+const SELECTOR_TAIL = /\s+/;
+const CONTRAST_OPAQUE =
+  /@media \(prefers-contrast: more\)\s*\{[^@]*\.sidebar[^{]*\{[^}]*background:\s*var\(--bg-sunken\)/;
 const NOT_MAC = /^html:not\(\[data-platform="macos"\]\)\s/;
 const MAC = /^html\[data-platform="macos"\]/;
 const ROOT_TOKEN = /(--[a-z0-9-]+)\s*:/g;
@@ -225,5 +232,34 @@ describe("macOS chrome behavior", () => {
     // Content (versions, sync-log detail, dialogs) must stay copyable, so the
     // rule may not cover the whole page.
     expect(mac).not.toMatch(BODY_UNSELECTABLE);
+  });
+});
+
+describe("macOS glass", () => {
+  const chrome = readCss("app-macos-chrome.css");
+
+  function transparentHeads(): string[] {
+    const heads: string[] = [];
+    for (const chunk of chrome.replace(CSS_COMMENT, "").split("}")) {
+      const [head, body] = chunk.split("{").slice(-2);
+      if (head && body && TRANSPARENT.test(body)) {
+        heads.push(head.trim());
+      }
+    }
+    return heads;
+  }
+
+  it("makes the page and sidebar see-through only while glass is on", () => {
+    const glassSelectors = transparentHeads()
+      .flatMap(splitSelectors)
+      .filter((selector) => GLASS_TARGET.test(selector.split(SELECTOR_TAIL).at(-1) ?? ""));
+    expect(glassSelectors.length).toBeGreaterThan(0);
+    for (const selector of glassSelectors) {
+      expect(selector).toContain('[data-glass="on"]');
+    }
+  });
+
+  it("paints the sidebar opaque again under Increase Contrast", () => {
+    expect(chrome).toMatch(CONTRAST_OPAQUE);
   });
 });

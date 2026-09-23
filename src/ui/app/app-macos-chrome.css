@@ -1,6 +1,33 @@
 /* ABOUTME: macOS window chrome — the toolbar's sync status symbol and its
    ABOUTME: Activity popover. Scoped to html[data-platform="macos"] like app-macos.css. */
 
+/* Columns come from AppShell's inline grid-template-columns (columnLayout);
+   the dividers are positioned against the shell. */
+html[data-platform="macos"] .app-shell {
+  position: relative;
+}
+
+/* ---------- Glass ----------
+   Rust puts Liquid Glass behind the (transparent) window unless Reduce
+   Transparency is on, and says so via data-glass on <html>. Only then do
+   the page and the sidebar go see-through; the list and editor panes keep
+   their opaque backgrounds, as in Mail and Notes. With glass off the sidebar
+   stays its opaque color, so the window is never see-through over nothing. */
+
+html[data-platform="macos"][data-glass="on"],
+html[data-platform="macos"][data-glass="on"] body,
+html[data-platform="macos"][data-glass="on"] .app-shell,
+html[data-platform="macos"][data-glass="on"] .sidebar {
+  background: transparent;
+}
+
+/* Increase Contrast: back to the solid sidebar. */
+@media (prefers-contrast: more) {
+  html[data-platform="macos"][data-glass="on"] .sidebar {
+    background: var(--bg-sunken);
+  }
+}
+
 /* ---------- Sync status symbol ---------- */
 
 html[data-platform="macos"] .sync-status {
@@ -115,10 +142,6 @@ html[data-platform="macos"] .activity-conflict:hover {
 
 /* ---------- Window layout ---------- */
 
-/* Columns come from AppShell's inline grid-template-columns (columnLayout). */
-html[data-platform="macos"] .app-shell {
-  position: relative;
-}
 /* A 6pt hit area centered on the column edge; the line itself is the
    pane's own border. */
 html[data-platform="macos"] .column-divider {

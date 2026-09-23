@@ -1,5 +1,5 @@
 # ABOUTME: App-level ACL permissions for the native-UI helper commands
-# ABOUTME: (src/platform.rs, src/symbols.rs), granted to the main window via capabilities/default.json.
+# ABOUTME: (src/platform.rs, src/symbols.rs, src/glass.rs), granted to the main window via capabilities/default.json.
 
 [[permission]]
 identifier = "allow-current-platform"
@@ -11,7 +11,12 @@ identifier = "allow-render-symbol"
 description = "Enables the render_symbol command, which draws an SF Symbol to PNG."
 commands.allow = ["render_symbol"]
 
+[[permission]]
+identifier = "allow-glass-active"
+description = "Enables the glass_active command, which reports whether the glass sidebar is on."
+commands.allow = ["glass_active"]
+
 [[set]]
 identifier = "native-ui"
-description = "Allows the native-UI helper commands (platform detection, SF Symbol rendering)."
-permissions = ["allow-current-platform", "allow-render-symbol"]
+description = "Allows the native-UI helper commands (platform detection, SF Symbol rendering, glass state)."
+permissions = ["allow-current-platform", "allow-render-symbol", "allow-glass-active"]

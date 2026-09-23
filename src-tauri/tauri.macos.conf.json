@@ -14,7 +14,8 @@
         "trafficLightPosition": {
           "x": 19,
           "y": 28
-        }
+        },
+        "transparent": true
       }
     ]
   }

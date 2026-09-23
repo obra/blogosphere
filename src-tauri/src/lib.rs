@@ -1,6 +1,7 @@
 // ABOUTME: Tauri app entry point — registers platform plugins (sql, http, fs,
 // ABOUTME: clipboard-manager), the keychain commands, and dev-only logging.
 
+mod glass;
 mod keychain;
 mod platform;
 pub mod symbols;
@@ -19,7 +20,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_liquid_glass::init())
+        .manage(glass::GlassState::default());
     // Lets the tauri-mcp CLI drive a dev build (screenshots, DOM, IPC). Never
     // in release builds, and localhost-only: the plugin's default 0.0.0.0
     // bind would hand app control to anyone on the network.
@@ -39,6 +42,7 @@ pub fn run() {
             keychain::keychain_delete,
             platform::current_platform,
             symbols::render_symbol,
+            glass::glass_active,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -48,6 +52,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            #[cfg(target_os = "macos")]
+            glass::install(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())
