@@ -26,7 +26,7 @@ function ToolbarRow(props: { children: ReactNode; leadingInset?: boolean; classN
 function ToolbarButton(props: {
   label: string;
   shortcut?: string;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   children: ReactNode;
 }) {
   return (
@@ -73,7 +73,14 @@ function ComposeButton() {
         className="toolbar-button toolbar-menu-chevron"
         aria-label="New…"
         title="New Post or New Link"
-        onClick={() => popupMenu(composeMenuItems(), (id) => runMenuCommand(id, store))}
+        onClick={(event) =>
+          popupMenu(
+            "compose",
+            composeMenuItems(),
+            (id) => runMenuCommand(id, store),
+            event.currentTarget,
+          )
+        }
       >
         <Icon name="composeMenu" size={9} />
       </button>
@@ -102,9 +109,12 @@ function EntryActionsButton(props: { record: EntryRecord; liveUrl: string | null
   return (
     <ToolbarButton
       label="More"
-      onClick={() =>
-        popupMenu(entryActionItems(props.record, props.liveUrl), (id) =>
-          runMenuCommand(id, store, props.liveUrl),
+      onClick={(event) =>
+        popupMenu(
+          "entryActions",
+          entryActionItems(props.record, props.liveUrl),
+          (id) => runMenuCommand(id, store, props.liveUrl),
+          event.currentTarget,
         )
       }
     >
