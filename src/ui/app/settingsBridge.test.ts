@@ -61,6 +61,17 @@ describe("installSettingsBridge", () => {
     expect(store.getState().commitTemplates).toEqual(templates);
   });
 
+  it("a template save that fails says so, and nothing looks saved", async () => {
+    const { client, store, services } = await setup();
+    const seen: SettingsState[] = [];
+    await client.onState((state) => seen.push(state));
+    services.store.setMeta = () => Promise.reject(new Error("disk full"));
+    const reply = await client.saveTemplates({ ...DEFAULT_COMMIT_TEMPLATES, edit: "Nope" });
+    expect(reply).toMatchObject({ ok: false, error: "Couldn't save the templates." });
+    expect(store.getState().commitTemplates).toEqual(DEFAULT_COMMIT_TEMPLATES);
+    expect(seen).toEqual([]);
+  });
+
   it("tells Settings when the connection or templates change", async () => {
     const { client, store, services } = await setup();
     const seen: SettingsState[] = [];

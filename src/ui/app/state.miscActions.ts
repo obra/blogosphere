@@ -126,8 +126,10 @@ async function setCommitTemplates(
   ctx: ActionCtx,
   templates: CommitMessageTemplates,
 ): Promise<void> {
-  ctx.set({ commitTemplates: templates });
+  // Saved first: templates that failed to save must never look saved (the
+  // macOS Settings window shows whatever this state says).
   await ctx.get().services.store.setMeta(META_COMMIT_TEMPLATES_KEY, JSON.stringify(templates));
+  ctx.set({ commitTemplates: templates });
 }
 
 async function syncNow(ctx: ActionCtx): Promise<void> {
