@@ -130,6 +130,9 @@ interface AppData {
   syncLog: SyncLogEntry[];
   busy: BusyFlags;
   toasts: Toast[];
+  /** The last attempt to read the entry list failed (macOS shows it in the
+   *  list when there's nothing else to show). */
+  entriesLoadFailed: boolean;
   /** macOS: the HUD message showing now (info and success notices). */
   hud: { id: string; message: string } | null;
 

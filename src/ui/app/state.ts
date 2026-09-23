@@ -10,20 +10,19 @@ import { newDraft, newLink, newPost, publishDraft } from "./state.creationAction
 import { watchDeploy } from "./state.deployActions";
 import { buildDeps } from "./state.deps";
 import { deleteEntry, discardChanges, shareSecretLink } from "./state.editingActions";
-import type { PendingEdits, SearchDebouncer } from "./state.entryActions";
+import type { PendingEdits } from "./state.entryActions";
 import {
   cancelEdit,
   createPendingEdits,
-  createSearchDebouncer,
   edit,
   flushEdit,
-  refresh,
   saveNow,
   select,
-  setSearchQuery,
   setSection,
 } from "./state.entryActions";
 import { setColumnWidth, toggleSidebar } from "./state.layoutActions";
+import type { SearchDebouncer } from "./state.listActions";
+import { createSearchDebouncer, refresh, setSearchQuery } from "./state.listActions";
 import type { SyncSubscriptionBox } from "./state.miscActions";
 import {
   attachSync,
@@ -80,6 +79,7 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     syncLog: [],
     busy: INITIAL_BUSY,
     toasts: [],
+    entriesLoadFailed: false,
     hud: null,
     editorModes: {},
     commitTemplates: DEFAULT_COMMIT_TEMPLATES,

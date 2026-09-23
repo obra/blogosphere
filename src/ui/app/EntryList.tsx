@@ -217,6 +217,20 @@ function EntryListGroups(props: EntryListGroupsProps) {
   );
 }
 
+/** macOS: the list couldn't be read and there's nothing to show. Said here,
+ *  in place, rather than in an alert at launch. */
+function EntriesLoadFailed() {
+  const store = useAppStoreApi();
+  return (
+    <div className="entry-list-empty">
+      <p>Couldn't load your entries.</p>
+      <button type="button" className="btn" onClick={() => store.getState().refresh()}>
+        Try Again
+      </button>
+    </div>
+  );
+}
+
 function EntrySearchBox() {
   const store = useAppStoreApi();
   const query = useAppStore((state) => state.searchQuery);
@@ -240,6 +254,7 @@ function EntryList() {
   const selectedPath = useAppStore((state) => state.selectedPath);
   const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
   const mac = useServices().shell.platform() === "macos";
+  const loadFailed = useAppStore((state) => state.entriesLoadFailed);
   const sidebarHidden = useAppStore((state) => mac && state.sidebarHidden);
 
   const visible = filterBySection(searchResults ?? entries, section);
@@ -256,13 +271,17 @@ function EntryList() {
       ) : (
         <EntrySearchBox />
       )}
-      <EntryListGroups
-        groups={groups}
-        selectedPath={selectedPath}
-        conflicts={conflicts}
-        section={section}
-        searching={searchResults !== null}
-      />
+      {mac && loadFailed && entries.length === 0 ? (
+        <EntriesLoadFailed />
+      ) : (
+        <EntryListGroups
+          groups={groups}
+          selectedPath={selectedPath}
+          conflicts={conflicts}
+          section={section}
+          searching={searchResults !== null}
+        />
+      )}
     </div>
   );
 }

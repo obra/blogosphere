@@ -1,10 +1,9 @@
-// ABOUTME: Entry-list + editing actions: refresh/select/section/search, and
+// ABOUTME: Selection and editing actions: select/section, and
 // ABOUTME: the debounced autosave pipeline (edit/flushEdit/saveNow).
 import type { EditResult, FieldEdit } from "../../core/model/types";
 import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode, Section } from "../types";
-import { debounce } from "./format";
 import { findEntryInCache, replaceEntryInCache, withParsedFields } from "./state.cache";
 import { persistSection, persistSelectedPath } from "./state.lastPositionActions";
 import type { ActionCtx, EditChange } from "./state.types";
@@ -38,35 +37,8 @@ interface PendingSlot extends PendingEntry {
 
 type PendingEdits = Map<string, PendingSlot>;
 
-interface SearchDebouncer {
-  call: (query: string) => void;
-}
-
 function createPendingEdits(): PendingEdits {
   return new Map();
-}
-
-function createSearchDebouncer(ctx: ActionCtx): SearchDebouncer {
-  return debounce<[string]>((query) => {
-    runSearch(ctx, query);
-  }, ctx.deps.searchDebounceMs);
-}
-
-async function refresh(ctx: ActionCtx): Promise<void> {
-  ctx.set((state) => ({ busy: { ...state.busy, refreshing: true } }));
-  try {
-    const entries = await ctx.get().services.store.listEntries();
-    ctx.set({ entries });
-  } catch {
-    ctx.get().addToast({
-      tone: "error",
-      message: "Couldn't load your entries.",
-      retry: () => refresh(ctx),
-      source: "load",
-    });
-  } finally {
-    ctx.set((state) => ({ busy: { ...state.busy, refreshing: false } }));
-  }
 }
 
 function hydrateEditorMode(ctx: ActionCtx, path: string): void {
@@ -94,27 +66,6 @@ function setSection(ctx: ActionCtx, section: Section): void {
   ctx.set({ section, selectedPath: null });
   persistSection(ctx, section);
   persistSelectedPath(ctx, null);
-}
-
-async function runSearch(ctx: ActionCtx, query: string): Promise<void> {
-  const trimmed = query.trim();
-  if (!trimmed) {
-    ctx.set({ searchResults: null });
-    return;
-  }
-  try {
-    const results = await ctx.get().services.store.searchEntries(trimmed);
-    ctx.set({ searchResults: results });
-  } catch {
-    ctx
-      .get()
-      .addToast({ tone: "error", message: "Search failed.", retry: () => runSearch(ctx, query) });
-  }
-}
-
-function setSearchQuery(ctx: ActionCtx, searchDebouncer: SearchDebouncer, query: string): void {
-  ctx.set({ searchQuery: query });
-  searchDebouncer.call(query);
 }
 
 function mergeChangeInto(entry: PendingEntry, change: EditChange): void {
@@ -322,16 +273,5 @@ async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
   }
 }
 
-export type { PendingEdits, SearchDebouncer };
-export {
-  cancelEdit,
-  createPendingEdits,
-  createSearchDebouncer,
-  edit,
-  flushEdit,
-  refresh,
-  saveNow,
-  select,
-  setSearchQuery,
-  setSection,
-};
+export type { PendingEdits };
+export { cancelEdit, createPendingEdits, edit, flushEdit, saveNow, select, setSection };

@@ -9,8 +9,8 @@ import type {
 } from "../../core/sync/types";
 import type { EditorMode } from "../types";
 import { parseCommitTemplates } from "./state.deps";
-import { refresh } from "./state.entryActions";
 import { restoreLastPosition } from "./state.lastPositionActions";
+import { refresh } from "./state.listActions";
 import type { ActionCtx, AppState } from "./state.types";
 import {
   editorModeMetaKey,
