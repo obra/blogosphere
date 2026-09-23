@@ -103,3 +103,21 @@ html[data-platform="macos"] .quick-open-row[data-active="true"] {
   background: var(--bg-selected);
   color: #ffffff;
 }
+
+/* Mac controls use the arrow cursor; the pointing hand is for links. The
+   [role] arm raises specificity past two-class rules like `.a .b`. */
+html[data-platform="macos"]
+:is(button, select, summary, label, [role="button"], [role="tab"], [role="option"]) {
+  cursor: default;
+}
+
+/* Chrome isn't text: dragging across the sidebar or a toolbar must not
+   select labels, and ⌘A in the list must not highlight the whole window.
+   `.ProseMirror` is Crepe's editable surface, `.cm-content` CodeMirror's. */
+html[data-platform="macos"] body {
+  user-select: none;
+}
+html[data-platform="macos"]
+  :is(input, textarea, [contenteditable="true"], .ProseMirror, .cm-content) {
+  user-select: text;
+}

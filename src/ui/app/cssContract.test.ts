@@ -25,6 +25,11 @@ const MAC_FOCUS_WIDTH = /--focus-ring-width:\s*3px/;
 const MAC_FOCUS_COLOR = /--focus-ring-color:\s*color-mix\(in srgb, AccentColor 50%, transparent\)/;
 const LIST_ROWS_NO_RING =
   /:is\(\.sidebar-section-button, \.entry-row\)\s*\{[^}]*--focus-ring-width:\s*0/;
+const SCROLLBAR_RULE = /::-webkit-scrollbar/;
+const CURSOR_DEFAULT = /cursor:\s*default/;
+const CHROME_UNSELECTABLE = /html\[data-platform="macos"\] body\s*\{[^}]*user-select:\s*none/;
+const CONTENT_SELECTABLE =
+  /:is\(input, textarea, \[contenteditable="true"\], \.ProseMirror, \.cm-content\)\s*\{[^}]*user-select:\s*text/;
 
 const APP_DIR = new URL("./", import.meta.url);
 
@@ -164,5 +169,25 @@ describe("macOS selection and focus", () => {
     expect(mac).toMatch(MAC_FOCUS_COLOR);
     // No Mac-specific :focus-visible rule: one would outrank the opt-outs.
     expect(ruleHeads(mac).some((head) => head.includes(":focus-visible"))).toBe(false);
+  });
+});
+
+describe("macOS chrome behavior", () => {
+  it("never styles scrollbars on macOS (native overlay scrollbars return)", () => {
+    const heads = ruleHeads(readCss("app.css")).filter((head) => SCROLLBAR_RULE.test(head));
+    expect(heads.length).toBeGreaterThan(0);
+    for (const selector of heads.flatMap(splitSelectors)) {
+      expect(selector).toMatch(NOT_MAC);
+    }
+  });
+
+  it("uses the arrow cursor for controls", () => {
+    expect(readCss("app-macos.css")).toMatch(CURSOR_DEFAULT);
+  });
+
+  it("makes chrome unselectable but keeps content and fields selectable", () => {
+    const mac = readCss("app-macos.css");
+    expect(mac).toMatch(CHROME_UNSELECTABLE);
+    expect(mac).toMatch(CONTENT_SELECTABLE);
   });
 });
