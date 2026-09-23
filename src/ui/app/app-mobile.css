@@ -232,33 +232,30 @@
 /* ---------- Compact-wide touch + input adjustments ---------- */
 
 @media (max-width: 760px) {
-  /* iOS Safari zooms the page when a focused input's font-size is <16px —
+  html:not([data-platform="macos"])
+    /* iOS Safari zooms the page when a focused input's font-size is <16px —
      bump the small controls so focus never triggers a zoom jump. */
-  .entry-list-search input,
-  .editor-date-input,
-  .tag-chips input,
-  .dialog-field input {
+    .entry-list-search
+    input,
+  html:not([data-platform="macos"]) .editor-date-input,
+  html:not([data-platform="macos"]) .tag-chips input,
+  html:not([data-platform="macos"]) .dialog-field input {
     font-size: 16px;
   }
-
-  .entry-row {
+  html:not([data-platform="macos"]) .entry-row {
     padding-top: 11px;
     padding-bottom: 11px;
   }
-
-  .btn {
+  html:not([data-platform="macos"]) .btn {
     min-height: 40px;
   }
-
-  .editor-doc {
+  html:not([data-platform="macos"]) .editor-doc {
     padding: 18px 16px 30vh;
   }
-
-  /* Sheets become full-width cards on phones. */
-  .dialog {
+  html:not([data-platform="macos"]) /* Sheets become full-width cards on phones. */ .dialog {
     width: 94vw;
   }
-  .dialog-backdrop {
+  html:not([data-platform="macos"]) .dialog-backdrop {
     padding-top: calc(20px + env(safe-area-inset-top, 0px));
   }
 }

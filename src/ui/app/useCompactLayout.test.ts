@@ -36,13 +36,13 @@ afterEach(() => {
 
 it("reports compact when the media query matches", () => {
   installMatchMedia(true);
-  const { result } = renderHook(() => useCompactLayout());
+  const { result } = renderHook(() => useCompactLayout("web"));
   expect(result.current).toBe(true);
 });
 
 it("tracks live viewport changes (rotation, window resize)", () => {
   const media = installMatchMedia(false);
-  const { result } = renderHook(() => useCompactLayout());
+  const { result } = renderHook(() => useCompactLayout("web"));
   expect(result.current).toBe(false);
 
   act(() => media.setMatches(true));
@@ -51,7 +51,7 @@ it("tracks live viewport changes (rotation, window resize)", () => {
 
 it("cleans up its listener on unmount", () => {
   const media = installMatchMedia(false);
-  const { unmount } = renderHook(() => useCompactLayout());
+  const { unmount } = renderHook(() => useCompactLayout("web"));
   expect(media.listenerCount()).toBe(1);
   unmount();
   expect(media.listenerCount()).toBe(0);
@@ -59,6 +59,15 @@ it("cleans up its listener on unmount", () => {
 
 it("defaults to desktop when matchMedia is unavailable (jsdom, old webviews)", () => {
   vi.stubGlobal("matchMedia", undefined);
-  const { result } = renderHook(() => useCompactLayout());
+  const { result } = renderHook(() => useCompactLayout("web"));
+  expect(result.current).toBe(false);
+});
+
+it("never reports compact on macOS, even when the viewport is narrow", () => {
+  const media = installMatchMedia(true);
+  const { result } = renderHook(() => useCompactLayout("macos"));
+  expect(result.current).toBe(false);
+
+  act(() => media.setMatches(true));
   expect(result.current).toBe(false);
 });

@@ -20,7 +20,7 @@ import { SecretLinkControl } from "./SecretLinkControl";
 import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
-import { useCompactLayout } from "./useCompactLayout";
+import { useAppCompactLayout } from "./useCompactLayout";
 import { useEditorScreenState } from "./useEditorScreenState";
 
 function EditorEmptyState() {
@@ -175,7 +175,7 @@ function EditorToolbar(props: EditorToolbarProps) {
 
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
-  const compact = useCompactLayout();
+  const compact = useAppCompactLayout();
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);

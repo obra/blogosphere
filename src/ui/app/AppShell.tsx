@@ -21,7 +21,7 @@ import { SyncLogPanel } from "./SyncLogPanel";
 import type { BoundAppStore } from "./state";
 import { useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
-import { useCompactLayout } from "./useCompactLayout";
+import { useAppCompactLayout } from "./useCompactLayout";
 import { VersionsPanel } from "./VersionsPanel";
 
 interface AppShellProps {
@@ -243,7 +243,7 @@ function useAndroidBack(store: BoundAppStore): void {
 
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
-  const compact = useCompactLayout();
+  const compact = useAppCompactLayout();
   const menuInstalled = useNativeMenu(store);
   useKeyboardShortcuts(store, menuInstalled);
   useAndroidBack(store);

@@ -55,7 +55,7 @@ function assetRead(state: FakeShellState, localPath: string): Promise<Uint8Array
 
 function createState(options: FakeShellOptions): FakeShellState {
   return {
-    platform: options.platform ?? "macos",
+    platform: options.platform ?? "web",
     keychain: new Map(),
     shareInbox: [],
     assetBytes: new Map(),
@@ -64,7 +64,8 @@ function createState(options: FakeShellOptions): FakeShellState {
   };
 }
 
-/** A fresh in-memory ShellApi. Defaults to the "macos" platform. */
+/** A fresh in-memory ShellApi. Defaults to the "web" platform, like the real
+ *  fake in src/shell/fake.ts — Mac-only behavior must be opted into. */
 function createFakeShell(options: FakeShellOptions = {}): FakeShell {
   const state = createState(options);
   return {
