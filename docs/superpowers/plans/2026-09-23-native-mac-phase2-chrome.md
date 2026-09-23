@@ -10,6 +10,25 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-23-native-mac-redesign-design.md` §2, §3, §5 (Activity), §7 (sidebar/Increase Contrast/Reduce Transparency), §9, §11 phase 2.
 
+## Execution record (2026-09-23)
+
+Executed in commits `598be02`..`1a25c71` (small commits; see `git log`).
+Beyond the revision below, execution found and fixed: a zustand selector
+returning a fresh `[]` (infinite re-render); the popover clipped by the
+sidebar's scroller (now `position: fixed` via `popoverPlacement`); Tauri's
+`trafficLightPosition.y` isn't the button's top edge (set to 28 by
+measuring the real window); ⌃⌘S needed the layout change in the same
+commit to be shippable. The phase code review (7 + 5 findings) led to:
+the Activity popover rendered into `<body>` (it sat inside the drag
+region) with document-level Escape and focus handling; `glass_wanted`
+gated to macOS/tests (dead code broke iOS/Android under `warnings =
+"deny"`); popup menus built once and opened under their button; menus'
+Copy Secret Link announces the copied URL; a cancelled divider drag
+restores the width. **Unverified by automation (needs Jesse's eyes):**
+the frosted glass look, dragging the window by the toolbar row (the ACL
+grant is proven), and the "…"/compose menus appearing (can't be shown
+while the app is in the background).
+
 ## Global Constraints
 
 - Mac-only changes are gated on `shell.platform() === "macos"` in components, or `html[data-platform="macos"]` in CSS. No change on iOS, Android, web, or the compact (phone) layout; `SidebarFooterWidgets` keeps working for `MobileShell`.
