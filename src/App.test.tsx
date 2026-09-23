@@ -14,13 +14,13 @@ afterEach(() => {
 
 describe("App", () => {
   it("boots the demo path and renders the app shell", async () => {
-    render(<App />);
+    render(<App platform="web" />);
 
     expect(await screen.findByText("Blogosphere")).not.toBeNull();
   });
 
   it("lists the demo path's seeded sample entries once loaded (default section: drafts)", async () => {
-    render(<App />);
+    render(<App platform="web" />);
 
     expect(await screen.findByText(SEEDED_DRAFT_TITLE)).not.toBeNull();
   });

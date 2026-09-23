@@ -4,6 +4,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import type { Services } from "../core/services";
 import { META_LAST_ROOT_TREE_SHA } from "../core/sync/meta";
+import type { Platform } from "../shell/types";
 import { createDemoServices } from "./demo";
 import { createTauriServices } from "./tauri";
 
@@ -36,8 +37,8 @@ export async function runInitialSync(services: Services): Promise<void> {
  *  sync flow. Never throws: a failed initial sync leaves Services usable
  *  (the sync-status pill and toasts surface the failure; the user can still
  *  read/edit everything already local). */
-export async function boot(): Promise<Services> {
-  const services = isTauri() ? await createTauriServices() : createDemoServices();
+export async function boot(platform: Platform): Promise<Services> {
+  const services = isTauri() ? await createTauriServices(platform) : createDemoServices();
   try {
     await runInitialSync(services);
   } catch {

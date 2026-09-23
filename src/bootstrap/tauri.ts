@@ -21,7 +21,7 @@ import type { StoreApi } from "../core/store/types";
 import { createSync } from "../core/sync/engine";
 import type { SyncApi } from "../core/sync/types";
 import { createTauriShell } from "../shell";
-import type { ShellApi } from "../shell/types";
+import type { Platform, ShellApi } from "../shell/types";
 import { KEYCHAIN_TOKEN_KEY } from "../ui/app/state.types";
 
 const DB_PATH = "sqlite:blogosphere.db";
@@ -66,8 +66,8 @@ export function buildGithubAndSync(
 
 /** Builds the real Services for the Tauri runtime. github/sync are null
  *  until a token is found in the keychain (first run, or before Settings). */
-export async function createTauriServices(): Promise<Services> {
-  const shell = createTauriShell();
+export async function createTauriServices(platform: Platform): Promise<Services> {
+  const shell = createTauriShell(platform);
   const db = await Database.load(DB_PATH);
   const store = createStore(createTauriSqlDriver(db));
   await store.init();

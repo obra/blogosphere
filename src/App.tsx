@@ -8,6 +8,7 @@ import { boot, runInitialSync } from "./bootstrap";
 import { fetchPageTitle } from "./bootstrap/fetchTitle";
 import { buildGithubAndSync, tauriWriteClipboardText } from "./bootstrap/tauri";
 import type { Services } from "./core/services";
+import type { Platform } from "./shell/types";
 import { AppShell } from "./ui/app/AppShell";
 import { ServicesProvider } from "./ui/app/ServicesContext";
 import { AppStoreProvider } from "./ui/app/state";
@@ -55,7 +56,7 @@ function buildTokenSavedHandler(
   };
 }
 
-export function App() {
+export function App(props: { platform: Platform }) {
   const tauri = isTauri();
   const [services, setServices] = useState<Services | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     setBootError(null);
-    boot()
+    boot(props.platform)
       .then((booted) => {
         if (!cancelled) {
           setServices(booted);
@@ -84,7 +85,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [bootAttempt]);
+  }, [bootAttempt, props.platform]);
 
   if (bootError !== null) {
     return (

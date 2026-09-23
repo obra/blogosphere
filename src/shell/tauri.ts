@@ -20,12 +20,10 @@ async function assetAbsolutePath(repoPath: string): Promise<string> {
  * sibling modules and is unit-tested there; this file only wires plugin
  * calls to the ShellApi contract, so it is verified by typechecking alone.
  */
-export function createTauriShell(): ShellApi {
+export function createTauriShell(platform: Platform): ShellApi {
   return {
     platform(): Platform {
-      // v0 targets macOS only (see the design doc's delivery order). Real OS
-      // detection (via @tauri-apps/plugin-os) arrives with the iOS/Android phases.
-      return "macos";
+      return platform;
     },
 
     keychainGet(key) {
