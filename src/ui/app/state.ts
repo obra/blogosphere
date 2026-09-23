@@ -4,6 +4,7 @@ import { createContext, createElement, type ReactNode, useContext, useEffect, us
 import type { UseBoundStore, StoreApi as ZustandStoreApi } from "zustand";
 import { create } from "zustand";
 import type { Services } from "../../core/services";
+import { DEFAULT_LAYOUT_PREFS, type LayoutPrefs } from "./layoutPrefs";
 import { useServices } from "./ServicesContext";
 import { newDraft, newLink, newPost, publishDraft } from "./state.creationActions";
 import { watchDeploy } from "./state.deployActions";
@@ -22,6 +23,7 @@ import {
   setSearchQuery,
   setSection,
 } from "./state.entryActions";
+import { toggleSidebar } from "./state.layoutActions";
 import type { SyncSubscriptionBox } from "./state.miscActions";
 import {
   addToast,
@@ -57,7 +59,7 @@ import { restoreVersion } from "./state.versionsActions";
 
 type BoundAppStore = UseBoundStore<ZustandStoreApi<AppState>>;
 
-function initialAppData(services: Services): AppData {
+function initialAppData(services: Services, layout: LayoutPrefs): AppData {
   return {
     services,
     entries: [],
@@ -74,6 +76,7 @@ function initialAppData(services: Services): AppData {
     newLinkDialogOpen: false,
     settingsOpen: false,
     syncLogOpen: false,
+    sidebarHidden: layout.sidebarHidden,
     publishDialogOpen: false,
     quickOpenOpen: false,
     versionsPath: null,
@@ -123,6 +126,7 @@ function bindActions(resources: ActionResources): AppActions {
     openSyncLog: () => openSyncLog(ctx.set),
     closeSyncLog: () => closeSyncLog(ctx.set),
     toggleSyncLog: () => toggleSyncLog(ctx.set),
+    toggleSidebar: () => toggleSidebar(ctx),
     openPublishDialog: () => openPublishDialog(ctx.set),
     closePublishDialog: () => closePublishDialog(ctx.set),
     openQuickOpen: () => openQuickOpen(ctx.set),
@@ -139,7 +143,11 @@ function bindActions(resources: ActionResources): AppActions {
  * (clock, confirm dialog, clipboard, id generation, debounce timing) are all
  * injectable so action logic is testable without a DOM.
  */
-function createAppStore(services: Services, overrides: Partial<AppStoreDeps> = {}): BoundAppStore {
+function createAppStore(
+  services: Services,
+  overrides: Partial<AppStoreDeps> = {},
+  layout: Partial<LayoutPrefs> = {},
+): BoundAppStore {
   const deps = buildDeps(overrides);
   const pendingEdits = createPendingEdits();
   const syncBox = createSyncSubscriptionBox();
@@ -157,7 +165,7 @@ function createAppStore(services: Services, overrides: Partial<AppStoreDeps> = {
     };
     const searchDebouncer = createSearchDebouncer(ctx);
     return {
-      ...initialAppData(services),
+      ...initialAppData(services, { ...DEFAULT_LAYOUT_PREFS, ...layout }),
       ...bindActions({ ctx, pendingEdits, searchDebouncer, syncBox }),
     };
   });
@@ -176,6 +184,8 @@ interface AppStoreProviderProps {
    *  writer) for a freshly-created store. Ignored when `store` is given —
    *  read once, at store creation, same as `store` itself. */
   deps?: Partial<AppStoreDeps>;
+  /** Window-layout prefs read before first render (layoutPrefs.ts). */
+  layout?: Partial<LayoutPrefs>;
 }
 
 /** Creates (once) and provides the app store for the Services in context. */
@@ -183,7 +193,7 @@ function AppStoreProvider(props: AppStoreProviderProps) {
   const services = useServices();
   const storeRef = useRef<BoundAppStore | null>(null);
   if (!storeRef.current) {
-    storeRef.current = props.store ?? createAppStore(services, props.deps);
+    storeRef.current = props.store ?? createAppStore(services, props.deps, props.layout);
   }
   const activeStore = storeRef.current;
 

@@ -70,4 +70,4 @@ async function restoreLastPosition(ctx: ActionCtx): Promise<void> {
   }
 }
 
-export { persistSection, persistSelectedPath, restoreLastPosition };
+export { persistMeta, persistSection, persistSelectedPath, restoreLastPosition };

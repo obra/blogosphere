@@ -10,6 +10,7 @@ import { buildGithubAndSync, tauriWriteClipboardText } from "./bootstrap/tauri";
 import type { Services } from "./core/services";
 import type { Platform } from "./shell/types";
 import { AppShell } from "./ui/app/AppShell";
+import { DEFAULT_LAYOUT_PREFS, type LayoutPrefs, loadLayoutPrefs } from "./ui/app/layoutPrefs";
 import { ServicesProvider } from "./ui/app/ServicesContext";
 import { AppStoreProvider } from "./ui/app/state";
 import type { AppStoreDeps } from "./ui/app/state.types";
@@ -56,24 +57,37 @@ function buildTokenSavedHandler(
   };
 }
 
-export function App(props: { platform: Platform }) {
-  const tauri = isTauri();
+interface BootState {
+  services: Services | null;
+  setServices: (services: Services) => void;
+  bootError: string | null;
+  retryBoot: () => void;
+  layout: LayoutPrefs;
+}
+
+/**
+ * Runs once per boot attempt: builds Services (Tauri vs demo) and runs the
+ * first bootstrap-or-sync before handing them to the tree. A later token
+ * save (buildTokenSavedHandler above) updates this same state from an
+ * event handler, not from this effect, so the two never race. A failure
+ * (e.g. SQLite can't be created on a full disk — seen live on the iOS
+ * simulator) must surface with a retry, never an eternal spinner.
+ */
+function useBoot(platform: Platform): BootState {
   const [services, setServices] = useState<Services | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
+  const [layout, setLayout] = useState<LayoutPrefs>(DEFAULT_LAYOUT_PREFS);
 
-  // Runs once per boot attempt: builds Services (Tauri vs demo) and runs the
-  // first bootstrap-or-sync before handing them to the tree. A later token
-  // save (buildTokenSavedHandler above) updates this same state from an
-  // event handler, not from this effect, so the two never race. A failure
-  // (e.g. SQLite can't be created on a full disk — seen live on the iOS
-  // simulator) must surface with a retry, never an eternal spinner.
   useEffect(() => {
     let cancelled = false;
     setBootError(null);
-    boot(props.platform)
-      .then((booted) => {
+    boot(platform)
+      .then(async (booted) => {
+        // Read before the first render so a hidden sidebar doesn't flash in.
+        const prefs = await loadLayoutPrefs(booted.store);
         if (!cancelled) {
+          setLayout(prefs);
           setServices(booted);
         }
       })
@@ -85,14 +99,27 @@ export function App(props: { platform: Platform }) {
     return () => {
       cancelled = true;
     };
-  }, [bootAttempt, props.platform]);
+  }, [bootAttempt, platform]);
+
+  return {
+    services,
+    setServices,
+    bootError,
+    retryBoot: () => setBootAttempt((n) => n + 1),
+    layout,
+  };
+}
+
+export function App(props: { platform: Platform }) {
+  const tauri = isTauri();
+  const { services, setServices, bootError, retryBoot, layout } = useBoot(props.platform);
 
   if (bootError !== null) {
     return (
       <div className="boot-error">
         <h2>Couldn't start</h2>
         <p>{bootError}</p>
-        <button type="button" className="btn" onClick={() => setBootAttempt((n) => n + 1)}>
+        <button type="button" className="btn" onClick={retryBoot}>
           Try again
         </button>
       </div>
@@ -119,7 +146,7 @@ export function App(props: { platform: Platform }) {
 
   return (
     <ServicesProvider services={services}>
-      <AppStoreProvider {...storeProviderProps}>
+      <AppStoreProvider {...storeProviderProps} layout={layout}>
         <AppShell
           fetchTitle={tauri ? fetchPageTitle : null}
           onTokenSaved={buildTokenSavedHandler(tauri, services, setServices)}

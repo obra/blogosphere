@@ -134,6 +134,8 @@ interface AppData {
   quickOpenOpen: boolean;
   /** Path whose git history the Versions panel is showing, or null (closed). */
   versionsPath: string | null;
+  /** The person hid the sidebar (macOS; ⌃⌘S or the toolbar toggle). */
+  sidebarHidden: boolean;
 }
 
 /** Everything that mutates the store. */
@@ -185,6 +187,7 @@ interface AppActions {
   openSyncLog(): void;
   closeSyncLog(): void;
   toggleSyncLog(): void;
+  toggleSidebar(): void;
   openPublishDialog(): void;
   closePublishDialog(): void;
   openQuickOpen(): void;

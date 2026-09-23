@@ -112,3 +112,9 @@ html[data-platform="macos"] .activity-conflict {
 html[data-platform="macos"] .activity-conflict:hover {
   background: var(--bg-hover);
 }
+
+/* ---------- Window layout ---------- */
+
+html[data-platform="macos"] .app-shell[data-sidebar="hidden"] {
+  grid-template-columns: 280px 1fr;
+}

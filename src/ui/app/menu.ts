@@ -5,6 +5,7 @@ import { Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/men
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { SECTION_LABELS } from "./grouping";
+import { runMenuCommand, sidebarToggleItem } from "./menuModel";
 import type { BoundAppStore } from "./state";
 import type { AppState } from "./state.types";
 
@@ -159,7 +160,25 @@ async function buildEditSubmenu(): Promise<Submenu> {
   });
 }
 
-async function buildViewSubmenu(store: BoundAppStore): Promise<Submenu> {
+interface ViewMenu {
+  submenu: Submenu;
+  /** View › Hide/Show Sidebar — macOS only (the sidebar hides only there). */
+  sidebarItem: MenuItem | null;
+}
+
+function buildSidebarItem(store: BoundAppStore): Promise<MenuItem | null> {
+  if (store.getState().services.shell.platform() !== "macos") {
+    return Promise.resolve(null);
+  }
+  const model = sidebarToggleItem(store.getState().sidebarHidden);
+  return MenuItem.new({
+    text: model.text,
+    accelerator: model.accelerator,
+    action: () => runMenuCommand(model.id, store),
+  });
+}
+
+async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   const sectionItems = await Promise.all(
     SECTIONS.map((section: Section, index) =>
       MenuItem.new({
@@ -169,9 +188,12 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<Submenu> {
       }),
     ),
   );
-  return Submenu.new({
+  const sidebarItem = await buildSidebarItem(store);
+  const sidebarItems = sidebarItem ? [sidebarItem, await separator()] : [];
+  const submenu = await Submenu.new({
     text: "View",
     items: [
+      ...sidebarItems,
       await MenuItem.new({
         text: "Quick Open…",
         accelerator: "CmdOrCtrl+K",
@@ -188,6 +210,7 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<Submenu> {
       }),
     ],
   });
+  return { submenu, sidebarItem };
 }
 
 async function buildWindowSubmenu(): Promise<Submenu> {
@@ -225,13 +248,18 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
     buildWindowSubmenu(),
   ]);
   const menu = await Menu.new({
-    items: [appSubmenu, file.submenu, edit, view, windowSubmenu],
+    items: [appSubmenu, file.submenu, edit, view.submenu, windowSubmenu],
   });
   await menu.setAsAppMenu();
 
   let lastFlags = menuEnabledState(store.getState());
   applyEnabledFlags(file, lastFlags);
+  let lastSidebarHidden = store.getState().sidebarHidden;
   return store.subscribe((state) => {
+    if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
+      lastSidebarHidden = state.sidebarHidden;
+      view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
+    }
     const flags = menuEnabledState(state);
     if (
       flags.hasSelection !== lastFlags.hasSelection ||

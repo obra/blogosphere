@@ -19,7 +19,7 @@ import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
 import { SyncLogPanel } from "./SyncLogPanel";
 import type { BoundAppStore } from "./state";
-import { useAppStoreApi } from "./state";
+import { useAppStore, useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
 import { useAppCompactLayout } from "./useCompactLayout";
 import { VersionsPanel } from "./VersionsPanel";
@@ -246,6 +246,8 @@ function AppShell(props: AppShellProps) {
   const compact = useAppCompactLayout();
   // macOS shows the activity log in the sync button's popover instead.
   const mac = useServices().shell.platform() === "macos";
+  // Only macOS lets the person hide the sidebar (⌃⌘S, the toolbar toggle).
+  const sidebarHidden = useAppStore((state) => mac && state.sidebarHidden);
   const menuInstalled = useNativeMenu(store);
   useKeyboardShortcuts(store, menuInstalled);
   useAndroidBack(store);
@@ -262,6 +264,7 @@ function AppShell(props: AppShellProps) {
       className="app-shell"
       data-shell={isTauri() ? "tauri" : "web"}
       data-layout={compact ? "compact" : "wide"}
+      data-sidebar={sidebarHidden ? "hidden" : "shown"}
     >
       {/* Overlay-titlebar drag strip: the top 30px moves the window, like any
           native Mac app. Interactive controls all sit below it. */}
@@ -270,7 +273,7 @@ function AppShell(props: AppShellProps) {
         <MobileShell onTokenSaved={props.onTokenSaved} />
       ) : (
         <>
-          <Sidebar />
+          {sidebarHidden ? null : <Sidebar />}
           <EntryList />
           <div className="detail-pane pane">
             <DetailPane onTokenSaved={props.onTokenSaved} />
