@@ -16,6 +16,7 @@ import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
 import { useEditorScreenState } from "./useEditorScreenState";
+import { useViewModeTarget } from "./useViewModeTarget";
 
 /** A detail-pane message (nothing selected, unreadable entry), under the
  *  toolbar row on macOS. */
@@ -78,6 +79,19 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);
+  useViewModeTarget(s.isLegacyHtml, s.liveUrl !== null, (index) => {
+    // The third segment is Live in both kinds; the first two are the
+    // editor modes, or Preview/HTML for legacy entries.
+    setLive(index === 2);
+    if (index === 2) {
+      return;
+    }
+    if (s.isLegacyHtml) {
+      setHtmlView(index === 0 ? "preview" : "source");
+    } else {
+      s.commitMode(index === 0 ? "wysiwyg" : "source");
+    }
+  });
 
   if (!s.parsed) {
     return <DetailMessage text="Couldn't read this entry's front matter." />;
