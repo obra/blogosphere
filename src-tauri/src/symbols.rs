@@ -20,6 +20,31 @@ pub struct SymbolPng {
     pub height: f64,
 }
 
+/// Whether this macOS has the SF Symbol APIs (macOS 11+). Checked through
+/// the runtime rather than calling them blindly: on older systems the calls
+/// would raise "unrecognized selector" instead of letting the webview fall
+/// back to its own icon.
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn sf_symbols_available() -> bool {
+    use objc2::runtime::AnyClass;
+    use objc2::sel;
+
+    let image = AnyClass::get(c"NSImage");
+    let config = AnyClass::get(c"NSImageSymbolConfiguration");
+    match (image, config) {
+        (Some(image), Some(config)) => {
+            image
+                .metaclass()
+                .responds_to(sel!(imageWithSystemSymbolName:accessibilityDescription:))
+                && config
+                    .metaclass()
+                    .responds_to(sel!(configurationWithPointSize:weight:scale:))
+        }
+        _ => false,
+    }
+}
+
 /// # Errors
 ///
 /// Returns an error naming the symbol when macOS doesn't know it, or when
@@ -38,6 +63,10 @@ pub fn render_symbol_png(
         NSImageSymbolConfiguration, NSImageSymbolScale,
     };
     use objc2_foundation::{NSDictionary, NSPoint, NSRect, NSString};
+
+    if !sf_symbols_available() {
+        return Err(format!("SF Symbols need macOS 11 or later: {name}"));
+    }
 
     // SAFETY: reading AppKit's immutable font-weight constants.
     let ns_weight = unsafe {

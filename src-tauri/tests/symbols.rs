@@ -3,7 +3,12 @@
 
 #[cfg(target_os = "macos")]
 fn main() {
-    use app_lib::symbols::{render_symbol_png, SymbolWeight};
+    use app_lib::symbols::{render_symbol_png, sf_symbols_available, SymbolWeight};
+
+    assert!(
+        sf_symbols_available(),
+        "this Mac (macOS 11+) has the SF Symbols APIs"
+    );
 
     let png = render_symbol_png("square.and.pencil", 16.0, SymbolWeight::Regular, 2.0)
         .expect("known symbol renders");
