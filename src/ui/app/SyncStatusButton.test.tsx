@@ -50,11 +50,31 @@ describe("SyncStatusButton", () => {
     expect(store.getState().syncLogOpen).toBe(false);
   });
 
-  it("closes on Escape", () => {
+  it("closes on Escape wherever focus is, returning focus to the button", () => {
     const { store } = renderWithStore(<SyncStatusButton />, MAC);
+    button().focus();
     fireEvent.click(button());
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Activity" }), { key: "Escape" });
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     expect(store.getState().syncLogOpen).toBe(false);
+    expect(document.activeElement).toBe(button());
+  });
+
+  it("takes focus when it opens, so the keyboard lands in it", () => {
+    renderWithStore(<SyncStatusButton />, MAC);
+    fireEvent.click(button());
+    expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "Activity" }));
+  });
+
+  it("lives outside the toolbar row, so the window-drag region can't swallow its clicks", () => {
+    renderWithStore(
+      <div className="toolbar-row" data-tauri-drag-region="deep">
+        <SyncStatusButton />
+      </div>,
+      MAC,
+    );
+    fireEvent.click(button());
+    const dialog = screen.getByRole("dialog", { name: "Activity" });
+    expect(dialog.closest("[data-tauri-drag-region]")).toBeNull();
   });
 
   it("closes on a pointerdown outside it", () => {

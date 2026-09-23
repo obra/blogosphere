@@ -1,6 +1,7 @@
 // ABOUTME: macOS sync status: a borderless toolbar symbol (seven states, spec §3)
 // ABOUTME: that opens the Activity popover — status, conflicts, Sync Now, the log.
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../icons/Icon";
 import { type Placement, popoverPlacement } from "./popoverPlacement";
 import { useServices } from "./ServicesContext";
@@ -9,28 +10,44 @@ import { useAppStore, useAppStoreApi } from "./state";
 import { type SyncButtonState, syncButtonState } from "./syncButtonState";
 import { useNowMs } from "./useNowMs";
 
-/** Close the popover on a pointerdown anywhere outside `root` (the button and
- *  the popover both live inside it, so pressing the button again doesn't
- *  close-then-reopen). Capture phase: Tauri's drag-region handler stops
- *  mousedown propagation in the toolbar, so bubbling listeners would miss
- *  clicks there. */
-function useDismissOnOutsidePointer(
-  root: React.RefObject<HTMLElement | null>,
+type ElementRef = React.RefObject<HTMLElement | null>;
+
+/** While open: a pointerdown outside both the button and the popover closes
+ *  it (ignoring the button, so pressing it again doesn't close-then-reopen),
+ *  and Escape — wherever focus is — closes it and returns focus to the
+ *  button. Capture phase: Tauri's drag-region handler stops mousedown
+ *  propagation in the toolbar, so bubbling listeners would miss clicks. */
+function useDismissal(
   open: boolean,
+  refs: { button: ElementRef; popover: ElementRef },
   close: () => void,
 ): void {
   useEffect(() => {
     if (!open) {
       return;
     }
+    const inside = (target: EventTarget | null) =>
+      [refs.button.current, refs.popover.current].some(
+        (element) => element?.contains(target as Node) ?? false,
+      );
     const onPointerDown = (event: PointerEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) {
+      if (!inside(event.target)) {
         close();
       }
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        close();
+        refs.button.current?.focus();
+      }
+    };
     document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [root, open, close]);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open, refs, close]);
 }
 
 /** Stable empty list: a fresh `[]` from a zustand selector re-renders forever. */
@@ -84,25 +101,28 @@ function usePlacement(anchor: React.RefObject<HTMLElement | null>): Placement | 
   return placement;
 }
 
+/** Rendered into <body>: inside the toolbar row, Tauri's window-drag region
+ *  would turn clicks on its text and scrollbar into window drags (and
+ *  double-clicks into zoom), and the row's nowrap would stop it wrapping. */
 function ActivityPopover(props: {
   state: SyncButtonState;
   connected: boolean;
-  anchor: React.RefObject<HTMLElement | null>;
+  anchor: ElementRef;
+  popover: React.RefObject<HTMLDivElement | null>;
 }) {
   const store = useAppStoreApi();
   const placement = usePlacement(props.anchor);
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: popover-level Escape shortcut, like SyncLogPanel's dialog.
+  useEffect(() => {
+    props.popover.current?.focus();
+  }, [props.popover]);
+  return createPortal(
     <div
+      ref={props.popover}
       className="activity-popover"
       style={(placement as CSSProperties | null) ?? undefined}
       role="dialog"
       aria-label="Activity"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          store.getState().closeSyncLog();
-        }
-      }}
+      tabIndex={-1}
     >
       <header className="activity-header">
         <p className="activity-headline">{props.state.tooltip}</p>
@@ -118,7 +138,8 @@ function ActivityPopover(props: {
       </header>
       <ConflictList />
       <SyncLogList />
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -130,12 +151,16 @@ function SyncStatusButton() {
   const nowMs = useNowMs();
   const state = syncButtonState(status, connected, nowMs);
   const root = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  const [refs] = useState(() => ({ button, popover }));
   const close = useAppStore((s) => s.closeSyncLog);
-  useDismissOnOutsidePointer(root, open, close);
+  useDismissal(open, refs, close);
 
   return (
     <span className="sync-status" ref={root}>
       <button
+        ref={button}
         type="button"
         className="sync-status-button"
         data-kind={state.kind}
@@ -147,7 +172,9 @@ function SyncStatusButton() {
         <Icon name={state.icon} size={15} />
         {state.badge === null ? null : <span className="sync-status-badge">{state.badge}</span>}
       </button>
-      {open ? <ActivityPopover state={state} connected={connected} anchor={root} /> : null}
+      {open ? (
+        <ActivityPopover state={state} connected={connected} anchor={root} popover={popover} />
+      ) : null}
     </span>
   );
 }
