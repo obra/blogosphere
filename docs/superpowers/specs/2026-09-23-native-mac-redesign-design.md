@@ -509,6 +509,28 @@ token is mapped:
    restyle, formatting bar, blog typography in Write mode.
 5. **Audit pass:** apple-design review of the result; fix findings.
 
+## Changes made while building phase 3
+
+- **Moved to phase 4:** clicking a row's conflict symbol to open the Conflict
+  sheet (rows are rebuilt there; today's conflict pill sits inside the row
+  button) and View › editor modes ⌥⌘1–3 (with the segmented control).
+- **Settings window capability:** besides events, it may set its own size and
+  read its own inner size and scale factor (to fit its content under the
+  title bar), plus the dev-only `mcp-bridge:default`.
+- **Connecting a token** now checks it with GitHub before it's written to the
+  keychain (a bad replacement used to delete the good token), returns once
+  the new services are installed, and runs first downloads one at a time.
+- **Toast routing, beyond §5:** a failed entry reload is never an alert (it
+  runs after every sync round); it goes to the Activity log, and to the list's
+  empty state when there's nothing to show. A failed autosave shows as
+  "Couldn't save · Try Again" in that entry's save status instead of an alert
+  per typing burst. Alerts with the same message are shown once and Try
+  Again runs every waiting retry. A failed deploy stays on the sync button
+  until a new deploy starts or a Sync Now succeeds.
+- **Modality:** while a sheet (or Quick Open, or the Settings modal) is up,
+  menu commands are refused and the Entry menu greys out; a selection change
+  dismisses the Publish sheet.
+
 ## Open risks
 
 - The plugin or macOS changes break glass → the opaque fallback keeps the app
