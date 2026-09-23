@@ -23,7 +23,7 @@ import {
   setSearchQuery,
   setSection,
 } from "./state.entryActions";
-import { toggleSidebar } from "./state.layoutActions";
+import { setColumnWidth, toggleSidebar } from "./state.layoutActions";
 import type { SyncSubscriptionBox } from "./state.miscActions";
 import {
   addToast,
@@ -77,6 +77,8 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     settingsOpen: false,
     syncLogOpen: false,
     sidebarHidden: layout.sidebarHidden,
+    sidebarWidth: layout.sidebarWidth,
+    listWidth: layout.listWidth,
     publishDialogOpen: false,
     quickOpenOpen: false,
     versionsPath: null,
@@ -127,6 +129,7 @@ function bindActions(resources: ActionResources): AppActions {
     closeSyncLog: () => closeSyncLog(ctx.set),
     toggleSyncLog: () => toggleSyncLog(ctx.set),
     toggleSidebar: () => toggleSidebar(ctx),
+    setColumnWidth: (column, width, save) => setColumnWidth(ctx, column, width, save),
     openPublishDialog: () => openPublishDialog(ctx.set),
     closePublishDialog: () => closePublishDialog(ctx.set),
     openQuickOpen: () => openQuickOpen(ctx.set),

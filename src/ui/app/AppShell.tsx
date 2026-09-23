@@ -4,8 +4,10 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
+import { ColumnDivider } from "./ColumnDivider";
 import { ConflictHost } from "./ConflictHost";
 import { ConnectScreen } from "./ConnectScreen";
+import { layoutColumns } from "./columnLayout";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
@@ -23,6 +25,7 @@ import type { BoundAppStore } from "./state";
 import { useAppStore, useAppStoreApi } from "./state";
 import { Toasts } from "./Toasts";
 import { useAppCompactLayout } from "./useCompactLayout";
+import { useWindowWidth } from "./useWindowWidth";
 import { VersionsPanel } from "./VersionsPanel";
 
 interface AppShellProps {
@@ -247,6 +250,26 @@ function useAndroidBack(store: BoundAppStore): void {
   }, [store]);
 }
 
+/** macOS: grid columns from the stored widths, fitted to the window by
+ *  columnLayout, and the divider positions between them. */
+function useMacColumns(mac: boolean, sidebarHidden: boolean) {
+  const windowWidth = useWindowWidth();
+  const sidebarWidth = useAppStore((state) => state.sidebarWidth);
+  const listWidth = useAppStore((state) => state.listWidth);
+  const fitted = layoutColumns({ windowWidth, sidebarWidth, listWidth, sidebarHidden });
+  if (!mac) {
+    return null;
+  }
+  const template = sidebarHidden
+    ? `${fitted.listWidth}px 1fr`
+    : `${fitted.sidebarWidth}px ${fitted.listWidth}px 1fr`;
+  return {
+    template,
+    sidebarEdge: sidebarHidden ? null : fitted.sidebarWidth,
+    listEdge: (sidebarHidden ? 0 : fitted.sidebarWidth) + fitted.listWidth,
+  };
+}
+
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   const compact = useAppCompactLayout();
@@ -254,6 +277,7 @@ function AppShell(props: AppShellProps) {
   const mac = useServices().shell.platform() === "macos";
   // Only macOS lets the person hide the sidebar (⌃⌘S, the toolbar toggle).
   const sidebarHidden = useAppStore((state) => mac && state.sidebarHidden);
+  const columns = useMacColumns(mac, sidebarHidden);
   const menuInstalled = useNativeMenu(store);
   useKeyboardShortcuts(store, menuInstalled);
   useAndroidBack(store);
@@ -271,6 +295,7 @@ function AppShell(props: AppShellProps) {
       data-shell={isTauri() ? "tauri" : "web"}
       data-layout={compact ? "compact" : "wide"}
       data-sidebar={sidebarHidden ? "hidden" : "shown"}
+      style={columns ? { gridTemplateColumns: columns.template } : undefined}
     >
       {/* Overlay-titlebar drag strip: the top 30px moves the window, like any
           native Mac app. Interactive controls all sit below it. */}
@@ -281,6 +306,10 @@ function AppShell(props: AppShellProps) {
         <>
           {sidebarHidden ? null : <Sidebar />}
           <EntryList />
+          {columns && columns.sidebarEdge !== null ? (
+            <ColumnDivider column="sidebar" at={columns.sidebarEdge} />
+          ) : null}
+          {columns ? <ColumnDivider column="list" at={columns.listEdge} /> : null}
           <div className="detail-pane pane">
             <DetailPane onTokenSaved={props.onTokenSaved} />
           </div>

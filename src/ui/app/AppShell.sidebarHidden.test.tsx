@@ -44,3 +44,17 @@ it("keeps the sidebar elsewhere, whatever the flag says", () => {
   act(() => store.getState().toggleSidebar());
   expect(document.querySelector("nav.sidebar")).not.toBeNull();
 });
+
+it("lays out macOS columns from the stored widths, with a divider after each", () => {
+  const store = renderShell("macos");
+  const shell = document.querySelector<HTMLElement>(".app-shell");
+  expect(shell?.style.gridTemplateColumns).toBe("200px 280px 1fr");
+  expect(document.querySelectorAll(".column-divider")).toHaveLength(2);
+
+  act(() => store.getState().setColumnWidth("list", 300, false));
+  expect(shell?.style.gridTemplateColumns).toBe("200px 300px 1fr");
+
+  act(() => store.getState().toggleSidebar());
+  expect(shell?.style.gridTemplateColumns).toBe("300px 1fr");
+  expect(document.querySelectorAll(".column-divider")).toHaveLength(1);
+});

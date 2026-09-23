@@ -136,6 +136,9 @@ interface AppData {
   versionsPath: string | null;
   /** The person hid the sidebar (macOS; ⌃⌘S or the toolbar toggle). */
   sidebarHidden: boolean;
+  /** Column widths the person chose (macOS dividers); layoutColumns fits them. */
+  sidebarWidth: number;
+  listWidth: number;
 }
 
 /** Everything that mutates the store. */
@@ -188,6 +191,8 @@ interface AppActions {
   closeSyncLog(): void;
   toggleSyncLog(): void;
   toggleSidebar(): void;
+  /** Live during a divider drag; `save` persists it (on pointer up). */
+  setColumnWidth(column: "sidebar" | "list", width: number, save: boolean): void;
   openPublishDialog(): void;
   closePublishDialog(): void;
   openQuickOpen(): void;
