@@ -5,31 +5,44 @@ import type { ActionCtx, SetState, Toast } from "./state.types";
 import { routeToast } from "./toastRoute";
 
 /** Native alerts, shown one at a time. A message already showing or
- *  waiting isn't queued twice (a retry loop failing again, say). */
+ *  waiting isn't shown twice, but its retry isn't lost either: two entries
+ *  failing to save with the same words both retry on one Try Again. */
 interface AlertQueue {
-  pending: Set<string>;
+  /** Message → the retries waiting on that alert's answer. */
+  pending: Map<string, Array<() => void>>;
   last: Promise<void>;
 }
 
 function createAlertQueue(): AlertQueue {
-  return { pending: new Set(), last: Promise.resolve() };
+  return { pending: new Map(), last: Promise.resolve() };
 }
 
 function queueAlert(ctx: ActionCtx, queue: AlertQueue, toast: Omit<Toast, "id">): void {
-  if (queue.pending.has(toast.message)) {
+  const retries = toast.retry ? [toast.retry] : [];
+  const waiting = queue.pending.get(toast.message);
+  if (waiting) {
+    waiting.push(...retries);
     return;
   }
-  queue.pending.add(toast.message);
+  queue.pending.set(toast.message, retries);
   const show = async () => {
-    const tryAgain = await ctx.deps.alert(toast.message, { retry: toast.retry !== undefined });
-    queue.pending.delete(toast.message);
+    let tryAgain = false;
+    try {
+      tryAgain = await ctx.deps.alert(toast.message, { retry: retries.length > 0 });
+    } catch {
+      // No native alert (IPC trouble): the toast stack still says it.
+      ctx.set((state) => ({ toasts: [...state.toasts, { id: ctx.deps.createId(), ...toast }] }));
+    } finally {
+      queue.pending.delete(toast.message);
+    }
     if (tryAgain) {
-      toast.retry?.();
+      for (const retry of retries) {
+        retry();
+      }
     }
   };
-  queue.last = queue.last.then(show).catch(() => {
-    queue.pending.delete(toast.message);
-  });
+  // A retry that throws mustn't stall every alert after it.
+  queue.last = queue.last.then(show).catch(() => undefined);
 }
 
 function addToast(ctx: ActionCtx, alerts: AlertQueue, toast: Omit<Toast, "id">): string {

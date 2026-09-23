@@ -38,12 +38,6 @@ function withMessage(tooltip: string, message: string | undefined): string {
  */
 const DEPLOY_FAILED = "Deploy failed — the site still shows the previous version";
 
-/** A failed deploy is an error until a later sync succeeds: Sync Now is the
- *  Error state's remedy, and it clears this even with nothing to push. */
-function deployFailedSinceLastSync(deploy: DeployState | null, status: SyncStatus): boolean {
-  return deploy?.state === "failed" && deploy.at > (status.lastSyncAt ?? 0);
-}
-
 function syncButtonState(
   status: SyncStatus | null,
   connected: boolean,
@@ -87,7 +81,7 @@ function syncButtonState(
       tooltip: status.message ? `Couldn't sync: ${status.message}` : "Couldn't sync",
     };
   }
-  if (deployFailedSinceLastSync(deploy, status)) {
+  if (deploy?.state === "failed") {
     return { kind: "error", icon: "syncError", badge: pending, tooltip: DEPLOY_FAILED };
   }
   if (pending !== null) {

@@ -5,6 +5,7 @@ import type { Services } from "../../core/services";
 import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode, Section } from "../types";
 import { findEntryInCache, replaceEntryInCache, withParsedFields } from "./state.cache";
+import { clearFailedDeploy } from "./state.deployActions";
 import { persistSection, persistSelectedPath } from "./state.lastPositionActions";
 import type { ActionCtx, EditChange } from "./state.types";
 import { editorModeMetaKey } from "./state.types";
@@ -268,6 +269,7 @@ async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
   }
   try {
     await svc.sync.sync();
+    clearFailedDeploy(ctx);
   } catch {
     ctx.get().addToast({ ...SYNC_FAILED, retry: () => saveNow(ctx, pending) });
   }

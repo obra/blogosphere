@@ -76,3 +76,27 @@ it("an older push finishing late never overwrites the newer one", async () => {
   await newer;
   expect(store.getState().deploy).toMatchObject({ sha: "new", state: "live" });
 });
+
+it("clears when watching throws", async () => {
+  const store = storeWith(() => {
+    throw new Error("boom");
+  });
+  await store
+    .getState()
+    .watchDeploy("sha1")
+    .catch(() => undefined);
+  expect(store.getState().deploy).toBeNull();
+});
+
+it("a failed deploy is cleared by a successful Sync Now, not by a pull", async () => {
+  const fake = buildFakeServices();
+  const listWorkflowRunsForSha: GitHubApi["listWorkflowRunsForSha"] = () =>
+    Promise.resolve([run("failure")]);
+  const github = { listWorkflowRunsForSha } as GitHubApi;
+  const store = createAppStore({ ...fake.services, github }, { now: () => clock });
+  await store.getState().watchDeploy("sha1");
+  await fake.services.sync?.pull();
+  expect(store.getState().deploy?.state).toBe("failed");
+  await store.getState().syncNow();
+  expect(store.getState().deploy).toBeNull();
+});

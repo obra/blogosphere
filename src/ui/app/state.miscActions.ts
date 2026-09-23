@@ -8,6 +8,7 @@ import type {
   SyncStatus,
 } from "../../core/sync/types";
 import type { EditorMode } from "../types";
+import { clearFailedDeploy } from "./state.deployActions";
 import { parseCommitTemplates } from "./state.deps";
 import { restoreLastPosition } from "./state.lastPositionActions";
 import { refresh } from "./state.listActions";
@@ -62,8 +63,8 @@ function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | nu
     wasSyncing = status.state === "syncing";
     if (justFinished) {
       // Not awaited: onStatus's callback type is synchronous, and refresh()
-      // already reports its own failures as a toast (see state.entryActions.ts)
-      // rather than rejecting, so there's nothing more to do with the result here.
+      // reports its own failures (see state.listActions.ts) rather than
+      // rejecting, so there's nothing more to do with the result here.
       refresh(ctx);
     }
   });
@@ -160,6 +161,7 @@ async function syncNow(ctx: ActionCtx): Promise<void> {
   // sync() resolves (never throws) for offline; anything else unexpected
   // still lands in syncStatus via onStatus. The catch is belt-and-braces.
   await sync.sync().catch(() => undefined);
+  clearFailedDeploy(ctx);
 }
 
 async function copyText(ctx: ActionCtx, text: string): Promise<void> {

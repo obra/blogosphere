@@ -152,6 +152,16 @@ async function watchDeploy(ctx: ActionCtx, commitSha: string): Promise<void> {
   }
 }
 
+/** A failed deploy stays on the sync button (background pulls don't clear
+ *  it) until a new push starts another deploy, or a sync the person asked
+ *  for succeeds: Sync Now is the Error state's remedy. */
+function clearFailedDeploy(ctx: ActionCtx): void {
+  const { deploy, syncStatus } = ctx.get();
+  if (deploy?.state === "failed" && syncStatus?.state !== "error") {
+    ctx.set({ deploy: null });
+  }
+}
+
 /** Test-only: clear dedupe/auth-warning state and optionally swap the wait
  *  function so the full poll loop runs without real delays. */
 function resetDeployWatchForTests(overrides: { wait?: WaitFn } = {}): void {
@@ -160,4 +170,4 @@ function resetDeployWatchForTests(overrides: { wait?: WaitFn } = {}): void {
   wait = overrides.wait ?? realWait;
 }
 
-export { resetDeployWatchForTests, watchDeploy };
+export { clearFailedDeploy, resetDeployWatchForTests, watchDeploy };

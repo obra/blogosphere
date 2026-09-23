@@ -116,8 +116,8 @@ describe("a failed deploy", () => {
     ).toEqual({ kind: "error", icon: "syncError", badge: 1, tooltip: DeployFailed });
   });
 
-  it("stops showing once a later sync succeeds, even with nothing to push", () => {
-    expect(syncButtonState(status({ lastSyncAt: NOW }), true, NOW, failed).kind).toBe("synced");
+  it("keeps showing after later pulls: only a new deploy or Sync Now clears it", () => {
+    expect(syncButtonState(status({ lastSyncAt: NOW }), true, NOW, failed).kind).toBe("error");
   });
 
   it("ranks below conflicts, offline and syncing", () => {
@@ -127,6 +127,9 @@ describe("a failed deploy", () => {
     );
     expect(syncButtonState(status({ ...early, state: "offline" }), true, NOW, failed).kind).toBe(
       "offline",
+    );
+    expect(syncButtonState(status({ ...early, conflicts: ["a.md"] }), true, NOW, failed).kind).toBe(
+      "conflict",
     );
   });
 
