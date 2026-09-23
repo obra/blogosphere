@@ -16,14 +16,29 @@ const REQUIRED = [
   ["selection color", /--bg-selected:\s*-apple-system-selected-content-background/],
 ];
 const LIGHT_DARK = /light-dark\(/;
-/** Families the bundled @fontsource CSS declares, and the font files each
- *  must have shipped with (Write mode uses them offline). */
+/** The bundled faces: each family's @font-face, and a font file for every
+ *  weight and style Write mode uses (it works offline). */
 const FONTS = [
-  ["Crimson Pro Variable", /^crimson-pro-latin-wght-normal-.*\.woff2$/],
-  ["DM Serif Display", /^dm-serif-display-latin-400-normal-.*\.woff2$/],
-  ["JetBrains Mono", /^jetbrains-mono-latin-400-normal-.*\.woff2$/],
+  ["Crimson Pro Variable", [/^crimson-pro-latin-wght-normal-/, /^crimson-pro-latin-wght-italic-/]],
+  [
+    "DM Serif Display",
+    [
+      /^dm-serif-display-latin-400-normal-.*\.woff2$/,
+      /^dm-serif-display-latin-400-italic-.*\.woff2$/,
+    ],
+  ],
+  [
+    "JetBrains Mono",
+    [/^jetbrains-mono-latin-400-normal-.*\.woff2$/, /^jetbrains-mono-latin-500-normal-.*\.woff2$/],
+  ],
 ];
 
+/** An @font-face rule for `family` (either quote style survives minifying). */
+function declaresFontFace(stylesheet, family) {
+  return [...stylesheet.matchAll(/@font-face\s*\{([^}]*)\}/g)].some((match) =>
+    new RegExp(`font-family:\\s*['"]?${family}['"]?`).test(match[1] ?? ""),
+  );
+}
 const dist = process.argv[2] ?? "dist";
 const assets = join(dist, "assets");
 const files = readdirSync(assets).filter((file) => file.endsWith(".css"));
@@ -38,18 +53,14 @@ if (LIGHT_DARK.test(css)) {
   failures.push("light-dark() present");
 }
 const assetFiles = readdirSync(assets);
-for (const [family, file] of FONTS) {
-  if (
-    !(
-      css.includes(`font-family:${family}`) ||
-      css.includes(`font-family: ${family}`) ||
-      css.includes(`"${family}"`)
-    )
-  ) {
+for (const [family, fontFiles] of FONTS) {
+  if (!declaresFontFace(css, family)) {
     failures.push(`no @font-face for ${family}`);
   }
-  if (!assetFiles.some((name) => file.test(name))) {
-    failures.push(`no bundled font file for ${family}`);
+  for (const file of fontFiles) {
+    if (!assetFiles.some((name) => file.test(name))) {
+      failures.push(`no bundled font file matching ${file}`);
+    }
   }
 }
 
