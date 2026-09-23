@@ -2,6 +2,7 @@
    ABOUTME: the three-pane layout. @imports the per-area partials below;
    ABOUTME: this is the only stylesheet the integration agent needs to load. */
 
+@import "./fonts.css";
 @import "./app-sidebar.css";
 @import "./app-editor.css";
 @import "./app-crepe.css";

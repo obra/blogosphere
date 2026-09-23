@@ -1,0 +1,11 @@
+/* ABOUTME: blog.fsck.com's own typefaces, bundled so Write mode works offline
+   ABOUTME: (macOS uses them for the post; chrome stays system). All SIL OFL-1.1. */
+
+/* Crimson Pro: the variable roman and italic (the package has no Latin-only
+   file; unicode-range means only the subsets a post uses are ever loaded). */
+@import "@fontsource-variable/crimson-pro/wght.css";
+@import "@fontsource-variable/crimson-pro/wght-italic.css";
+@import "@fontsource/dm-serif-display/latin-400.css";
+@import "@fontsource/dm-serif-display/latin-400-italic.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
