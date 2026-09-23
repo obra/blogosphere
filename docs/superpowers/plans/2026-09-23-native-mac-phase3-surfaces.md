@@ -30,6 +30,10 @@
 6. **A sheet is open and the person presses ⌘N, ⌘1–4, ⌘K, or an Entry menu item** → nothing changes underneath the sheet (the Publish sheet must never switch to another entry). Task B1.
 5. **Closing the main window while Settings is open** → the app still quits (Settings closes after the flush). Task D6.
 
+## Execution record
+
+**Part A (menus), 2026-09-23.** Tasks A1–A7 as planned, plus: the Edit/Format/Window/Help builders moved to `menuSubmenus.ts` (menu.ts passed Biome's 300-line limit); `focusEntrySearch` lives in `entrySearchFocus.ts` (EntryList.tsx exports components only). Verified live: menu bar order (File, Entry, Edit, Format, View, Window, Help), Format › Bold reaching the focused Markdown editor, Edit › Find › Search Entries focusing the search field, Entry › Versions… on the selection restored at launch, the Window menu listing open windows. **Not verified live:** the raw ⌘B/⌘I/⌘E keystrokes toggling once (another app held secure keyboard input, which blocks synthetic keys; editors' keymaps kept as they were, since WebKit gives the page the first look at a key equivalent) and right-click menus (background automation can't open context menus); both are on Jesse's manual list. Code review (/par, 4 + 2 findings, all fixed): enabled states built before `init()` restored the selection were never corrected (now each tracker applies once after install, and Publish rechecks "draft" when run); Help and Window roles were set before the menu was installed (now after `setAsAppMenu`); row context menus read the entry from the store instead of a stale search snapshot.
+
 ---
 
 ## Part A — Menus
