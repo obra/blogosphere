@@ -22,11 +22,6 @@ interface SettingsState {
   templates: CommitMessageTemplates;
 }
 
-type SettingsRequest =
-  | { id: string }
-  | { id: string; token: string }
-  | { id: string; templates: CommitMessageTemplates };
-
 interface SettingsReply {
   /** The request this answers. */
   id: string;
@@ -47,7 +42,6 @@ export {
   SETTINGS_EVENTS,
   SETTINGS_WINDOW,
   type SettingsReply,
-  type SettingsRequest,
   type SettingsState,
   type SettingsTransport,
 };
