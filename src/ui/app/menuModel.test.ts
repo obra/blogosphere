@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   composeMenuItems,
-  createEnabledTracker,
+  createItemTracker,
   entryActionItems,
   entryMenuItems,
   entryRowItems,
@@ -252,20 +252,28 @@ describe("runMenuCommand publish", () => {
   });
 });
 
-describe("createEnabledTracker", () => {
+describe("createItemTracker", () => {
   const draft = makeEntry({ path: "content/drafts/d.md", kind: "draft", draft: true });
   const post = makeEntry({ path: "content/blog/2026/p.md", kind: "post" });
 
   it("always applies the first state it sees (the menu may have been built from an older one)", () => {
     const apply = vi.fn();
-    const update = createEnabledTracker(apply);
+    const update = createItemTracker(apply);
     update(entryMenuItems(null, null));
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
+  it("applies again when an item's title changes (View's editor modes follow the entry)", () => {
+    const apply = vi.fn();
+    const update = createItemTracker(apply);
+    update(sectionMenuItems("drafts"));
+    update(sectionMenuItems("links"));
+    expect(apply).toHaveBeenCalledTimes(2);
+  });
+
   it("applies again only when an enabled flag changes", () => {
     const apply = vi.fn();
-    const update = createEnabledTracker(apply);
+    const update = createItemTracker(apply);
     update(entryMenuItems(draft, null));
     update(entryMenuItems({ ...draft, title: "Retitled" }, null));
     expect(apply).toHaveBeenCalledTimes(1);

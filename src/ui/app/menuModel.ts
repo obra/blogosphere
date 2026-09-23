@@ -96,18 +96,19 @@ function sectionMenuItems(section: Section): MenuItemModel[] {
 }
 
 /**
- * Keeps a built menu's enabled states current without an IPC call per store
- * change: `apply` runs for the first models it's given (the menu may have
- * been built from an older state) and afterwards only when a flag changes.
+ * Keeps a built menu's items current without an IPC call per store change:
+ * `apply` runs for the first models it's given (the menu may have been built
+ * from an older state) and afterwards only when a title or enabled flag
+ * changes.
  */
-function createEnabledTracker(
+function createItemTracker(
   apply: (models: readonly MenuItemModel[]) => void,
 ): (models: readonly MenuItemModel[]) => void {
   let last: string | null = null;
   return (models) => {
-    const signature = models
-      .map((model) => (model.kind === "command" && model.enabled ? "1" : "0"))
-      .join("");
+    const signature = JSON.stringify(
+      models.map((model) => (model.kind === "command" ? [model.text, model.enabled] : "-")),
+    );
     if (signature !== last) {
       last = signature;
       apply(models);
@@ -219,7 +220,7 @@ function runMenuCommand(
 
 export {
   composeMenuItems,
-  createEnabledTracker,
+  createItemTracker,
   entryActionItems,
   entryMenuItems,
   entryRowItems,

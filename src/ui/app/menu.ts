@@ -13,10 +13,17 @@ import {
   buildWindowSubmenu,
   separator,
 } from "./menuSubmenus";
-import { type EntryMenu, trackFormatMenu, trackStoreItems, type ViewMenu } from "./menuTracking";
-import { buildNativeItems } from "./nativeMenu";
+import {
+  type EntryMenu,
+  trackFormatMenu,
+  trackStoreItems,
+  trackViewModes,
+  type ViewMenu,
+} from "./menuTracking";
+import { buildNativeItems, type NativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
 import { modalOpen } from "./state.sheetActions";
+import { getViewModes, viewModeItems } from "./viewModes";
 
 async function buildAppSubmenu(store: BoundAppStore): Promise<Submenu> {
   return Submenu.new({
@@ -98,6 +105,15 @@ function buildSidebarItem(store: BoundAppStore): Promise<MenuItem | null> {
   });
 }
 
+/** View › the editor modes, ⌃⌘1–3 — macOS only (on Windows Ctrl+Alt is
+ *  AltGr, which types characters). */
+function buildModeItems(store: BoundAppStore): Promise<NativeItems | null> {
+  if (store.getState().services.shell.platform() !== "macos") {
+    return Promise.resolve(null);
+  }
+  return buildNativeItems(viewModeItems(getViewModes()), (id) => runMenuCommand(id, store));
+}
+
 async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   const sectionItems = await Promise.all(
     SECTIONS.map((section: Section, index) =>
@@ -115,10 +131,13 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   );
   const sidebarItem = await buildSidebarItem(store);
   const sidebarItems = sidebarItem ? [sidebarItem, await separator()] : [];
+  const modes = await buildModeItems(store);
+  const modeItems = modes ? [...modes.items, await separator()] : [];
   const submenu = await Submenu.new({
     text: "View",
     items: [
       ...sidebarItems,
+      ...modeItems,
       await MenuItem.new({
         text: "Quick Open…",
         accelerator: "CmdOrCtrl+K",
@@ -135,7 +154,7 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
       }),
     ],
   });
-  return { submenu, sidebarItem };
+  return { submenu, sidebarItem, modeItems: modes ? modes.byId : null };
 }
 
 /**
@@ -175,9 +194,11 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
 
   const stopFormat = trackFormatMenu(format);
   const stopStore = trackStoreItems(store, entry, view);
+  const stopModes = trackViewModes(view);
   return () => {
     stopStore();
     stopFormat();
+    stopModes();
   };
 }
 

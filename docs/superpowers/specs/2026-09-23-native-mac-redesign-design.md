@@ -531,6 +531,17 @@ token is mapped:
   menu commands are refused and the Entry menu greys out; a selection change
   dismisses the Publish sheet.
 
+## Changes made while building phase 4
+
+- **View › editor modes use ⌃⌘1–3**, not ⌥⌘1–3: Milkdown binds ⌥⌘1–3 to
+  Heading 1–3 in Write mode. macOS only (Ctrl+Alt is AltGr on Windows).
+- **Search field:** WebKit's `type="search"` already draws the clear button and
+  clears on Escape, so the field only adds the magnifier.
+- **Row conflict symbol** sits beside the row button (a button can't nest in
+  one), out of the Tab order; the editor's Resolve… bar is the keyboard path.
+- **Fonts:** the Crimson Pro variable package has no Latin-only file, so its
+  three subsets ship; `unicode-range` loads only what a post uses.
+
 ## Open risks
 
 - The plugin or macOS changes break glass → the opaque fallback keeps the app

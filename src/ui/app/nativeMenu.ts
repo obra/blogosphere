@@ -49,4 +49,21 @@ async function applyEnabled(
   );
 }
 
-export { applyEnabled, buildNativeItems, type NativeItems };
+/** Brings each built item's title up to `models`. Never rejects. */
+async function applyText(
+  byId: Map<MenuCommandId, MenuItem>,
+  models: readonly MenuItemModel[],
+): Promise<void> {
+  await Promise.all(
+    models.map((model) =>
+      model.kind === "command"
+        ? byId
+            .get(model.id)
+            ?.setText(model.text)
+            .catch(() => undefined)
+        : undefined,
+    ),
+  );
+}
+
+export { applyEnabled, applyText, buildNativeItems, type NativeItems };
