@@ -2,6 +2,7 @@
 // ABOUTME: clipboard-manager), the keychain commands, and dev-only logging.
 
 mod keychain;
+mod platform;
 
 /// Runs the Tauri application. This is the process entry point.
 ///
@@ -35,6 +36,7 @@ pub fn run() {
             keychain::keychain_get,
             keychain::keychain_set,
             keychain::keychain_delete,
+            platform::current_platform,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

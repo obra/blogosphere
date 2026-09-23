@@ -1,0 +1,17 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "Blogosphere",
+        "width": 1100,
+        "height": 720,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "minWidth": 760,
+        "minHeight": 500
+      }
+    ]
+  }
+}

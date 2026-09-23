@@ -23,6 +23,7 @@
     "dialog:default",
     "opener:default",
     "keychain-access",
+    "native-ui",
     "mcp-bridge:default"
   ]
 }

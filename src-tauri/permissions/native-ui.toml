@@ -1,0 +1,12 @@
+# ABOUTME: App-level ACL permissions for the native-UI helper commands
+# ABOUTME: (src/platform.rs), granted to the main window via capabilities/default.json.
+
+[[permission]]
+identifier = "allow-current-platform"
+description = "Enables the current_platform command, which reports the OS this build targets."
+commands.allow = ["current_platform"]
+
+[[set]]
+identifier = "native-ui"
+description = "Allows the native-UI helper commands (platform detection)."
+permissions = ["allow-current-platform"]
