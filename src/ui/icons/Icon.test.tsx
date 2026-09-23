@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // ABOUTME: <Icon> — SF Symbol mask on macOS when the OS renders it; Lucide on
 // ABOUTME: other platforms and whenever the symbol isn't available.
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Platform, ShellApi } from "../../shell/types";
@@ -38,7 +38,10 @@ describe("Icon", () => {
     await waitFor(() => {
       const mask = container.querySelector<HTMLElement>(".icon-symbol");
       expect(mask?.style.getPropertyValue("--icon-mask")).toBe(`url("${image.dataUrl}")`);
-      expect(mask?.style.width).toBe("15px");
+      // The box stays size x size (the mask is `contain`), so swapping the
+      // placeholder for the symbol never shifts the toolbar.
+      expect(mask?.style.width).toBe("14px");
+      expect(mask?.style.height).toBe("14px");
     });
     expect(container.querySelector("svg")).toBeNull();
   });
@@ -52,6 +55,32 @@ describe("Icon", () => {
     expect(warn).toHaveBeenCalledWith(
       `SF Symbol unavailable, using fallback icon: ${ICONS.openOnSite.sfSymbol}`,
     );
+  });
+
+  it("re-renders the symbol when the window moves to a display with another scale", async () => {
+    let listener: (() => void) | undefined;
+    vi.stubGlobal("devicePixelRatio", 1);
+    vi.stubGlobal("matchMedia", () => ({
+      matches: true,
+      addEventListener: (_type: string, cb: () => void) => {
+        listener = cb;
+      },
+      removeEventListener: () => undefined,
+    }));
+    const renderSymbol = vi.fn(() =>
+      Promise.resolve({ dataUrl: "data:image/png;base64,QUJD", width: 15, height: 14 }),
+    );
+    renderIcon(<Icon name="versions" />, "macos", renderSymbol);
+    await waitFor(() =>
+      expect(renderSymbol).toHaveBeenCalledWith("clock.arrow.circlepath", 14, "regular", 1),
+    );
+
+    vi.stubGlobal("devicePixelRatio", 2);
+    act(() => listener?.());
+    await waitFor(() =>
+      expect(renderSymbol).toHaveBeenCalledWith("clock.arrow.circlepath", 14, "regular", 2),
+    );
+    vi.unstubAllGlobals();
   });
 
   it("is decorative: hidden from assistive tech", () => {

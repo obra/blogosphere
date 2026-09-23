@@ -30,6 +30,22 @@ function backingScale(): number {
   return Math.max(1, Math.round(globalThis.devicePixelRatio || 1));
 }
 
+/** The backing scale, kept current as the window moves between displays
+ *  (a resolution media query stops matching when the scale changes). */
+function useBackingScale(): number {
+  const [scale, setScale] = useState(backingScale);
+  useEffect(() => {
+    if (typeof globalThis.matchMedia !== "function") {
+      return;
+    }
+    const query = globalThis.matchMedia(`(resolution: ${scale}dppx)`);
+    const onChange = () => setScale(backingScale());
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [scale]);
+  return scale;
+}
+
 interface IconProps {
   name: IconName;
   size?: number;
@@ -43,6 +59,7 @@ function Icon(props: IconProps) {
   const weight = props.weight ?? "regular";
   const apple = shell.platform() === "macos";
   const source = ICONS[props.name];
+  const scale = useBackingScale();
   // undefined = still rendering, null = unavailable (draw the Lucide icon).
   const [symbol, setSymbol] = useState<SymbolImage | null | undefined>(apple ? undefined : null);
 
@@ -52,7 +69,7 @@ function Icon(props: IconProps) {
     }
     let live = true;
     cacheFor(shell)
-      .get(source.sfSymbol, size, weight, backingScale())
+      .get(source.sfSymbol, size, weight, scale)
       .then((image) => {
         if (live) {
           setSymbol(image);
@@ -61,7 +78,7 @@ function Icon(props: IconProps) {
     return () => {
       live = false;
     };
-  }, [apple, shell, source.sfSymbol, size, weight]);
+  }, [apple, shell, source.sfSymbol, size, weight, scale]);
 
   if (symbol === undefined) {
     // Reserve the box while the OS renders, so the toolbar doesn't jump.
@@ -73,10 +90,12 @@ function Icon(props: IconProps) {
     const Lucide = source.lucide;
     return <Lucide size={size} strokeWidth={LUCIDE_STROKE_WIDTH} aria-hidden="true" />;
   }
-  // CSSProperties has no index signature for custom properties.
+  // A fixed size x size box (the mask is `contain`), matching the
+  // placeholder, so the swap never shifts the toolbar. CSSProperties has no
+  // index signature for custom properties.
   const style = {
-    width: symbol.width,
-    height: symbol.height,
+    width: size,
+    height: size,
     "--icon-mask": `url("${symbol.dataUrl}")`,
   } as CSSProperties;
   return <span className="icon-symbol" aria-hidden="true" style={style} />;
