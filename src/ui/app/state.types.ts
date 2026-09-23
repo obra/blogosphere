@@ -107,6 +107,8 @@ interface AppStoreDeps {
   editDebounceMs: number;
   editMaxUncommittedMs: number;
   searchDebounceMs: number;
+  /** Whether the app's window is in front (the deploy HUD only shows then). */
+  windowFocused: () => boolean;
 }
 
 /** Plain data fields — everything a selector can read. */
@@ -125,6 +127,8 @@ interface AppData {
   syncLog: SyncLogEntry[];
   busy: BusyFlags;
   toasts: Toast[];
+  /** macOS: the HUD message showing now (info and success notices). */
+  hud: { id: string; message: string } | null;
 
   editorModes: Record<string, EditorMode>;
   commitTemplates: CommitMessageTemplates;
@@ -188,6 +192,7 @@ interface AppActions {
 
   addToast(toast: Omit<Toast, "id">): string;
   dismissToast(id: string): void;
+  dismissHud(id: string): void;
 
   openNewLinkDialog(): void;
   closeNewLinkDialog(): void;

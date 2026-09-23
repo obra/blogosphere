@@ -11,7 +11,7 @@ import type { EditorMode } from "../types";
 import { parseCommitTemplates } from "./state.deps";
 import { refresh } from "./state.entryActions";
 import { restoreLastPosition } from "./state.lastPositionActions";
-import type { ActionCtx, AppState, SetState, Toast } from "./state.types";
+import type { ActionCtx, AppState } from "./state.types";
 import {
   editorModeMetaKey,
   KEYCHAIN_TOKEN_KEY,
@@ -152,16 +152,6 @@ async function setCommitTemplates(
   await ctx.get().services.store.setMeta(META_COMMIT_TEMPLATES_KEY, JSON.stringify(templates));
 }
 
-function addToast(ctx: ActionCtx, toast: Omit<Toast, "id">): string {
-  const id = ctx.deps.createId();
-  ctx.set((state) => ({ toasts: [...state.toasts, { id, ...toast }] }));
-  return id;
-}
-
-function dismissToast(set: SetState, id: string): void {
-  set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-}
-
 async function syncNow(ctx: ActionCtx): Promise<void> {
   const { sync } = ctx.get().services;
   if (!sync) {
@@ -178,11 +168,9 @@ async function copyText(ctx: ActionCtx, text: string): Promise<void> {
 
 export type { SyncSubscriptionBox };
 export {
-  addToast,
   attachSync,
   copyText,
   createSyncSubscriptionBox,
-  dismissToast,
   init,
   resolveConflict,
   saveToken,

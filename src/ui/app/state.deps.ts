@@ -34,6 +34,7 @@ function buildDeps(overrides: Partial<AppStoreDeps>): AppStoreDeps {
     editDebounceMs: overrides.editDebounceMs ?? DEFAULT_EDIT_DEBOUNCE_MS,
     editMaxUncommittedMs: overrides.editMaxUncommittedMs ?? DEFAULT_EDIT_MAX_UNCOMMITTED_MS,
     searchDebounceMs: overrides.searchDebounceMs ?? DEFAULT_SEARCH_DEBOUNCE_MS,
+    windowFocused: overrides.windowFocused ?? (() => globalThis.document?.hasFocus() ?? true),
   };
 }
 

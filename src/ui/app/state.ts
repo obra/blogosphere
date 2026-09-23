@@ -26,11 +26,9 @@ import {
 import { setColumnWidth, toggleSidebar } from "./state.layoutActions";
 import type { SyncSubscriptionBox } from "./state.miscActions";
 import {
-  addToast,
   attachSync,
   copyText,
   createSyncSubscriptionBox,
-  dismissToast,
   init,
   resolveConflict,
   saveToken,
@@ -39,6 +37,7 @@ import {
   setServices,
   syncNow,
 } from "./state.miscActions";
+import { addToast, dismissHud, dismissToast } from "./state.noticeActions";
 import { renameEntry } from "./state.renameActions";
 import {
   closeConflict,
@@ -75,6 +74,7 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     syncLog: [],
     busy: INITIAL_BUSY,
     toasts: [],
+    hud: null,
     editorModes: {},
     commitTemplates: DEFAULT_COMMIT_TEMPLATES,
     newLinkDialogOpen: false,
@@ -126,6 +126,7 @@ function bindActions(resources: ActionResources): AppActions {
     setCommitTemplates: (templates) => setCommitTemplates(ctx, templates),
     addToast: (toast) => addToast(ctx, toast),
     dismissToast: (id) => dismissToast(ctx.set, id),
+    dismissHud: (id) => dismissHud(ctx.set, id),
     openNewLinkDialog: () => openNewLinkDialog(ctx.get, ctx.set),
     closeNewLinkDialog: () => closeNewLinkDialog(ctx.set),
     openSettings: () => openSettings(ctx.get, ctx.set),

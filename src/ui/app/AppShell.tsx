@@ -11,6 +11,7 @@ import { layoutColumns } from "./columnLayout";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
+import { Hud } from "./Hud";
 import { DetailToolbar } from "./MacToolbar";
 import { MobileShell } from "./MobileShell";
 import { installAppMenu } from "./menu";
@@ -323,6 +324,7 @@ function AppShell(props: AppShellProps) {
       <VersionsPanel />
       <ConflictHost />
       <Toasts />
+      {mac ? <Hud /> : null}
     </div>
   );
 }

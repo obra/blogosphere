@@ -47,3 +47,44 @@ html[data-platform="macos"] .dialog:not(.quick-open) h2 {
     transform: none;
   }
 }
+
+/* ---------- HUD (info and success notices) ---------- */
+
+html[data-platform="macos"] .hud {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  max-width: min(420px, 80vw);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 200;
+  animation: mac-hud-fade var(--hud-duration, 2000ms) ease both;
+}
+
+@keyframes mac-hud-fade {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-platform="macos"] .hud {
+    animation: none;
+  }
+}
