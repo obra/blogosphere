@@ -163,7 +163,8 @@ interface AppActions {
   newLink(input: NewLinkFields): Promise<string | null>;
 
   publishDraft(path: string, opts: PublishOptions): Promise<void>;
-  shareSecretLink(path: string): Promise<void>;
+  /** `announce` for menus, which have no inline "copied" check. */
+  shareSecretLink(path: string, options?: { announce?: boolean }): Promise<void>;
   deleteEntry(path: string): Promise<void>;
   /** Revert an entry's working copy to its last-synced base (confirm-gated).
    *  Cancels any still-debounced keystrokes rather than committing them. */

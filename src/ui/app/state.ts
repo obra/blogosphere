@@ -109,7 +109,7 @@ function bindActions(resources: ActionResources): AppActions {
     newDraft: (input) => newDraft(ctx, input),
     newLink: (input) => newLink(ctx, input),
     publishDraft: (path, opts) => publishDraft(ctx, path, opts),
-    shareSecretLink: (path) => shareSecretLink(ctx, path),
+    shareSecretLink: (path, options) => shareSecretLink(ctx, path, options),
     deleteEntry: (path) => deleteEntry(ctx, path),
     discardChanges: (path) => discardChanges(ctx, path),
     renameEntry: (path, changes) => renameEntry(ctx, path, changes),

@@ -83,7 +83,7 @@ async function buildEntryCommandItems(store: BoundAppStore): Promise<EntryItems>
     share: await MenuItem.new({
       text: "Copy Secret Link",
       enabled: false,
-      action: withSelection((path) => act().shareSecretLink(path)),
+      action: withSelection((path) => act().shareSecretLink(path, { announce: true })),
     }),
     discard: await MenuItem.new({
       text: "Discard Changes…",

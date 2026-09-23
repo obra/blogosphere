@@ -136,12 +136,23 @@ async function ensureOpaqueId(ctx: ActionCtx, record: EntryRecord): Promise<Entr
   return updated;
 }
 
+interface ShareOptions {
+  /** Say so when the copy succeeds. Menus ask for this: unlike the inline
+   *  copy control, they have no "copied" check of their own. */
+  announce?: boolean;
+}
+
 /** Writes the clipboard immediately (that part is local and instant), then
- *  pushes so the URL is actually reachable. The happy path is silent — the
- *  copy control's own inline feedback covers it; a toast would just restate
- *  the click. Only the cases that change what the user should do next speak
- *  up: offline (the link isn't live yet) and a failed push (it won't be). */
-async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void> {
+ *  pushes so the URL is actually reachable. The happy path is silent unless
+ *  `announce` — the copy control's own inline feedback covers it; a toast
+ *  would just restate the click. The cases that change what the user should
+ *  do next always speak up: offline (the link isn't live yet) and a failed
+ *  push (it won't be). */
+async function copySecretLink(
+  ctx: ActionCtx,
+  record: EntryRecord,
+  options: ShareOptions,
+): Promise<void> {
   const svc = ctx.get().services;
   const parsed = svc.model.parseEntry(record.path, record.workingContent);
   const permalink = parsed.ok ? svc.model.permalinkFor(parsed.entry) : null;
@@ -149,7 +160,8 @@ async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void
     ctx.get().addToast({ tone: "error", message: "Couldn't build a secret link for this entry." });
     return;
   }
-  await ctx.deps.writeClipboardText(`${SITE_ORIGIN}${permalink}`);
+  const url = `${SITE_ORIGIN}${permalink}`;
+  await ctx.deps.writeClipboardText(url);
 
   if (!svc.sync || ctx.get().syncStatus?.state === "offline") {
     ctx.get().addToast({
@@ -166,12 +178,20 @@ async function copySecretLink(ctx: ActionCtx, record: EntryRecord): Promise<void
       tone: "error",
       message:
         "Copied the link, but couldn't publish it yet — the recipient will see a 404 until the next successful sync.",
-      retry: () => copySecretLink(ctx, record),
+      retry: () => copySecretLink(ctx, record, options),
     });
+    return;
+  }
+  if (options.announce) {
+    ctx.get().addToast({ tone: "success", message: `Secret link copied: ${url}` });
   }
 }
 
-async function shareSecretLinkInner(ctx: ActionCtx, path: string): Promise<void> {
+async function shareSecretLinkInner(
+  ctx: ActionCtx,
+  path: string,
+  options: ShareOptions,
+): Promise<void> {
   // Force any still-debounced keystroke into the store first — the shared
   // link is only useful once the content it points at is actually current.
   await ctx.flush(path);
@@ -183,19 +203,23 @@ async function shareSecretLinkInner(ctx: ActionCtx, path: string): Promise<void>
   }
   const withId = await ensureOpaqueId(ctx, record);
   if (withId) {
-    await copySecretLink(ctx, withId);
+    await copySecretLink(ctx, withId, options);
   }
 }
 
-async function shareSecretLink(ctx: ActionCtx, path: string): Promise<void> {
+async function shareSecretLink(
+  ctx: ActionCtx,
+  path: string,
+  options: ShareOptions = {},
+): Promise<void> {
   ctx.set((state) => ({ busy: { ...state.busy, sharingLink: true } }));
   try {
-    await shareSecretLinkInner(ctx, path);
+    await shareSecretLinkInner(ctx, path, options);
   } catch {
     ctx.get().addToast({
       tone: "error",
       message: "Couldn't copy the secret link.",
-      retry: () => shareSecretLink(ctx, path),
+      retry: () => shareSecretLink(ctx, path, options),
     });
   } finally {
     ctx.set((state) => ({ busy: { ...state.busy, sharingLink: false } }));

@@ -88,7 +88,7 @@ function runMenuCommand(
       state.openVersions(path);
       return;
     case "copySecretLink":
-      state.shareSecretLink(path);
+      state.shareSecretLink(path, { announce: true });
       return;
     case "discard":
       state.discardChanges(path);
