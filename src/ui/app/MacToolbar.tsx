@@ -113,7 +113,7 @@ function EntryActionsButton(props: { record: EntryRecord; liveUrl: string | null
         popupMenu(
           "entryActions",
           entryActionItems(props.record, props.liveUrl),
-          (id) => runMenuCommand(id, store, props.liveUrl),
+          (id) => runMenuCommand(id, store),
           event.currentTarget,
         )
       }

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import type { EditorMode } from "../types";
 import { makeOnImage, makeResolveImage } from "./editorImageHandlers";
+import { liveUrlFor } from "./liveUrl";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
-import { DEFAULT_EDIT_DEBOUNCE_MS, EMPTY_CONFLICTS, SITE_ORIGIN } from "./state.types";
+import { DEFAULT_EDIT_DEBOUNCE_MS, EMPTY_CONFLICTS } from "./state.types";
 
 interface ParsedView {
   title: string | null;
@@ -30,19 +31,6 @@ function useParsedView(record: EntryRecord): ParsedView | null {
       permalink: services.model.permalinkFor(result.entry),
     };
   }, [record, services]);
-}
-
-/** The full URL where the live site serves this entry, or null when nothing
- *  is (or will be) reachable: drafts without an opaqueId never render in the
- *  production build, and some legacy entries have no derivable permalink. */
-function liveUrlFor(record: EntryRecord, parsed: ParsedView | null): string | null {
-  if (!parsed?.permalink) {
-    return null;
-  }
-  if (record.draft && !record.opaqueId) {
-    return null;
-  }
-  return `${SITE_ORIGIN}${parsed.permalink}`;
 }
 
 function useEditorCommitHandlers(path: string) {

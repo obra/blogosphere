@@ -1,6 +1,7 @@
 // ABOUTME: Pure menu models — the compose menu, the entry "…" menu, and View ›
 // ABOUTME: Hide/Show Sidebar — plus runMenuCommand, which both menu kinds call.
 import type { EntryRecord } from "../../core/store/types";
+import { entryLiveUrl } from "./liveUrl";
 import { openExternal } from "./openExternal";
 import type { BoundAppStore } from "./state";
 
@@ -52,13 +53,21 @@ function sidebarToggleItem(
   };
 }
 
-/** Runs a menu command against the store. Entry commands act on the
- *  selected entry and do nothing without one; Open on Site needs the entry's
- *  live URL, which only the editor computes, so the caller passes it. */
+function openOnSite(store: BoundAppStore, path: string): void {
+  const { entries, services } = store.getState();
+  const record = entries.find((entry) => entry.path === path);
+  const url = record ? entryLiveUrl(services.model, record) : null;
+  if (url !== null) {
+    openExternal(url);
+  }
+}
+
+/** Runs a menu command against the store. Entry commands act on `path` (a
+ *  context menu's row), or on the selected entry, and do nothing without one. */
 function runMenuCommand(
   id: MenuCommandId,
   store: BoundAppStore,
-  liveUrl: string | null = null,
+  path: string | null = store.getState().selectedPath,
 ): void {
   const state = store.getState();
   switch (id) {
@@ -74,15 +83,12 @@ function runMenuCommand(
     default:
       break;
   }
-  const path = state.selectedPath;
   if (path === null) {
     return;
   }
   switch (id) {
     case "openOnSite":
-      if (liveUrl !== null) {
-        openExternal(liveUrl);
-      }
+      openOnSite(store, path);
       return;
     case "versions":
       state.openVersions(path);

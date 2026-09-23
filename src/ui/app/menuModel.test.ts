@@ -1,8 +1,11 @@
+// @vitest-environment jsdom
 // ABOUTME: menuModel — the pure item lists behind the compose menu, the entry
 // ABOUTME: "…" menu, and View › Hide/Show Sidebar, including every enable rule.
-import { describe, expect, it } from "vitest";
-import { composeMenuItems, entryActionItems, sidebarToggleItem } from "./menuModel";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { composeMenuItems, entryActionItems, runMenuCommand, sidebarToggleItem } from "./menuModel";
+import { createAppStore } from "./state";
 import { makeEntry } from "./testing/builders";
+import { buildFakeServices } from "./testing/fakes";
 
 function commands(items: ReturnType<typeof entryActionItems>) {
   return items.flatMap((item) => (item.kind === "command" ? [item] : []));
@@ -77,5 +80,60 @@ describe("sidebarToggleItem", () => {
       accelerator: "Ctrl+Cmd+S",
     });
     expect(sidebarToggleItem(true).text).toBe("Show Sidebar");
+  });
+});
+
+describe("runMenuCommand on a given entry", () => {
+  const first = makeEntry({
+    path: "content/blog/2026/2026-03-04-first.md",
+    kind: "post",
+    date: "2026-03-04",
+  });
+  const second = makeEntry({
+    path: "content/blog/2026/2026-03-05-second.md",
+    kind: "post",
+    date: "2026-03-05",
+  });
+
+  async function storeWithBoth() {
+    const { services } = buildFakeServices({ seedEntries: [first, second] });
+    const store = createAppStore(services, { confirm: () => true });
+    await store.getState().refresh();
+    store.getState().select(first.path);
+    return store;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("deletes the entry it was given, not the selected one", async () => {
+    const store = await storeWithBoth();
+    runMenuCommand("delete", store, second.path);
+    await vi.waitFor(() => {
+      expect(store.getState().entries.map((entry) => entry.path)).toEqual([first.path]);
+    });
+  });
+
+  it("opens the given entry's page on the live site", async () => {
+    const store = await storeWithBoth();
+    const open = vi.spyOn(globalThis.window, "open").mockReturnValue(null);
+    runMenuCommand("openOnSite", store, second.path);
+    expect(open).toHaveBeenCalledWith(
+      "https://blog.fsck.com/2026/03/05/second/",
+      "_blank",
+      "noopener",
+    );
+  });
+
+  it("acts on the selection when no entry is given", async () => {
+    const store = await storeWithBoth();
+    const open = vi.spyOn(globalThis.window, "open").mockReturnValue(null);
+    runMenuCommand("openOnSite", store);
+    expect(open).toHaveBeenCalledWith(
+      "https://blog.fsck.com/2026/03/04/first/",
+      "_blank",
+      "noopener",
+    );
   });
 });
