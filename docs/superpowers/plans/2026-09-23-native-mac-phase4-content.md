@@ -28,6 +28,10 @@
 4. **The search field's (WebKit-drawn) clear button and Escape empty the query in the store**, not just the field's text. Task 5.
 5. **Fonts load offline** (bundled, no network): the release build contains the woff2 files and the CSS check still passes. Task 1.
 
+## Execution record (2026-09-23)
+
+Tasks 1–7 as revised, plus, at Jesse's prompting ("not just Biome's limits but good taste"), splits before adding to crowded files: `EntryRow.tsx` out of EntryList, `EditorBar.tsx` out of EditorScreen, `formatCommands.ts` out of menuModel, `menuState.ts` and `menuTracking.ts` out of menu.ts, `app-macos-writing.css` and `app-macos-controls.css`, and one `createRegistry` shared by the focused editor and the view modes. Found live: the unsaved-changes dot pushed its row's title out of line (now a fixed gutter). Verified live: computed Write-mode faces and sizes; Markdown mode stays system/monospace; View lists Write/Markdown/Live and switches modes; the formatting bar's symbols (webview capture); one clear button in the search field. Not verified live: clicking the search clear button (background clicks don't reach the webview), a real conflict row, dark mode. Scenario cards: `docs/superpowers/e2e/phase4-content.md`.
+
 ---
 
 ### Task 1: Bundle the blog's faces
