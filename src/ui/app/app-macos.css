@@ -111,13 +111,15 @@ html[data-platform="macos"]
   cursor: default;
 }
 
-/* Chrome isn't text: dragging across the sidebar or a toolbar must not
-   select labels, and ⌘A in the list must not highlight the whole window.
-   `.ProseMirror` is Crepe's editable surface, `.cm-content` CodeMirror's. */
-html[data-platform="macos"] body {
+/* Chrome isn't text: dragging across the sidebar, the list, or a toolbar
+   must not select labels. Content elsewhere (versions, sync-log detail,
+   dialogs, the editors) stays selectable. WKWebView ignores the bare
+   user-select property, hence the prefix. */
+html[data-platform="macos"] :is(.sidebar, .entry-list-pane, .editor-toolbar) {
+  -webkit-user-select: none;
   user-select: none;
 }
-html[data-platform="macos"]
-  :is(input, textarea, [contenteditable="true"], .ProseMirror, .cm-content) {
+html[data-platform="macos"] :is(.sidebar, .entry-list-pane, .editor-toolbar) :is(input, textarea) {
+  -webkit-user-select: text;
   user-select: text;
 }

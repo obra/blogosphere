@@ -27,9 +27,11 @@ const LIST_ROWS_NO_RING =
   /:is\(\.sidebar-section-button, \.entry-row\)\s*\{[^}]*--focus-ring-width:\s*0/;
 const SCROLLBAR_RULE = /::-webkit-scrollbar/;
 const CURSOR_DEFAULT = /cursor:\s*default/;
-const CHROME_UNSELECTABLE = /html\[data-platform="macos"\] body\s*\{[^}]*user-select:\s*none/;
-const CONTENT_SELECTABLE =
-  /:is\(input, textarea, \[contenteditable="true"\], \.ProseMirror, \.cm-content\)\s*\{[^}]*user-select:\s*text/;
+const CHROME_UNSELECTABLE =
+  /:is\(\.sidebar, \.entry-list-pane, \.editor-toolbar\)\s*\{[^}]*-webkit-user-select:\s*none;[^}]*\buser-select:\s*none/;
+const FIELDS_SELECTABLE =
+  /:is\(input, textarea\)\s*\{[^}]*-webkit-user-select:\s*text;[^}]*\buser-select:\s*text/;
+const BODY_UNSELECTABLE = /body\s*\{[^}]*user-select/;
 
 const APP_DIR = new URL("./", import.meta.url);
 
@@ -185,9 +187,15 @@ describe("macOS chrome behavior", () => {
     expect(readCss("app-macos.css")).toMatch(CURSOR_DEFAULT);
   });
 
-  it("makes chrome unselectable but keeps content and fields selectable", () => {
+  it("makes chrome unselectable (prefixed: WKWebView ignores the bare property)", () => {
+    expect(readCss("app-macos.css")).toMatch(CHROME_UNSELECTABLE);
+  });
+
+  it("keeps fields inside chrome, and all content, selectable", () => {
     const mac = readCss("app-macos.css");
-    expect(mac).toMatch(CHROME_UNSELECTABLE);
-    expect(mac).toMatch(CONTENT_SELECTABLE);
+    expect(mac).toMatch(FIELDS_SELECTABLE);
+    // Content (versions, sync-log detail, dialogs) must stay copyable, so the
+    // rule may not cover the whole page.
+    expect(mac).not.toMatch(BODY_UNSELECTABLE);
   });
 });
