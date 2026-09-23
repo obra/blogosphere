@@ -2,6 +2,7 @@
 // ABOUTME: synced: a stale GitHub read after our own push must not read as
 // ABOUTME: "your freshly pushed files were deleted remotely".
 import { describe, expect, it } from "vitest";
+import { META_LAST_SYNC_AT } from "./meta";
 import { baseEntry } from "./testing/fixtures";
 import { createHarness } from "./testing/harness";
 import type { SyncLogEntry } from "./types";
@@ -33,6 +34,25 @@ describe("pull vs a stale GitHub head (read-replica lag)", () => {
     const row = await store.getEntry(draft.path);
     expect(row).not.toBeNull();
     expect(row?.deleted).toBe(false);
+  });
+
+  it("records the check time for a stale-head pull (GitHub was reached)", async () => {
+    const harness = await createHarness();
+    const { remote, store, sync, model, clock } = harness;
+    remote.initRepo({ "seed.txt": "seed" });
+    await sync.bootstrap();
+    const prePushHead = await remote.getRef();
+    const draft = model.newEntry({ kind: "draft", title: "My Draft", date: "2026-07-16" });
+    await store.upsertEntry(
+      baseEntry({ path: draft.path, kind: "draft", workingContent: draft.raw, title: "My Draft" }),
+    );
+    await sync.push();
+
+    clock.value += 60_000;
+    remote.serveStaleRefOnce(prePushHead);
+    const result = await sync.pull();
+    expect(result.staleHead).toBe(prePushHead);
+    expect(await store.getMeta(META_LAST_SYNC_AT)).toBe(String(clock.value));
   });
 
   it("logs a warning naming the stale head instead of silently no-opping", async () => {

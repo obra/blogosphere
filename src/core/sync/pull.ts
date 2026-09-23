@@ -229,6 +229,9 @@ async function isStaleHead(deps: SyncDeps, headSha: string): Promise<boolean> {
 export async function runPull(deps: SyncDeps): Promise<PullResult> {
   const headSha = await deps.github.getRef();
   if (await isStaleHead(deps, headSha)) {
+    // GitHub answered, so this still counts as a successful check for the
+    // "Synced · 2m ago" status — only the content is being ignored.
+    await deps.store.setMeta(META_LAST_SYNC_AT, String(deps.now()));
     return { updated: [], merged: [], conflicts: [], staleHead: headSha };
   }
   const commit = await deps.github.getCommit(headSha);
@@ -236,6 +239,7 @@ export async function runPull(deps: SyncDeps): Promise<PullResult> {
 
   if (lastRootTreeSha !== null && commit.treeSha === lastRootTreeSha) {
     await recordRemoteHead(deps.store, headSha);
+    await deps.store.setMeta(META_LAST_SYNC_AT, String(deps.now()));
     return { updated: [], merged: [], conflicts: [] };
   }
 

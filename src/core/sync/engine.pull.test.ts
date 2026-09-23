@@ -2,6 +2,7 @@
 // ABOUTME: elsewhere, non-overlapping automerge, and overlap -> conflict + resolution.
 import { describe, expect, it } from "vitest";
 import type { EntryRecord } from "../store/types";
+import { META_LAST_SYNC_AT } from "./meta";
 import { createHarness, type TestHarness } from "./testing/harness";
 
 async function markDirty(
@@ -51,6 +52,18 @@ describe("pull: clean fast-forward", () => {
 
     const result = await sync.pull();
     expect(result).toEqual({ updated: [], merged: [], conflicts: [] });
+  });
+
+  it("records the check time even when the remote tree hasn't moved", async () => {
+    const harness = await createHarness();
+    const { remote, sync, model, store, clock } = harness;
+    const post = model.newEntry({ kind: "post", title: "Original", date: "2026-01-05" });
+    remote.initRepo({ [post.path]: post.raw });
+    await sync.bootstrap();
+
+    clock.value += 60_000;
+    await sync.pull();
+    expect(await store.getMeta(META_LAST_SYNC_AT)).toBe(String(clock.value));
   });
 
   it("removes a clean entry the remote deleted", async () => {
