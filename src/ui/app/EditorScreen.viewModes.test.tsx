@@ -70,3 +70,50 @@ it("nothing is published once the editor is gone", async () => {
   unmount();
   expect(getViewModes()).toBeNull();
 });
+
+it("Live, then back to Write, and Preview/HTML on a legacy entry", async () => {
+  await show(post.path);
+  await act(async () => {
+    getViewModes()?.choose(2);
+    await Promise.resolve();
+  });
+  expect(document.querySelector(".editor-doc")).toBeNull();
+  await act(async () => {
+    getViewModes()?.choose(0);
+    await Promise.resolve();
+  });
+  expect(document.querySelector(".editor-doc")?.getAttribute("data-editor-mode")).toBe("write");
+});
+
+it("a legacy entry's HTML segment shows its source", async () => {
+  await show(legacy.path);
+  await act(async () => {
+    getViewModes()?.choose(1);
+    await Promise.resolve();
+  });
+  expect(document.querySelector(".editor-doc")?.getAttribute("data-editor-mode")).toBe("html");
+});
+
+it("an entry that can't be read offers no modes", async () => {
+  const broken = {
+    ...post,
+    path: "content/blog/2026/2026-03-06-b.md",
+    workingContent: "no fences",
+  };
+  const rendered = renderWithStore(<EditorScreen />, { seedEntries: [broken] });
+  await act(async () => {
+    await rendered.store.getState().refresh();
+    rendered.store.getState().select(broken.path);
+  });
+  expect(getViewModes()?.segments.every((segment) => !segment.enabled)).toBe(true);
+});
+
+it("typing doesn't republish the modes (the menu stays untouched)", async () => {
+  const { store } = await show(post.path);
+  const published = getViewModes();
+  await act(async () => {
+    store.getState().edit(post.path, { kind: "body", body: "typing" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(getViewModes()).toBe(published);
+});

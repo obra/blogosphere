@@ -3,33 +3,34 @@
 import { useEffect, useRef } from "react";
 import { type ModeSegment, setViewModes } from "./viewModes";
 
-function segmentsFor(
-  isLegacyHtml: boolean,
-  liveAvailable: boolean,
-): [ModeSegment, ModeSegment, ModeSegment] {
+interface ModeState {
+  /** False when the entry couldn't be read: nothing to switch between. */
+  readable: boolean;
+  isLegacyHtml: boolean;
+  liveAvailable: boolean;
+}
+
+function segmentsFor(state: ModeState): [ModeSegment, ModeSegment, ModeSegment] {
   return [
-    { title: isLegacyHtml ? "Preview" : "Write", enabled: true },
-    { title: isLegacyHtml ? "HTML" : "Markdown", enabled: true },
-    { title: "Live", enabled: liveAvailable },
+    { title: state.isLegacyHtml ? "Preview" : "Write", enabled: state.readable },
+    { title: state.isLegacyHtml ? "HTML" : "Markdown", enabled: state.readable },
+    { title: "Live", enabled: state.readable && state.liveAvailable },
   ];
 }
 
 /** Typing re-renders the editor screen constantly; the target is only
  *  replaced (and the menu only touched) when a title or enabled flag moves. */
-function useViewModeTarget(
-  isLegacyHtml: boolean,
-  liveAvailable: boolean,
-  choose: (index: number) => void,
-): void {
+function useViewModeTarget(state: ModeState, choose: (index: number) => void): void {
   const chooseRef = useRef(choose);
   chooseRef.current = choose;
+  const { readable, isLegacyHtml, liveAvailable } = state;
   useEffect(
     () =>
       setViewModes({
-        segments: segmentsFor(isLegacyHtml, liveAvailable),
+        segments: segmentsFor({ readable, isLegacyHtml, liveAvailable }),
         choose: (index) => chooseRef.current(index),
       }),
-    [isLegacyHtml, liveAvailable],
+    [readable, isLegacyHtml, liveAvailable],
   );
 }
 

@@ -79,7 +79,12 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);
-  useViewModeTarget(s.isLegacyHtml, s.liveUrl !== null, (index) => {
+  const modeState = {
+    readable: s.parsed !== null,
+    isLegacyHtml: s.isLegacyHtml,
+    liveAvailable: s.liveUrl !== null,
+  };
+  useViewModeTarget(modeState, (index) => {
     // The third segment is Live in both kinds; the first two are the
     // editor modes, or Preview/HTML for legacy entries.
     setLive(index === 2);
