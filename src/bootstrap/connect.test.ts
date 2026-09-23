@@ -98,4 +98,41 @@ describe("createConnect", () => {
     expect(await fake.shell.keychainGet(KEYCHAIN_TOKEN_KEY)).toBe("demo-token");
     expect(install).not.toHaveBeenCalled();
   });
+
+  it("gives up on a token check after 20s, as offline, saving nothing", async () => {
+    vi.useFakeTimers();
+    const { connect, install, shell } = setup({ getRef: () => new Promise(() => undefined) });
+    const attempt = (token: string) => connect(token).catch((failure: unknown) => failure);
+    const first = attempt("slow-token");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await first).toMatchObject({ kind: "network" });
+    expect(await shell.keychainGet(KEYCHAIN_TOKEN_KEY)).toBeNull();
+    expect(install).not.toHaveBeenCalled();
+    // Not stuck "connecting": the next token gets its own check.
+    const second = attempt("next-token");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await second).toBeInstanceOf(GitHubError);
+    vi.useRealTimers();
+  });
+
+  it("starts a new token's first download only after the last one finished", async () => {
+    const started: string[] = [];
+    let finishFirst: () => void = () => undefined;
+    const { connect } = setup({
+      initialSync: () => {
+        started.push(`sync ${started.length + 1}`);
+        return started.length === 1
+          ? new Promise<void>((resolve) => {
+              finishFirst = resolve;
+            })
+          : Promise.resolve();
+      },
+    });
+    await connect("token-a");
+    await connect("token-b");
+    await Promise.resolve();
+    expect(started).toEqual(["sync 1"]);
+    finishFirst();
+    await vi.waitFor(() => expect(started).toEqual(["sync 1", "sync 2"]));
+  });
 });

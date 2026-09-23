@@ -1,6 +1,6 @@
 // ABOUTME: Saving a GitHub token: GitHub checks it first, so a bad one never
 // ABOUTME: replaces a good one; then it's saved, installed, and the first sync starts.
-import type { GitHubApi } from "../core/github/types";
+import { type GitHubApi, GitHubError } from "../core/github/types";
 import type { Services } from "../core/services";
 import type { SyncApi } from "../core/sync/types";
 import { KEYCHAIN_TOKEN_KEY } from "../ui/app/state.types";
@@ -15,6 +15,23 @@ class ConnectError extends Error {
     this.name = "ConnectError";
     this.kind = kind;
   }
+}
+
+/** How long GitHub gets to answer a token check: inside the Settings
+ *  window's 30s wait, so the main window always answers it first. */
+const TOKEN_CHECK_MS = 20_000;
+
+/** `check`, or a network error once `ms` pass (the request itself isn't
+ *  cancelled; its late answer is ignored). */
+function checkWithin<T>(check: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new GitHubError("network", "GitHub didn't answer the token check in time")),
+      ms,
+    );
+  });
+  return Promise.race([check, timeout]).finally(() => clearTimeout(timer));
 }
 
 interface ConnectDeps {
@@ -37,6 +54,9 @@ interface ConnectDeps {
  */
 function createConnect(deps: ConnectDeps): (token: string) => Promise<void> {
   let inFlight = false;
+  // First downloads run one after another: a token replaced mid-download
+  // must not start a second engine writing the same database.
+  let initialSyncs: Promise<void> = Promise.resolve();
   async function saveToken(services: Services, token: string): Promise<void> {
     try {
       await services.shell.keychainSet(KEYCHAIN_TOKEN_KEY, token);
@@ -51,11 +71,11 @@ function createConnect(deps: ConnectDeps): (token: string) => Promise<void> {
       return;
     }
     const { github, sync } = deps.build(token, services);
-    await github.getRef();
+    await checkWithin(github.getRef(), TOKEN_CHECK_MS);
     await saveToken(services, token);
     const next: Services = { ...services, github, sync };
     deps.install(next);
-    deps.initialSync(next).catch(() => undefined);
+    initialSyncs = initialSyncs.then(() => deps.initialSync(next)).catch(() => undefined);
   }
   return async (token) => {
     if (inFlight) {
