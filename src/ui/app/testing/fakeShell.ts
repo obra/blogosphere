@@ -14,6 +14,7 @@ interface FakeShellState {
 interface FakeShellOptions {
   platform?: Platform;
   clipboardUrl?: string | null;
+  renderSymbol?: ShellApi["renderSymbol"];
 }
 
 interface FakeShell extends ShellApi {
@@ -81,6 +82,10 @@ function createFakeShell(options: FakeShellOptions = {}): FakeShell {
       Promise.resolve(state.assetLocalPathByRepoPath.get(repoPath) ?? null),
     assetDisplayUrl: (localPath) => localPath,
     clipboardReadUrl: () => Promise.resolve(state.clipboardUrl),
+    renderSymbol: (name, pointSize, weight, scale) =>
+      options.renderSymbol
+        ? options.renderSymbol(name, pointSize, weight, scale)
+        : Promise.resolve(null),
     setClipboardUrl: (url) => {
       state.clipboardUrl = url;
     },

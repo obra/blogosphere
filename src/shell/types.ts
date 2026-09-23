@@ -3,6 +3,15 @@
 
 export type Platform = "macos" | "ios" | "android" | "web";
 
+export type SymbolWeight = "regular" | "medium" | "semibold";
+
+/** An OS-rendered SF Symbol: a PNG data URL plus its size in points. */
+export interface SymbolImage {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
 /** A share-sheet payload captured by the OS extension / intent. */
 export interface SharePayload {
   id: string;
@@ -36,4 +45,13 @@ export interface ShellApi {
 
   /** Best-effort clipboard URL read (for the desktop "+ Link" prefill). */
   clipboardReadUrl(): Promise<string | null>;
+
+  /** An SF Symbol rendered by the OS (Apple platforms only). Resolves null
+   *  when unavailable — callers fall back to their own icon. Never rejects. */
+  renderSymbol(
+    name: string,
+    pointSize: number,
+    weight: SymbolWeight,
+    scale: number,
+  ): Promise<SymbolImage | null>;
 }

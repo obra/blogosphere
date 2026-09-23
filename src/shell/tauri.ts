@@ -61,6 +61,24 @@ export function createTauriShell(platform: Platform): ShellApi {
       return convertFileSrc(localPath);
     },
 
+    async renderSymbol(name, pointSize, weight, scale) {
+      try {
+        const out = await invoke<{ pngBase64: string; width: number; height: number }>(
+          "render_symbol",
+          { name, pointSize, weight, scale },
+        );
+        return {
+          dataUrl: `data:image/png;base64,${out.pngBase64}`,
+          width: out.width,
+          height: out.height,
+        };
+      } catch {
+        // Unknown symbol, older macOS, or not an Apple platform: the caller
+        // draws its fallback icon instead.
+        return null;
+      }
+    },
+
     async clipboardReadUrl() {
       try {
         return extractClipboardUrl(await readText());

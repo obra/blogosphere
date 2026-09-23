@@ -56,6 +56,7 @@ export interface FakeShellOptions {
   platform?: Platform;
   shareInbox?: SharePayload[];
   clipboardText?: string;
+  renderSymbol?: ShellApi["renderSymbol"];
 }
 
 /** In-memory ShellApi: no filesystem, no OS keychain, no Tauri runtime required. */
@@ -67,6 +68,12 @@ export function createFakeShell(options: FakeShellOptions = {}): FakeShell {
   let clipboardText = options.clipboardText ?? "";
 
   return {
+    renderSymbol(name, pointSize, weight, scale) {
+      return options.renderSymbol
+        ? options.renderSymbol(name, pointSize, weight, scale)
+        : Promise.resolve(null);
+    },
+
     platform(): Platform {
       return options.platform ?? "web";
     },
