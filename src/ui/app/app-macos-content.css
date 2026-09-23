@@ -111,3 +111,42 @@ html[data-platform="macos"] .entry-list-scroll:focus-within
   .entry-row-conflict {
   color: #ffffff;
 }
+
+/* ---------- Segmented control (editor modes) ---------- */
+
+/* NSSegmentedControl: one rounded track, the selected segment raised. */
+html[data-platform="macos"] .mode-toggle {
+  gap: 0;
+  height: 24px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--bg-hover);
+}
+html[data-platform="macos"] .mode-toggle button {
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 20px;
+  cursor: default;
+  transition: none;
+}
+html[data-platform="macos"] .mode-toggle button[aria-pressed="true"] {
+  background: var(--bg);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.14),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  font-weight: 500;
+}
+html[data-platform="macos"] .mode-toggle button:disabled {
+  color: var(--text-faint);
+}
+/* In dark mode the text background is near-black, darker than the track:
+   the raised segment gets a lighter fill instead so it never looks sunken. */
+@media (prefers-color-scheme: dark) {
+  html[data-platform="macos"] .mode-toggle button[aria-pressed="true"] {
+    background: color-mix(in srgb, -apple-system-label 22%, transparent);
+  }
+}
