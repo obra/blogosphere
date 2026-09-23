@@ -134,6 +134,8 @@ interface AppData {
   quickOpenOpen: boolean;
   /** Path whose git history the Versions panel is showing, or null (closed). */
   versionsPath: string | null;
+  /** macOS: the conflicted path whose Conflict sheet is open, or null. */
+  conflictSheetPath: string | null;
   /** The person hid the sidebar (macOS; ⌃⌘S or the toolbar toggle). */
   sidebarHidden: boolean;
   /** Column widths the person chose (macOS dividers); layoutColumns fits them. */
@@ -200,6 +202,8 @@ interface AppActions {
   closeQuickOpen(): void;
   openVersions(path: string): void;
   closeVersions(): void;
+  openConflict(path: string): void;
+  closeConflict(): void;
 
   /** Replace an entry's working copy with `raw` (a past version from git
    *  history), marked dirty — the Versions panel's "Restore". */

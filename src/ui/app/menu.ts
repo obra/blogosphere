@@ -28,6 +28,7 @@ import {
 } from "./menuSubmenus";
 import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
+import { anySheetOpen } from "./state.sheetActions";
 import type { AppState } from "./state.types";
 
 interface EntryMenuState {
@@ -147,7 +148,12 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
       MenuItem.new({
         text: SECTION_LABELS[section],
         accelerator: `CmdOrCtrl+${index + 1}`,
-        action: () => store.getState().setSection(section),
+        // Switching sections under an open sheet would change what it's for.
+        action: () => {
+          if (!anySheetOpen(store.getState())) {
+            store.getState().setSection(section);
+          }
+        },
       }),
     ),
   );

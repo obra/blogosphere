@@ -95,6 +95,7 @@ async function resolveConflict(
   }
   try {
     await svc.sync.resolveConflict(path, resolution);
+    ctx.set((state) => (state.conflictSheetPath === path ? { conflictSheetPath: null } : {}));
     await refresh(ctx);
   } catch {
     ctx.get().addToast({
@@ -146,14 +147,6 @@ function dismissToast(set: SetState, id: string): void {
   set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
 }
 
-function openNewLinkDialog(set: SetState): void {
-  set({ newLinkDialogOpen: true });
-}
-
-function closeNewLinkDialog(set: SetState): void {
-  set({ newLinkDialogOpen: false });
-}
-
 async function syncNow(ctx: ActionCtx): Promise<void> {
   const { sync } = ctx.get().services;
   if (!sync) {
@@ -188,50 +181,18 @@ function closeSyncLog(set: SetState): void {
   set({ syncLogOpen: false });
 }
 
-function openPublishDialog(set: SetState): void {
-  set({ publishDialogOpen: true });
-}
-
-function closePublishDialog(set: SetState): void {
-  set({ publishDialogOpen: false });
-}
-
-function openQuickOpen(set: SetState): void {
-  set({ quickOpenOpen: true });
-}
-
-function closeQuickOpen(set: SetState): void {
-  set({ quickOpenOpen: false });
-}
-
-function openVersions(set: SetState, path: string): void {
-  set({ versionsPath: path });
-}
-
-function closeVersions(set: SetState): void {
-  set({ versionsPath: null });
-}
-
 export type { SyncSubscriptionBox };
 export {
   addToast,
   attachSync,
-  closeNewLinkDialog,
-  closePublishDialog,
-  closeQuickOpen,
   closeSettings,
   closeSyncLog,
-  closeVersions,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
-  openNewLinkDialog,
-  openPublishDialog,
-  openQuickOpen,
   openSettings,
   openSyncLog,
-  openVersions,
   resolveConflict,
   saveToken,
   setCommitTemplates,

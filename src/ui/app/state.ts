@@ -28,22 +28,14 @@ import type { SyncSubscriptionBox } from "./state.miscActions";
 import {
   addToast,
   attachSync,
-  closeNewLinkDialog,
-  closePublishDialog,
-  closeQuickOpen,
   closeSettings,
   closeSyncLog,
-  closeVersions,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
-  openNewLinkDialog,
-  openPublishDialog,
-  openQuickOpen,
   openSettings,
   openSyncLog,
-  openVersions,
   resolveConflict,
   saveToken,
   setCommitTemplates,
@@ -53,6 +45,18 @@ import {
   toggleSyncLog,
 } from "./state.miscActions";
 import { renameEntry } from "./state.renameActions";
+import {
+  closeConflict,
+  closeNewLinkDialog,
+  closePublishDialog,
+  closeQuickOpen,
+  closeVersions,
+  openConflict,
+  openNewLinkDialog,
+  openPublishDialog,
+  openQuickOpen,
+  openVersions,
+} from "./state.sheetActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
 import { DEFAULT_COMMIT_TEMPLATES, INITIAL_BUSY, INITIAL_SECTION } from "./state.types";
 import { restoreVersion } from "./state.versionsActions";
@@ -82,6 +86,7 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     publishDialogOpen: false,
     quickOpenOpen: false,
     versionsPath: null,
+    conflictSheetPath: null,
   };
 }
 
@@ -121,7 +126,7 @@ function bindActions(resources: ActionResources): AppActions {
     setCommitTemplates: (templates) => setCommitTemplates(ctx, templates),
     addToast: (toast) => addToast(ctx, toast),
     dismissToast: (id) => dismissToast(ctx.set, id),
-    openNewLinkDialog: () => openNewLinkDialog(ctx.set),
+    openNewLinkDialog: () => openNewLinkDialog(ctx.get, ctx.set),
     closeNewLinkDialog: () => closeNewLinkDialog(ctx.set),
     openSettings: () => openSettings(ctx.set),
     closeSettings: () => closeSettings(ctx.set),
@@ -130,12 +135,14 @@ function bindActions(resources: ActionResources): AppActions {
     toggleSyncLog: () => toggleSyncLog(ctx.set),
     toggleSidebar: () => toggleSidebar(ctx),
     setColumnWidth: (column, width, save) => setColumnWidth(ctx, column, width, save),
-    openPublishDialog: () => openPublishDialog(ctx.set),
+    openPublishDialog: () => openPublishDialog(ctx.get, ctx.set),
     closePublishDialog: () => closePublishDialog(ctx.set),
-    openQuickOpen: () => openQuickOpen(ctx.set),
+    openQuickOpen: () => openQuickOpen(ctx.get, ctx.set),
     closeQuickOpen: () => closeQuickOpen(ctx.set),
-    openVersions: (path) => openVersions(ctx.set, path),
+    openVersions: (path) => openVersions(ctx.get, ctx.set, path),
     closeVersions: () => closeVersions(ctx.set),
+    openConflict: (path) => openConflict(ctx.get, ctx.set, path),
+    closeConflict: () => closeConflict(ctx.set),
     restoreVersion: (path, raw) => restoreVersion(ctx, path, raw),
     watchDeploy: (commitSha) => watchDeploy(ctx, commitSha),
   };

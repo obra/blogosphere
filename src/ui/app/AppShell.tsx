@@ -14,6 +14,7 @@ import { debounce } from "./format";
 import { DetailToolbar } from "./MacToolbar";
 import { MobileShell } from "./MobileShell";
 import { installAppMenu } from "./menu";
+import { runMenuCommand } from "./menuModel";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { QuickOpenPalette } from "./QuickOpenPalette";
 import { handleCloseRequested, useFlushOnHide } from "./quitFlush";
@@ -67,7 +68,7 @@ function handleShortcut(store: BoundAppStore, event: KeyboardEvent): void {
     store.getState().saveNow();
   } else if (isNewPostShortcut(event)) {
     event.preventDefault();
-    store.getState().newDraft({ title: "" });
+    runMenuCommand("newPost", store);
   } else if (isNewLinkShortcut(event)) {
     event.preventDefault();
     store.getState().openNewLinkDialog();
