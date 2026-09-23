@@ -66,3 +66,22 @@ it("focuses a section when it's clicked, so the sidebar shows the focused select
   expect(document.activeElement).toBe(posts);
   expect(store.getState().section).toBe("posts");
 });
+
+it("on macOS is just the sections, each with an icon (compose and ⌘, replace the rest)", () => {
+  renderWithStore(<Sidebar />, { seedEntries: [], shellOptions: { platform: "macos" } });
+  expect(document.querySelector(".sidebar-brand")).toBeNull();
+  expect(screen.queryByText("New Post")).toBeNull();
+  expect(screen.queryByText("New Link")).toBeNull();
+  expect(document.querySelector(".sidebar-footer")).toBeNull();
+  expect(document.querySelectorAll(".sidebar-section-button .sidebar-section-icon")).toHaveLength(
+    4,
+  );
+});
+
+it("keeps its brand, New buttons, and footer elsewhere", () => {
+  renderWithStore(<Sidebar />, { seedEntries: [] });
+  expect(document.querySelector(".sidebar-brand")).not.toBeNull();
+  expect(screen.getByText("New Post")).not.toBeNull();
+  expect(document.querySelector(".sidebar-footer")).not.toBeNull();
+  expect(document.querySelectorAll(".sidebar-section-icon")).toHaveLength(0);
+});

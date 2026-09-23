@@ -1,5 +1,7 @@
 // ABOUTME: Sidebar — section list with counts, the New Post / New Link buttons,
 // ABOUTME: and the footer utility row: sync-now button + settings gear.
+
+import { Icon } from "../icons/Icon";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { relativeTimeLabel } from "./format";
@@ -93,6 +95,8 @@ interface SidebarSectionButtonProps {
   section: Section;
   count: number;
   active: boolean;
+  /** macOS shows an SF Symbol before each section's name. */
+  withIcon: boolean;
 }
 
 function SidebarSectionButton(props: SidebarSectionButtonProps) {
@@ -109,7 +113,12 @@ function SidebarSectionButton(props: SidebarSectionButtonProps) {
           store.getState().setSection(props.section);
         }}
       >
-        <span>{SECTION_LABELS[props.section]}</span>
+        {props.withIcon ? (
+          <span className="sidebar-section-icon">
+            <Icon name={props.section} size={14} />
+          </span>
+        ) : null}
+        <span className="sidebar-section-label">{SECTION_LABELS[props.section]}</span>
         <span className="sidebar-section-count">{props.count}</span>
       </button>
     </li>
@@ -139,16 +148,11 @@ function NewEntryButtons() {
 }
 
 /** The sync pill + activity/settings icons — the sidebar's footer on desktop,
- *  the header's right side on the phone shell (MobileShell). On macOS only
- *  the gear remains; sync status is in the toolbar row. */
+ *  the header's right side on the phone shell (MobileShell). Not used on
+ *  macOS, where sync status is in the toolbar row and Settings is ⌘,. */
 function SidebarFooterWidgets() {
   // macOS: the sync status symbol opens the Activity popover, so it replaces
   // both the pill and the separate activity-log button.
-  const mac = useServices().shell.platform() === "macos";
-  if (mac) {
-    // The sync status symbol lives in the toolbar row on macOS.
-    return <SettingsButton />;
-  }
   return (
     <>
       <SyncButton />
@@ -166,17 +170,27 @@ function Sidebar() {
 
   return (
     <nav className="sidebar pane" aria-label="Sections">
-      {mac ? <SidebarTopBar /> : null}
-      <div className="sidebar-brand">Blogosphere</div>
-      <NewEntryButtons />
+      {/* macOS: the menu bar names the app, compose makes new entries, the
+          toolbar row shows sync, and Settings is ⌘, — so the sidebar is
+          just the sections. */}
+      {mac ? <SidebarTopBar /> : <div className="sidebar-brand">Blogosphere</div>}
+      {mac ? null : <NewEntryButtons />}
       <ul className="sidebar-sections">
         {SECTIONS.map((s) => (
-          <SidebarSectionButton key={s} section={s} count={counts[s]} active={s === section} />
+          <SidebarSectionButton
+            key={s}
+            section={s}
+            count={counts[s]}
+            active={s === section}
+            withIcon={mac}
+          />
         ))}
       </ul>
-      <div className="sidebar-footer">
-        <SidebarFooterWidgets />
-      </div>
+      {mac ? null : (
+        <div className="sidebar-footer">
+          <SidebarFooterWidgets />
+        </div>
+      )}
     </nav>
   );
 }

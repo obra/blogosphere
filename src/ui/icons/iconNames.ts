@@ -8,9 +8,13 @@ import {
   CloudOff,
   Ellipsis,
   ExternalLink,
+  FileText,
   History,
+  Link,
   type LucideIcon,
+  Package,
   PanelLeft,
+  PenLine,
   RefreshCw,
   SquarePen,
   TriangleAlert,
@@ -36,6 +40,10 @@ const ICONS = {
   composeMenu: { sfSymbol: "chevron.down", lucide: ChevronDown },
   sidebarToggle: { sfSymbol: "sidebar.left", lucide: PanelLeft },
   more: { sfSymbol: "ellipsis.circle", lucide: Ellipsis },
+  drafts: { sfSymbol: "pencil", lucide: PenLine },
+  posts: { sfSymbol: "doc.text", lucide: FileText },
+  links: { sfSymbol: "link", lucide: Link },
+  releases: { sfSymbol: "shippingbox", lucide: Package },
 } satisfies Record<string, IconSource>;
 
 type IconName = keyof typeof ICONS;

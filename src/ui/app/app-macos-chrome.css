@@ -219,3 +219,26 @@ html[data-platform="macos"] .detail-toolbar .btn {
   flex: none;
   height: 28px;
 }
+
+/* ---------- Sidebar ---------- */
+
+html[data-platform="macos"] .sidebar-section-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+html[data-platform="macos"] .sidebar-section-label {
+  flex: 1;
+  text-align: left;
+}
+/* sidebars.md: "By default, sidebar icons use your app's accent color." */
+html[data-platform="macos"] .sidebar-section-icon {
+  display: inline-flex;
+  color: var(--accent);
+}
+html[data-platform="macos"]
+  .sidebar-sections:focus-within
+  .sidebar-section-button[aria-current="true"]
+  .sidebar-section-icon {
+  color: #ffffff;
+}
