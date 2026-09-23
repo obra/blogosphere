@@ -22,8 +22,12 @@ dev_identifier="com.fsck.blogosphere.dev"
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 if identity="$("$script_dir/signing-identity.sh")"; then
-  if ! codesign --force --sign "$identity" --identifier "$dev_identifier" "$binary" 2>/tmp/blogosphere-codesign.log; then
-    echo "warning: codesign failed (see /tmp/blogosphere-codesign.log); running unsigned" >&2
+  # A private temp file, not a fixed /tmp path another user could pre-create.
+  log="$(mktemp "${TMPDIR:-/tmp}/blogosphere-codesign.XXXXXX")"
+  if codesign --force --sign "$identity" --identifier "$dev_identifier" "$binary" 2>"$log"; then
+    rm -f "$log"
+  else
+    echo "warning: codesign failed (see $log); running unsigned" >&2
   fi
 else
   echo "warning: no signing identity; running unsigned (keychain will re-prompt)" >&2

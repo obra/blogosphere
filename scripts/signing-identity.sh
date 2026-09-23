@@ -15,7 +15,8 @@ change on every rebuild, so each new build prompts for your password again.
 Signing every build with the same certificate means you approve once.
 
 Order: $APPLE_SIGNING_IDENTITY if set (the same variable the Tauri CLI
-reads), else the first "Apple Development" identity in your keychain.
+reads), else the SHA-1 of the first "Apple Development" identity in your
+keychain (a hash, because a renewal briefly leaves two certs with one name).
 EOF
   exit 0
 fi
@@ -25,8 +26,10 @@ if [[ -n "${APPLE_SIGNING_IDENTITY:-}" ]]; then
   exit 0
 fi
 
+# The certificate's SHA-1, not its name: during a renewal two valid certs
+# share the name, and codesign rejects an ambiguous name outright.
 identity="$(security find-identity -v -p codesigning 2>/dev/null |
-  sed -n 's/.*"\(Apple Development: [^"]*\)".*/\1/p' | head -n 1)"
+  sed -n 's/^ *[0-9][0-9]*) \([0-9A-F]\{40\}\) "Apple Development: .*/\1/p' | head -n 1)"
 if [[ -z "$identity" ]]; then
   exit 1
 fi
