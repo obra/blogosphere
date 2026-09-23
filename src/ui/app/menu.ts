@@ -7,13 +7,13 @@ import type { EntryRecord } from "../../core/store/types";
 import { getActiveEditor, subscribeActiveEditor } from "../editor/activeEditor";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
+import { formatMenuItems } from "./formatCommands";
 import { SECTION_LABELS } from "./grouping";
 import { entryLiveUrl } from "./liveUrl";
 import {
   createEnabledTracker,
   entryMenuItems,
   FILE_MENU_COMMANDS,
-  formatMenuItems,
   type MenuItemModel,
   runMenuCommand,
   sidebarToggleItem,

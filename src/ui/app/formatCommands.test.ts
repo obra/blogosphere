@@ -1,9 +1,10 @@
-// ABOUTME: The Format menu: its items and shortcuts, enabled only while a body
+// ABOUTME: The Format menu (formatCommands.ts): items and shortcuts, enabled only while a body
 // ABOUTME: editor has focus, and each command reaching that editor's handle.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setActiveEditor } from "../editor/activeEditor";
 import type { EditorHandle } from "../editor/markdown-utils";
-import { formatMenuItems, runMenuCommand } from "./menuModel";
+import { formatMenuItems } from "./formatCommands";
+import { runMenuCommand } from "./menuModel";
 import { createAppStore } from "./state";
 import { buildFakeServices } from "./testing/fakes";
 

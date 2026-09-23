@@ -3,7 +3,8 @@
 import { MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import { getActiveEditor } from "../editor/activeEditor";
 import { focusEntrySearch } from "./entrySearchFocus";
-import { formatMenuItems, runMenuCommand } from "./menuModel";
+import { formatMenuItems } from "./formatCommands";
+import { runMenuCommand } from "./menuModel";
 import { buildNativeItems, type NativeItems } from "./nativeMenu";
 import { openExternal } from "./openExternal";
 import type { BoundAppStore } from "./state";
