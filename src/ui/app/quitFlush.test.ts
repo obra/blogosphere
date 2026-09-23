@@ -38,3 +38,34 @@ it("still force-closes when nothing was pending", async () => {
   expect(preventDefault).toHaveBeenCalledTimes(1);
   expect(destroy).toHaveBeenCalledTimes(1);
 });
+
+it("closes the Settings window too, after the flush and before the main window", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+  const order: string[] = [];
+  const settings = {
+    destroy: vi.fn(() => Promise.resolve(order.push("settings")).then(() => undefined)),
+  };
+  const main = { destroy: vi.fn(() => Promise.resolve(order.push("main")).then(() => undefined)) };
+
+  await handleCloseRequested(store, { preventDefault: vi.fn() }, main, () =>
+    Promise.resolve(settings),
+  );
+
+  expect(order).toEqual(["settings", "main"]);
+});
+
+it("still closes the main window when Settings isn't open, or won't close", async () => {
+  const { services } = buildFakeServices();
+  const store = createAppStore(services);
+  const main = { destroy: vi.fn().mockResolvedValue(undefined) };
+  await handleCloseRequested(store, { preventDefault: vi.fn() }, main, () => Promise.resolve(null));
+  const stuck = { destroy: vi.fn().mockRejectedValue(new Error("gone")) };
+  await handleCloseRequested(store, { preventDefault: vi.fn() }, main, () =>
+    Promise.resolve(stuck),
+  );
+  await handleCloseRequested(store, { preventDefault: vi.fn() }, main, () =>
+    Promise.reject(new Error("no IPC")),
+  );
+  expect(main.destroy).toHaveBeenCalledTimes(3);
+});

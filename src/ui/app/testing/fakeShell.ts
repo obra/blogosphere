@@ -9,6 +9,7 @@ interface FakeShellState {
   assetBytes: Map<string, Uint8Array>;
   assetLocalPathByRepoPath: Map<string, string>;
   clipboardUrl: string | null;
+  settingsWindowOpens: number;
 }
 
 interface FakeShellOptions {
@@ -22,6 +23,8 @@ interface FakeShellOptions {
 interface FakeShell extends ShellApi {
   /** Test-only: seed the clipboard for the "+ Link" prefill flow. */
   setClipboardUrl(url: string | null): void;
+  /** Test-only: how many times the Settings window was asked for. */
+  settingsWindowOpens(): number;
   /** Test-only: enqueue a share-sheet payload as if the OS extension wrote it. */
   addShareInboxItem(payload: SharePayload): void;
 }
@@ -64,6 +67,7 @@ function createState(options: FakeShellOptions): FakeShellState {
     assetBytes: new Map(),
     assetLocalPathByRepoPath: new Map(),
     clipboardUrl: options.clipboardUrl ?? null,
+    settingsWindowOpens: 0,
   };
 }
 
@@ -85,6 +89,11 @@ function createFakeShell(options: FakeShellOptions = {}): FakeShell {
     assetDisplayUrl: (localPath) => localPath,
     clipboardReadUrl: () => Promise.resolve(state.clipboardUrl),
     pickImage: () => Promise.resolve(options.pickedImage ?? null),
+    openSettingsWindow: () => {
+      state.settingsWindowOpens += 1;
+      return Promise.resolve();
+    },
+    settingsWindowOpens: () => state.settingsWindowOpens,
     renderSymbol: (name, pointSize, weight, scale) =>
       options.renderSymbol
         ? options.renderSymbol(name, pointSize, weight, scale)

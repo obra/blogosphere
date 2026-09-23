@@ -129,10 +129,10 @@ describe("SyncStatusButton", () => {
   });
 
   it("offers Connect… when not connected", () => {
-    const { store } = renderWithStore(<SyncStatusButton />, { ...MAC, withSync: false });
+    const { store, shell } = renderWithStore(<SyncStatusButton />, { ...MAC, withSync: false });
     act(() => store.getState().toggleSyncLog());
     fireEvent.click(screen.getByRole("button", { name: "Connect…" }));
-    expect(store.getState().settingsOpen).toBe(true);
+    expect(shell.settingsWindowOpens()).toBe(1);
   });
 });
 

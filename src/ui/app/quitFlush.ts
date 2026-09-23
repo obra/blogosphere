@@ -28,9 +28,16 @@ export async function handleCloseRequested(
   store: BoundAppStore,
   event: CloseRequestedLike,
   win: CloseGuardedWindow,
+  findSettingsWindow: () => Promise<CloseGuardedWindow | null> = () => Promise.resolve(null),
 ): Promise<void> {
   event.preventDefault();
   await store.getState().flushEdit();
+  // Tauri keeps running while any window is open: an open Settings window
+  // (macOS) would stop closing the main window from quitting. Nothing in it
+  // needs saving; a failure here must not stop the main window closing.
+  await findSettingsWindow()
+    .then((settings) => settings?.destroy())
+    .catch(() => undefined);
   // destroy() (not close()) so this doesn't re-emit closeRequested and
   // recurse back into this same handler.
   await win.destroy();

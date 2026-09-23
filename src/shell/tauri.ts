@@ -7,7 +7,7 @@ import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { extractClipboardUrl } from "./clipboardUrl";
-import type { PickedFile, Platform, ShellApi } from "./types";
+import type { PickedFile, Platform, ShellApi, SymbolImage, SymbolWeight } from "./types";
 
 /** Absolute path for a cached asset, mirroring the repo layout under assets/. */
 async function assetAbsolutePath(repoPath: string): Promise<string> {
@@ -40,6 +40,33 @@ async function pickImageFile(): Promise<PickedFile | null> {
   } catch {
     return null;
   }
+}
+
+async function renderSymbol(
+  name: string,
+  pointSize: number,
+  weight: SymbolWeight,
+  scale: number,
+): Promise<SymbolImage | null> {
+  try {
+    const out = await invoke<{ pngBase64: string; width: number; height: number }>(
+      "render_symbol",
+      { name, pointSize, weight, scale },
+    );
+    return {
+      dataUrl: `data:image/png;base64,${out.pngBase64}`,
+      width: out.width,
+      height: out.height,
+    };
+  } catch {
+    // Unknown symbol, older macOS, or not an Apple platform: the caller
+    // draws its fallback icon instead.
+    return null;
+  }
+}
+
+async function openSettingsWindow(): Promise<void> {
+  await invoke("open_settings").catch(() => undefined);
 }
 
 export function createTauriShell(platform: Platform): ShellApi {
@@ -83,25 +110,10 @@ export function createTauriShell(platform: Platform): ShellApi {
       return convertFileSrc(localPath);
     },
 
-    async renderSymbol(name, pointSize, weight, scale) {
-      try {
-        const out = await invoke<{ pngBase64: string; width: number; height: number }>(
-          "render_symbol",
-          { name, pointSize, weight, scale },
-        );
-        return {
-          dataUrl: `data:image/png;base64,${out.pngBase64}`,
-          width: out.width,
-          height: out.height,
-        };
-      } catch {
-        // Unknown symbol, older macOS, or not an Apple platform: the caller
-        // draws its fallback icon instead.
-        return null;
-      }
-    },
+    renderSymbol,
 
     pickImage: pickImageFile,
+    openSettingsWindow,
 
     async clipboardReadUrl() {
       try {

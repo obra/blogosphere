@@ -81,7 +81,14 @@ function closeQuickOpen(set: SetState): void {
   set({ quickOpenOpen: false });
 }
 
+/** macOS has a Settings window (its own window, so a sheet here doesn't
+ *  matter); elsewhere Settings is a modal in this window. */
 function openSettings(get: GetState, set: SetState): void {
+  const { shell } = get().services;
+  if (shell.platform() === "macos") {
+    shell.openSettingsWindow();
+    return;
+  }
   openSheet(get, set, { settingsOpen: true });
 }
 

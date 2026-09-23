@@ -52,6 +52,10 @@ export interface ShellApi {
   /** Best-effort clipboard URL read (for the desktop "+ Link" prefill). */
   clipboardReadUrl(): Promise<string | null>;
 
+  /** macOS: opens the Settings window, or brings it forward if it's open.
+   *  Never rejects. */
+  openSettingsWindow(): Promise<void>;
+
   /** Asks for one image with the system's open panel. Null when the person
    *  cancels, or the file can't be read. Never rejects. */
   pickImage(): Promise<PickedFile | null>;

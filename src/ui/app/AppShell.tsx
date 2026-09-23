@@ -1,9 +1,8 @@
 // ABOUTME: Composition root — three-pane layout (Sidebar/EntryList/Detail),
-// ABOUTME: global dialogs/toasts, app-wide keyboard shortcuts, a debounced
-// ABOUTME: resync on window focus, and a flush-before-quit safety net.
+// ABOUTME: the overlays, app-wide keyboard shortcuts, and a debounced resync on
+// ABOUTME: window focus. Native-window hooks live in windowHooks.ts.
 import { isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ColumnDivider } from "./ColumnDivider";
 import { ConflictHost } from "./ConflictHost";
 import { ConnectScreen } from "./ConnectScreen";
@@ -14,11 +13,10 @@ import { debounce } from "./format";
 import { Hud } from "./Hud";
 import { DetailToolbar } from "./MacToolbar";
 import { MobileShell } from "./MobileShell";
-import { installAppMenu } from "./menu";
 import { runMenuCommand } from "./menuModel";
 import { NewLinkDialog } from "./NewLinkDialog";
 import { QuickOpenPalette } from "./QuickOpenPalette";
-import { handleCloseRequested, useFlushOnHide } from "./quitFlush";
+import { useFlushOnHide } from "./quitFlush";
 import { useServices } from "./ServicesContext";
 import { SettingsScreen } from "./SettingsScreen";
 import { Sidebar } from "./Sidebar";
@@ -29,6 +27,12 @@ import { Toasts } from "./Toasts";
 import { useAppCompactLayout } from "./useCompactLayout";
 import { useWindowWidth } from "./useWindowWidth";
 import { VersionsPanel } from "./VersionsPanel";
+import {
+  useAndroidBack,
+  useFlushBeforeQuit,
+  useNativeMenu,
+  useSettingsBridge,
+} from "./windowHooks";
 
 interface AppShellProps {
   /** Integration wires the real og:title/<title> fetch for "+ Link". */
@@ -104,36 +108,6 @@ function useKeyboardShortcuts(store: BoundAppStore, menuInstalled: boolean): voi
   }, [store, menuInstalled]);
 }
 
-/** Installs the real macOS menu bar (File/Edit/View/Window with working
- *  commands) once the shell mounts. A no-op outside Tauri. Returns whether
- *  the menu is actually installed — the shortcut fallback keys off it. */
-function useNativeMenu(store: BoundAppStore): boolean {
-  const [installed, setInstalled] = useState(false);
-  useEffect(() => {
-    if (!isTauri()) {
-      return;
-    }
-    let dispose: (() => void) | undefined;
-    let cancelled = false;
-    installAppMenu(store)
-      .then((fn) => {
-        if (cancelled) {
-          fn();
-          return;
-        }
-        dispose = fn;
-        setInstalled(true);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-      setInstalled(false);
-      dispose?.();
-    };
-  }, [store]);
-  return installed;
-}
-
 /** Refresh from remote on window focus (e.g. switching back from editing the
  *  repo in vim or having Claude Code commit directly) — debounced so rapid
  *  focus churn (alt-tabbing) doesn't hammer the API. Pull-only, never sync():
@@ -158,39 +132,6 @@ function useSyncOnFocus(store: BoundAppStore): void {
   }, [store]);
 }
 
-/**
- * Flushes any debounced-but-not-yet-committed edit to SQLite before letting
- * the window actually close. Without this, Cmd-Q / the close box during the
- * debounce window (editDebounceMs after the last keystroke) kills the
- * process with the edit still sitting in an in-process setTimeout — losing
- * it outright, unlike every other quit timing (see state.entryActions.ts's
- * edit()/flushEdit, and the spec's "crash/force-quit loses nothing"
- * promise). A no-op outside Tauri (e.g. `vite dev`'s browser preview).
- */
-function useFlushBeforeQuit(store: BoundAppStore): void {
-  useEffect(() => {
-    if (!isTauri()) {
-      return;
-    }
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    const win = getCurrentWindow();
-    win
-      .onCloseRequested((event) => handleCloseRequested(store, event, win))
-      .then((fn) => {
-        if (cancelled) {
-          fn();
-          return;
-        }
-        unlisten = fn;
-      });
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [store]);
-}
-
 /** First run (no sync configured) shows the connect card where the editor
  *  would go; the rest of the shell stays visible but honest about being empty. */
 function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
@@ -204,52 +145,6 @@ function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
     );
   }
   return <EditorScreen />;
-}
-
-/** Dismissible UI layers, topmost first — Android back pops exactly one. */
-const BACK_LAYERS: Array<{
-  open: (state: ReturnType<BoundAppStore["getState"]>) => boolean;
-  close: (state: ReturnType<BoundAppStore["getState"]>) => void;
-}> = [
-  { open: (s) => s.quickOpenOpen, close: (s) => s.closeQuickOpen() },
-  { open: (s) => s.versionsPath !== null, close: (s) => s.closeVersions() },
-  { open: (s) => s.publishDialogOpen, close: (s) => s.closePublishDialog() },
-  { open: (s) => s.syncLogOpen, close: (s) => s.closeSyncLog() },
-  { open: (s) => s.settingsOpen, close: (s) => s.closeSettings() },
-  { open: (s) => s.newLinkDialogOpen, close: (s) => s.closeNewLinkDialog() },
-  { open: (s) => s.selectedPath !== null, close: (s) => s.select(null) },
-];
-
-/** Android's hardware/gesture back pops one UI layer per press — dialog, then
- *  editor→library — matching platform expectations. A no-op everywhere else
- *  (the listener registration simply fails outside Android and is swallowed). */
-function useAndroidBack(store: BoundAppStore): void {
-  useEffect(() => {
-    if (!isTauri()) {
-      return;
-    }
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    import("@tauri-apps/api/app")
-      .then((app) =>
-        app.onBackButtonPress(() => {
-          const state = store.getState();
-          BACK_LAYERS.find((layer) => layer.open(state))?.close(state);
-        }),
-      )
-      .then((fn) => {
-        if (cancelled) {
-          fn.unregister();
-          return;
-        }
-        unlisten = () => fn.unregister();
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [store]);
 }
 
 /** macOS: grid columns from the stored widths, fitted to the window by
@@ -272,6 +167,23 @@ function useMacColumns(mac: boolean, sidebarHidden: boolean) {
   };
 }
 
+/** Everything that floats over the panes. macOS has its own homes for
+ *  Settings (a window), the Activity log (a popover), and notices (the HUD). */
+function Overlays(props: AppShellProps & { mac: boolean }) {
+  return (
+    <>
+      <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
+      {props.mac ? null : <SettingsScreen onTokenSaved={props.onTokenSaved} />}
+      {props.mac ? null : <SyncLogPanel />}
+      <QuickOpenPalette />
+      <VersionsPanel />
+      <ConflictHost />
+      <Toasts />
+      {props.mac ? <Hud /> : null}
+    </>
+  );
+}
+
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   const compact = useAppCompactLayout();
@@ -286,6 +198,7 @@ function AppShell(props: AppShellProps) {
   useSyncOnFocus(store);
   useFlushOnHide(store);
   useFlushBeforeQuit(store);
+  useSettingsBridge(store, mac, props.onTokenSaved);
 
   useEffect(() => {
     store.getState().init();
@@ -317,14 +230,7 @@ function AppShell(props: AppShellProps) {
           </div>
         </>
       )}
-      <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
-      <SettingsScreen onTokenSaved={props.onTokenSaved} />
-      {mac ? null : <SyncLogPanel />}
-      <QuickOpenPalette />
-      <VersionsPanel />
-      <ConflictHost />
-      <Toasts />
-      {mac ? <Hud /> : null}
+      <Overlays {...props} mac={mac} />
     </div>
   );
 }

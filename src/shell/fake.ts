@@ -82,6 +82,7 @@ export function createFakeShell(options: FakeShellOptions = {}): FakeShell {
 
   return {
     ...scriptedAnswers(options),
+    openSettingsWindow: () => Promise.resolve(),
 
     platform(): Platform {
       return options.platform ?? "web";
