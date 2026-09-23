@@ -13,11 +13,10 @@ import {
 } from "./meta";
 import { runPull } from "./pull";
 import {
-  buildEntryChanges,
+  buildCommitChanges,
   computePushable,
-  createAssetChanges,
-  createEntryBlobs,
   findRenameCollision,
+  loadRemotePathsIfNeeded,
   requireBlobSha,
 } from "./push.changes";
 import type { PushResult, PushSkip, SyncDeps } from "./types";
@@ -111,9 +110,11 @@ async function applySuccessfulPush(deps: SyncDeps, args: ApplyPushArgs): Promise
 }
 
 /** push()'s public result, plus an internal-only failure message the engine's
- *  status wrapper turns into `state: "error"` before stripping it back off. */
+ *  status wrapper turns into `state: "error"` before stripping it back off,
+ *  and whether updateRef lost a CAS race (the only retry-worthy outcome). */
 interface PushOutcome extends PushResult {
   errorMessage?: string;
+  casRejected?: boolean;
 }
 
 interface AttemptArgs {
@@ -121,22 +122,6 @@ interface AttemptArgs {
   skipped: PushSkip[];
   retries: number;
   conflictPaths: ReadonlySet<string>;
-}
-
-/** Gathers outbox assets riding this push: uploads for live entries, plus
- *  the orphaned rows of deleted entries. Assets for a *deleted* entry must
- *  never be uploaded (there's no point riding an image blob along with
- *  content that's about to disappear), but their outbox rows still need to
- *  be swept up here — otherwise they're never fetched by either the upload
- *  pass or the cleanup pass again, and leak in local storage forever (see
- *  applySuccessfulPush's removeAsset). */
-async function collectPushAssets(deps: SyncDeps, pushable: readonly EntryRecord[]) {
-  const nonDeletedPaths = pushable.filter((entry) => !entry.deleted).map((entry) => entry.path);
-  const deletedPaths = pushable.filter((entry) => entry.deleted).map((entry) => entry.path);
-  const uploadAssets = await deps.store.listAssetsFor(nonDeletedPaths);
-  const orphanedAssets =
-    deletedPaths.length === 0 ? [] : await deps.store.listAssetsFor(deletedPaths);
-  return { uploadAssets, assets: [...uploadAssets, ...orphanedAssets] };
 }
 
 /** The head to build the commit on. GitHub's read replicas can serve a head
@@ -158,28 +143,60 @@ async function effectiveHead(deps: SyncDeps): Promise<string> {
   return fetched;
 }
 
+/** An attempt that made no commit; `extra` says why when it matters. */
+function notCommitted(args: AttemptArgs, extra: Partial<PushOutcome> = {}): PushOutcome {
+  return {
+    committed: false,
+    retries: args.retries,
+    conflicts: [...args.conflictPaths],
+    pushed: [],
+    skipped: args.skipped,
+    ...extra,
+  };
+}
+
+/** Local bookkeeping once updateRef accepted our commit: settle the pushed
+ *  rows and assets, and remember the new remote head. */
+async function recordLandedCommit(
+  deps: SyncDeps,
+  applied: ApplyPushArgs,
+  landed: { treeSha: string; commitSha: string },
+): Promise<void> {
+  await applySuccessfulPush(deps, applied);
+  await deps.store.setMeta(META_LAST_ROOT_TREE_SHA, landed.treeSha);
+  await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, landed.commitSha);
+  await deps.store.setMeta(META_LAST_SYNC_AT, String(applied.now));
+  // Our own commit is integrated history now — a later pull served this sha's
+  // PARENT by a lagging replica must be recognized as stale, not a deletion.
+  await recordRemoteHead(deps.store, landed.commitSha);
+}
+
 async function attemptCommit(deps: SyncDeps, args: AttemptArgs): Promise<PushOutcome> {
   const { pushable, skipped, retries, conflictPaths } = args;
   const headSha = await effectiveHead(deps);
   const commit = await deps.github.getCommit(headSha);
 
-  const renameCollision = await findRenameCollision(deps, pushable, commit.treeSha);
+  const remotePaths = await loadRemotePathsIfNeeded(deps, pushable, commit.treeSha);
+
+  const renameCollision = findRenameCollision(pushable, remotePaths);
   if (renameCollision !== null) {
-    return {
-      committed: false,
-      retries,
-      conflicts: [...conflictPaths],
-      pushed: [],
-      skipped,
+    return notCommitted(args, {
       errorMessage: `Refusing to push: "${renameCollision}" already has different content on the remote that this rename/publish doesn't know about. Rename the entry to a different date or title and try again.`,
-    };
+    });
   }
 
-  const blobShas = await createEntryBlobs(deps, pushable);
-  const changesByPath = buildEntryChanges(pushable, blobShas, conflictPaths);
-  const { uploadAssets, assets } = await collectPushAssets(deps, pushable);
-  for (const change of await createAssetChanges(deps, uploadAssets)) {
-    changesByPath.set(change.path, change);
+  const { blobShas, changesByPath, assets } = await buildCommitChanges(
+    deps,
+    pushable,
+    conflictPaths,
+    remotePaths,
+  );
+
+  if (changesByPath.size === 0) {
+    // Only tombstones for paths GitHub never had: nothing to commit, but the
+    // local rows are done and must not sit dirty forever.
+    await applySuccessfulPush(deps, { pushable, blobShas, assets, now: deps.now() });
+    return notCommitted(args);
   }
 
   const templates = await loadCommitMessageTemplates(deps.store);
@@ -194,17 +211,11 @@ async function attemptCommit(deps: SyncDeps, args: AttemptArgs): Promise<PushOut
   const updateResult = await deps.github.updateRef(commitSha);
 
   if (!updateResult.ok) {
-    return { committed: false, retries, conflicts: [...conflictPaths], pushed: [], skipped };
+    return notCommitted(args, { casRejected: true });
   }
 
-  const now = deps.now();
-  await applySuccessfulPush(deps, { pushable, blobShas, assets, now });
-  await deps.store.setMeta(META_LAST_ROOT_TREE_SHA, newTreeSha);
-  await deps.store.setMeta(META_LAST_REMOTE_COMMIT_SHA, commitSha);
-  await deps.store.setMeta(META_LAST_SYNC_AT, String(now));
-  // Our own commit is integrated history now — a later pull served this sha's
-  // PARENT by a lagging replica must be recognized as stale, not a deletion.
-  await recordRemoteHead(deps.store, commitSha);
+  const landed = { treeSha: newTreeSha, commitSha };
+  await recordLandedCommit(deps, { pushable, blobShas, assets, now: deps.now() }, landed);
 
   return {
     committed: true,
@@ -264,12 +275,11 @@ export async function runPush(deps: SyncDeps): Promise<PushOutcome> {
     }
 
     const result = await attemptCommit(deps, { pushable, skipped, retries, conflictPaths });
-    // A committed:false result with an errorMessage (e.g. the rename-
-    // collision guard above) is fatal, not a CAS race — retrying would just
-    // waste 3 round-trips and then overwrite this specific message with the
-    // generic "kept moving under us" one below. Only the bare
-    // updateResult.ok === false case (no errorMessage) is retry-worthy.
-    if (result.committed || result.errorMessage !== undefined) {
+    // Only a lost CAS race is retry-worthy. Anything else — a commit, a fatal
+    // guard like the rename-collision check, or a push that had nothing to
+    // send GitHub — is final; retrying would waste round-trips and could
+    // overwrite a specific message with the generic "kept moving" one below.
+    if (result.casRejected !== true) {
       return result;
     }
     retries += 1;

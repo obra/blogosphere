@@ -33,6 +33,7 @@ const HASH_MODULUS_A = 4_294_967_291;
 const HASH_MODULUS_B = 4_294_967_279;
 const HASH_HEX_WIDTH = 8;
 const HEX_RADIX = 16;
+const HTTP_UNPROCESSABLE_ENTITY = 422;
 
 /**
  * Deterministic, dependency-free content hash (two parallel djb2-style
@@ -207,6 +208,15 @@ export class FakeRemote implements GitHubApi {
     const byPath = new Map(base.map((entry) => [entry.path, entry]));
     for (const change of changes) {
       if (change.sha === null) {
+        // Real GitHub rejects the whole tree with a 422 when asked to delete
+        // a path the base tree doesn't contain.
+        if (!byPath.has(change.path)) {
+          throw new GitHubError(
+            "protocol",
+            "createTree: GitRPC::BadObjectState",
+            HTTP_UNPROCESSABLE_ENTITY,
+          );
+        }
         byPath.delete(change.path);
       } else {
         byPath.set(change.path, {

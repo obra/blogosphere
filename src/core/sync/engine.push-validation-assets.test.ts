@@ -143,9 +143,11 @@ describe("push: outbox asset for an entry deleted before it was ever pushed", ()
 
     const result = await sync.push();
 
-    expect(result.committed).toBe(true);
+    // Nothing of this draft ever reached GitHub, so there's nothing to commit.
+    expect(result.committed).toBe(false);
     expect(remote.readFile(assetRepoPath)).toBeNull();
     expect(await store.listAssetsFor([draft.path])).toEqual([]);
+    expect(await store.getEntry(draft.path)).toBeNull();
   });
 });
 
