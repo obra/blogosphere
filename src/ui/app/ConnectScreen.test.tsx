@@ -3,6 +3,7 @@
 // ABOUTME: display on rejected tokens, and the create-token link copy.
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { GitHubError } from "../../core/github/types";
 import { ConnectScreen } from "./ConnectScreen";
 import { renderWithStore } from "./testing/renderWithStore";
 
@@ -23,7 +24,9 @@ it("hands the token to connect (which checks and saves it) on submit", async () 
 });
 
 it("shows a plain-language error when the token is rejected and re-enables the form", async () => {
-  const onTokenSaved = vi.fn(() => Promise.reject(new Error("GitHubError: auth (401)")));
+  const onTokenSaved = vi.fn(() =>
+    Promise.reject(new GitHubError("auth", "getRef: Bad credentials")),
+  );
   const { store } = renderWithStore(<ConnectScreen onTokenSaved={onTokenSaved} />, {
     seedEntries: [],
   });

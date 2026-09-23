@@ -37,7 +37,7 @@ describe("createConnect", () => {
 
   it("a token GitHub rejects leaves the saved token and the services alone", async () => {
     const { connect, install, shell } = setup({
-      getRef: () => Promise.reject(new GitHubError("auth", "401 Bad credentials")),
+      getRef: () => Promise.reject(new GitHubError("auth", "getRef: Bad credentials")),
     });
     await shell.keychainSet(KEYCHAIN_TOKEN_KEY, "old-good-token");
     await expect(connect("bad-token")).rejects.toBeInstanceOf(GitHubError);

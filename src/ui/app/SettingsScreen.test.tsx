@@ -12,7 +12,7 @@ afterEach(cleanup);
 it("explains a rejected token inline", async () => {
   const { store } = renderWithStore(
     <SettingsScreen
-      onTokenSaved={() => Promise.reject(new GitHubError("auth", "401 Bad credentials"))}
+      onTokenSaved={() => Promise.reject(new GitHubError("auth", "getRef: Bad credentials"))}
     />,
     { withSync: false },
   );

@@ -44,7 +44,7 @@ describe("installSettingsBridge", () => {
     const connect = vi.fn((token: string) =>
       token === "good"
         ? Promise.resolve()
-        : Promise.reject(new GitHubError("auth", "401 Bad credentials")),
+        : Promise.reject(new GitHubError("auth", "getRef: Bad credentials")),
     );
     const { client, store } = await setup(connect);
     expect(await client.saveToken("good")).toMatchObject({ ok: true });
