@@ -8,6 +8,7 @@ const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 const RULE = /([^{}]+)\{([^{}]*)\}/g;
 const WHITESPACE = /\s+/g;
 const SERIF_FAMILY = /font-family:[^;]*(Crimson|DM Serif)/;
+const CREPE_FONT_VAR = /--crepe-font-/;
 const WRITE_DOC = 'html[data-platform="macos"] .editor-doc[data-editor-mode="write"]';
 
 interface Rule {
@@ -103,4 +104,26 @@ describe("entry rows (macOS)", () => {
 
 it("keeps the unsaved-changes dot in a fixed gutter so titles line up", () => {
   expect(declarationsFor('html[data-platform="macos"] .entry-row-badges').width).toBe("6px");
+});
+
+describe("Write mode leaves Crepe's own controls alone", () => {
+  it("never overrides Crepe's font variables (its link, code-language and image controls use them)", () => {
+    for (const rule of rules()) {
+      expect(rule.body).not.toMatch(CREPE_FONT_VAR);
+    }
+  });
+
+  it("sets every heading at DM Serif Display's one shipped weight, except the mono h3", () => {
+    for (const level of ["h1", "h2", "h4", "h5", "h6"]) {
+      const heading = declarationsFor(`${WRITE_DOC} .ProseMirror ${level}`);
+      expect(heading["font-family"]).toContain('"DM Serif Display"');
+      expect(heading["font-weight"]).toBe("400");
+    }
+  });
+
+  it("puts the body face on the document itself, for any other block text", () => {
+    expect(declarationsFor(`${WRITE_DOC} .ProseMirror`)["font-family"]).toContain(
+      '"Crimson Pro Variable"',
+    );
+  });
 });

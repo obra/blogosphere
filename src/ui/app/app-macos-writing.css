@@ -5,10 +5,13 @@
 
 /* ---------- Write mode typography ---------- */
 
+/* The post's own text only: Crepe's controls inside the editor (link
+   field, code-block language picker, image prompts) read its --crepe-font-*
+   variables and stay in the system face, so those are left alone. */
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror {
+  font-family: "Crimson Pro Variable", Georgia, serif;
+}
 html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .milkdown {
-  --crepe-font-default: "Crimson Pro Variable", Georgia, serif;
-  --crepe-font-title: "DM Serif Display", Georgia, serif;
-  --crepe-font-code: "JetBrains Mono", ui-monospace, monospace;
   --crepe-color-inline-code: var(--text);
 }
 
@@ -30,6 +33,30 @@ html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror l
 }
 
 /* Only weight 400 ships for DM Serif Display; anything heavier is faux bold. */
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h1,
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h4,
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h5,
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h6 {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 2em 0 0.6em;
+}
+/* In size order around the blog's h2 (32px) and mono h3: an h1 below the
+   40px title, h4–h6 stepping down to the body size. */
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h1 {
+  font-size: 36px;
+}
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h4 {
+  font-size: 24px;
+}
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h5 {
+  font-size: 21px;
+}
+html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h6 {
+  font-size: 19px;
+}
 html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h2 {
   font-family: "DM Serif Display", Georgia, serif;
   font-size: 32px;
