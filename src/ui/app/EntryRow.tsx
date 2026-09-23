@@ -117,6 +117,9 @@ function RowMeta(props: { entry: EntryRecord; conflicted: boolean; mac: boolean 
       {entry.path.endsWith(".html") ? tag("html", "HTML", "Legacy HTML post") : null}
       {entry.draft ? tag("draft", "Draft") : null}
       {props.conflicted && !mac ? tag("conflict", "Conflict") : null}
+      {/* macOS shows the conflict as a symbol beside the row; the row still
+          says it, for VoiceOver. */}
+      {props.conflicted && mac ? <span className="visually-hidden">Conflict</span> : null}
     </span>
   );
 }

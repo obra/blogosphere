@@ -71,6 +71,13 @@ it("the conflict symbol, beside its row, opens Resolve for that row only", async
   expect(store.getState().selectedPath).toBe(plain.path);
 });
 
+it("still says a row has a conflict to VoiceOver (the symbol is outside the row)", async () => {
+  await renderMacList();
+  const hidden = row("Clashing").querySelector(".visually-hidden");
+  expect(hidden?.textContent).toBe("Conflict");
+  expect(row("Clashing").textContent).toContain("Conflict");
+});
+
 it("marks the selected row's wrapper, so its symbol can follow the selection color", async () => {
   const { store } = await renderMacList();
   act(() => store.getState().select(conflicted.path));

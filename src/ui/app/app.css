@@ -179,3 +179,13 @@ html:not([data-platform="macos"]) ::-webkit-scrollbar-thumb:hover {
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+/* Read by screen readers, not drawn. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
