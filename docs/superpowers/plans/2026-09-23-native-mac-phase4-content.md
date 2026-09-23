@@ -4,7 +4,7 @@
 
 **Goal:** On macOS, make the content column feel like a Mac app writing a real blog: native entry rows, segmented control, search field, date and tag fields, a formatting bar, and Write mode set in blog.fsck.com's own typefaces; plus the two items moved here from phase 3 (row conflict symbol, View › editor modes).
 
-**Architecture:** Mostly `html[data-platform="macos"]` CSS in a new `app-macos-content.css`, with small markup changes where the native control needs structure (row indicators, search clear button, formatting-bar symbols). Fonts are bundled from `@fontsource` packages (OFL-1.1) so Write mode works offline. View › editor modes use a registry like phase 3's `activeEditor`: the mounted editor screen publishes its mode segments; the menu shows and switches them.
+**Architecture:** Mostly `html[data-platform="macos"]` CSS in a new `app-macos-content.css`, with small markup changes where the native control needs structure (row indicators, the search magnifier, formatting-bar symbols). Fonts are bundled from `@fontsource` packages (OFL-1.1) so Write mode works offline. View › editor modes use a registry like phase 3's `activeEditor`: the mounted editor screen publishes its mode segments; the menu shows and switches them.
 
 **Tech Stack:** as phases 1–3, plus `@fontsource-variable/crimson-pro`, `@fontsource/dm-serif-display`, `@fontsource/jetbrains-mono` (5.3.0, OFL-1.1).
 
@@ -25,7 +25,7 @@
 1. **Write mode typography must not leak into Markdown mode, legacy HTML, or other platforms** (Markdown stays `ui-monospace`; iOS/web keep today's faces). Task 2 tests the scoping.
 2. **A row's conflict symbol opens the Conflict sheet for that row without also selecting-and-dismissing things** (it's a sibling of the row button, not nested). Task 3.
 3. **View › editor modes titles follow the entry** (Write/Markdown/Live vs Preview/HTML/Live) and disable Live when there's no live URL; choosing one while the editor isn't mounted does nothing. Task 7.
-4. **The search field's clear button empties the query and returns focus to the field**; Escape in the field clears it too (the Mac search field convention). Task 5.
+4. **The search field's (WebKit-drawn) clear button and Escape empty the query in the store**, not just the field's text. Task 5.
 5. **Fonts load offline** (bundled, no network): the release build contains the woff2 files and the CSS check still passes. Task 1.
 
 ---
