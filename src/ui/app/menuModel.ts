@@ -91,7 +91,7 @@ function sectionMenuItems(section: Section): MenuItemModel[] {
 }
 
 /** The File menu's commands that also live in toolbar and context menus. */
-const FILE_MENU_COMMANDS: readonly MenuCommandId[] = ["newPost", "newLink"];
+const FILE_MENU_COMMANDS = ["newPost", "newLink"] as const satisfies readonly MenuCommandId[];
 
 function composeMenuItems(): MenuItemModel[] {
   return [command("newPost", "New Post"), command("newLink", "New Link…")];

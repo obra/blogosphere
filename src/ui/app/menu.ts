@@ -2,27 +2,41 @@
 // ABOUTME: everything the buttons and shortcuts do, with enabled states
 // ABOUTME: tracking the current selection. Browser dev keeps DOM shortcuts.
 import { Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
+import type { ModelApi } from "../../core/model/types";
+import type { EntryRecord } from "../../core/store/types";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { SECTION_LABELS } from "./grouping";
-import { runMenuCommand, sidebarToggleItem } from "./menuModel";
+import { entryLiveUrl } from "./liveUrl";
+import {
+  entryMenuItems,
+  FILE_MENU_COMMANDS,
+  type MenuItemModel,
+  runMenuCommand,
+  sidebarToggleItem,
+} from "./menuModel";
+import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
 import type { AppState } from "./state.types";
 
-interface MenuEnabledFlags {
-  /** An entry is selected — Publish/Share/Delete apply. */
-  hasSelection: boolean;
-  /** Selected entry has unsynced changes over a synced base — Discard applies. */
-  canDiscard: boolean;
+interface EntryMenuState {
+  /** The selected entry the Entry menu acts on, or null (all disabled). */
+  record: EntryRecord | null;
+  liveUrl: string | null;
 }
 
 /** Pure so it's testable without the Tauri runtime. */
-function menuEnabledState(state: Pick<AppState, "entries" | "selectedPath">): MenuEnabledFlags {
-  const record = state.entries.find((entry) => entry.path === state.selectedPath);
-  return {
-    hasSelection: record !== undefined,
-    canDiscard: record?.dirty === true && record.baseContent !== null,
-  };
+function entryMenuState(
+  state: Pick<AppState, "entries" | "selectedPath">,
+  model: ModelApi,
+): EntryMenuState {
+  const record = state.entries.find((entry) => entry.path === state.selectedPath) ?? null;
+  return { record, liveUrl: record ? entryLiveUrl(model, record) : null };
+}
+
+function currentEntryItems(state: AppState): MenuItemModel[] {
+  const { record, liveUrl } = entryMenuState(state, state.services.model);
+  return entryMenuItems(record, liveUrl);
 }
 
 function separator(): Promise<PredefinedMenuItem> {
@@ -54,72 +68,26 @@ async function buildAppSubmenu(store: BoundAppStore): Promise<Submenu> {
   });
 }
 
-interface FileMenu {
-  submenu: Submenu;
-  publish: MenuItem;
-  share: MenuItem;
-  discard: MenuItem;
-  deleteItem: MenuItem;
-  history: MenuItem;
-}
+const FILE_ITEMS: Record<
+  (typeof FILE_MENU_COMMANDS)[number],
+  { text: string; accelerator: string }
+> = {
+  newPost: { text: "New Draft", accelerator: "CmdOrCtrl+N" },
+  // biome-ignore lint/security/noSecrets: a keyboard accelerator, not a credential.
+  newLink: { text: "New Link…", accelerator: "CmdOrCtrl+Shift+L" },
+};
 
-type EntryItems = Omit<FileMenu, "submenu">;
-
-/** The selection-gated commands; each starts disabled until something is selected. */
-async function buildEntryCommandItems(store: BoundAppStore): Promise<EntryItems> {
+async function buildFileSubmenu(store: BoundAppStore): Promise<Submenu> {
   const act = () => store.getState();
-  const withSelection = (fn: (path: string) => void) => () => {
-    const path = act().selectedPath;
-    if (path !== null) {
-      fn(path);
-    }
-  };
-  return {
-    publish: await MenuItem.new({
-      text: "Publish…",
-      enabled: false,
-      action: withSelection(() => act().openPublishDialog()),
-    }),
-    share: await MenuItem.new({
-      text: "Copy Secret Link",
-      enabled: false,
-      action: withSelection((path) => act().shareSecretLink(path, { announce: true })),
-    }),
-    discard: await MenuItem.new({
-      text: "Discard Changes…",
-      enabled: false,
-      action: withSelection((path) => act().discardChanges(path)),
-    }),
-    deleteItem: await MenuItem.new({
-      text: "Delete…",
-      enabled: false,
-      action: withSelection((path) => act().deleteEntry(path)),
-    }),
-    history: await MenuItem.new({
-      text: "Versions…",
-      enabled: false,
-      action: withSelection((path) => act().openVersions(path)),
-    }),
-  };
-}
-
-async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
-  const act = () => store.getState();
-  const { publish, share, discard, deleteItem, history } = await buildEntryCommandItems(store);
-  const submenu = await Submenu.new({
+  const newItems = await Promise.all(
+    FILE_MENU_COMMANDS.map((id) =>
+      MenuItem.new({ ...FILE_ITEMS[id], action: () => runMenuCommand(id, store) }),
+    ),
+  );
+  return Submenu.new({
     text: "File",
     items: [
-      await MenuItem.new({
-        text: "New Draft",
-        accelerator: "CmdOrCtrl+N",
-        action: () => act().newDraft({ title: "" }),
-      }),
-      await MenuItem.new({
-        text: "New Link…",
-        // biome-ignore lint/security/noSecrets: a keyboard accelerator, not a credential.
-        accelerator: "CmdOrCtrl+Shift+L",
-        action: () => act().openNewLinkDialog(),
-      }),
+      ...newItems,
       await separator(),
       await MenuItem.new({
         text: "Save & Sync",
@@ -131,16 +99,21 @@ async function buildFileSubmenu(store: BoundAppStore): Promise<FileMenu> {
         accelerator: "CmdOrCtrl+R",
         action: () => act().syncNow(),
       }),
-      await separator(),
-      publish,
-      share,
-      discard,
-      history,
-      await separator(),
-      deleteItem,
     ],
   });
-  return { submenu, publish, share, discard, deleteItem, history };
+}
+
+interface EntryMenu {
+  submenu: Submenu;
+  byId: NativeItems["byId"];
+}
+
+/** The selected entry's commands (Publish…, Open on Site, Versions…, …). */
+async function buildEntrySubmenu(store: BoundAppStore): Promise<EntryMenu> {
+  const { items, byId } = await buildNativeItems(currentEntryItems(store.getState()), (id) =>
+    runMenuCommand(id, store),
+  );
+  return { submenu: await Submenu.new({ text: "Entry", items }), byId };
 }
 
 /** Standard Edit bindings — without these, replacing the default app menu
@@ -225,12 +198,10 @@ async function buildWindowSubmenu(): Promise<Submenu> {
   });
 }
 
-function applyEnabledFlags(file: FileMenu, flags: MenuEnabledFlags): void {
-  file.publish.setEnabled(flags.hasSelection).catch(() => undefined);
-  file.share.setEnabled(flags.hasSelection).catch(() => undefined);
-  file.deleteItem.setEnabled(flags.hasSelection).catch(() => undefined);
-  file.history.setEnabled(flags.hasSelection).catch(() => undefined);
-  file.discard.setEnabled(flags.canDiscard).catch(() => undefined);
+/** The enabled flags as one comparable string: typing replaces the record
+ *  object on every keystroke, but the flags rarely change. */
+function enabledSignature(models: readonly MenuItemModel[]): string {
+  return models.map((model) => (model.kind === "command" && model.enabled ? "1" : "0")).join("");
 }
 
 /**
@@ -240,36 +211,40 @@ function applyEnabledFlags(file: FileMenu, flags: MenuEnabledFlags): void {
  * store subscription.
  */
 async function installAppMenu(store: BoundAppStore): Promise<() => void> {
-  const [appSubmenu, file, edit, view, windowSubmenu] = await Promise.all([
+  const [appSubmenu, file, entry, edit, view, windowSubmenu] = await Promise.all([
     buildAppSubmenu(store),
     buildFileSubmenu(store),
+    buildEntrySubmenu(store),
     buildEditSubmenu(),
     buildViewSubmenu(store),
     buildWindowSubmenu(),
   ]);
   const menu = await Menu.new({
-    items: [appSubmenu, file.submenu, edit, view.submenu, windowSubmenu],
+    items: [appSubmenu, file, entry.submenu, edit, view.submenu, windowSubmenu],
   });
   await menu.setAsAppMenu();
 
-  let lastFlags = menuEnabledState(store.getState());
-  applyEnabledFlags(file, lastFlags);
+  let lastRecordKey = { record: null as EntryRecord | null, services: store.getState().services };
+  let lastSignature = enabledSignature(currentEntryItems(store.getState()));
   let lastSidebarHidden = store.getState().sidebarHidden;
   return store.subscribe((state) => {
     if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
       lastSidebarHidden = state.sidebarHidden;
       view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
     }
-    const flags = menuEnabledState(state);
-    if (
-      flags.hasSelection !== lastFlags.hasSelection ||
-      flags.canDiscard !== lastFlags.canDiscard
-    ) {
-      lastFlags = flags;
-      applyEnabledFlags(file, flags);
+    const record = state.entries.find((e) => e.path === state.selectedPath) ?? null;
+    if (record === lastRecordKey.record && state.services === lastRecordKey.services) {
+      return;
+    }
+    lastRecordKey = { record, services: state.services };
+    const models = currentEntryItems(state);
+    const signature = enabledSignature(models);
+    if (signature !== lastSignature) {
+      lastSignature = signature;
+      applyEnabled(entry.byId, models);
     }
   });
 }
 
-export type { MenuEnabledFlags };
-export { installAppMenu, menuEnabledState };
+export type { EntryMenuState };
+export { entryMenuState, installAppMenu };
