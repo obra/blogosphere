@@ -2,6 +2,7 @@
 // ABOUTME: mine / use theirs buttons, and an "edit merged" hand-merge option.
 import { useState } from "react";
 import type { ConflictResolution } from "../../core/sync/types";
+import { useEscapeToCancel } from "./useEscapeToCancel";
 
 interface ConflictDialogProps {
   path: string;
@@ -79,6 +80,7 @@ function CompareView(props: ConflictDialogProps & { onEditMerged: () => void }) 
 
 function ConflictDialog(props: ConflictDialogProps) {
   const [editing, setEditing] = useState(false);
+  useEscapeToCancel(props.onCancel);
 
   return (
     <div className="dialog-backdrop">

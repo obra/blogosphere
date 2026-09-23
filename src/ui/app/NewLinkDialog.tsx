@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
+import { useEscapeToCancel } from "./useEscapeToCancel";
 
 interface NewLinkDialogProps {
   /** Integration wires the real og:title/<title> fetch; null disables the button. */
@@ -101,6 +102,7 @@ function NewLinkDialog(props: NewLinkDialogProps) {
   const { fromClipboard, noteManualEdit } = usePrefillFromClipboard(open, setUrl);
   const { fetching, handleFetchTitle } = useFetchTitleHandler(props, url, setTitle);
   const { handleClose, handleSubmit } = useCloseAndSubmit(url, title, setUrl, setTitle);
+  useEscapeToCancel(handleClose, open);
 
   if (!open) {
     return null;

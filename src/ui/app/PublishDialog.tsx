@@ -4,6 +4,7 @@
 import { type FormEvent, useId, useState } from "react";
 import { slugForPath, slugify } from "../../core/model/paths";
 import type { PublishOptions } from "../../core/model/types";
+import { useEscapeToCancel } from "./useEscapeToCancel";
 
 interface PublishDialogProps {
   /** YYYY-MM-DD, injected by the caller so the dialog stays deterministic/testable. */
@@ -107,6 +108,7 @@ function PublishDialog(props: PublishDialogProps) {
   const slugFieldId = useId();
   const keepFieldId = useId();
   const hasOpaqueId = Boolean(props.opaqueId);
+  useEscapeToCancel(props.onCancel);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();

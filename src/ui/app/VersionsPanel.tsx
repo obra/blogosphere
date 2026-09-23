@@ -5,6 +5,7 @@ import type { CommitSummary, GitHubApi } from "../../core/github/types";
 import { relativeTimeLabel } from "./format";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
+import { useEscapeToCancel } from "./useEscapeToCancel";
 
 /** listCommitsForPath's cap — plenty for "recently touched this file", and
  *  keeps the timeline from growing unbounded for old, much-edited posts. */
@@ -216,12 +217,13 @@ function VersionsBody(props: { path: string }) {
 function VersionsPanel() {
   const store = useAppStoreApi();
   const path = useAppStore((state) => state.versionsPath);
+  useEscapeToCancel(() => store.getState().closeVersions(), path !== null);
   if (path === null) {
     return null;
   }
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-dismiss, same affordance as SettingsScreen.
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape handling lives on the dialog below.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled document-wide by useEscapeToCancel.
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same backdrop affordance as above.
     <div
       className="dialog-backdrop"
@@ -231,17 +233,7 @@ function VersionsPanel() {
         }
       }}
     >
-      {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: dialog-level Escape shortcut */}
-      <div
-        className="dialog dialog-wide versions-panel"
-        role="dialog"
-        aria-label="Versions"
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            store.getState().closeVersions();
-          }
-        }}
-      >
+      <div className="dialog dialog-wide versions-panel" role="dialog" aria-label="Versions">
         <header className="settings-header">
           <h2>Versions</h2>
           <button
