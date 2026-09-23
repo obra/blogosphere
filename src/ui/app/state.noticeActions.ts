@@ -1,10 +1,38 @@
-// ABOUTME: Notices: addToast, and on macOS its routing (spec §5) to the HUD or
-// ABOUTME: to nothing when the app's own state already shows it.
+// ABOUTME: Notices: addToast, and on macOS its routing (spec §5) to the HUD, a
+// ABOUTME: native alert (one at a time), or nothing when state already shows it.
 
 import type { ActionCtx, SetState, Toast } from "./state.types";
 import { routeToast } from "./toastRoute";
 
-function addToast(ctx: ActionCtx, toast: Omit<Toast, "id">): string {
+/** Native alerts, shown one at a time. A message already showing or
+ *  waiting isn't queued twice (a retry loop failing again, say). */
+interface AlertQueue {
+  pending: Set<string>;
+  last: Promise<void>;
+}
+
+function createAlertQueue(): AlertQueue {
+  return { pending: new Set(), last: Promise.resolve() };
+}
+
+function queueAlert(ctx: ActionCtx, queue: AlertQueue, toast: Omit<Toast, "id">): void {
+  if (queue.pending.has(toast.message)) {
+    return;
+  }
+  queue.pending.add(toast.message);
+  const show = async () => {
+    const tryAgain = await ctx.deps.alert(toast.message, { retry: toast.retry !== undefined });
+    queue.pending.delete(toast.message);
+    if (tryAgain) {
+      toast.retry?.();
+    }
+  };
+  queue.last = queue.last.then(show).catch(() => {
+    queue.pending.delete(toast.message);
+  });
+}
+
+function addToast(ctx: ActionCtx, alerts: AlertQueue, toast: Omit<Toast, "id">): string {
   const id = ctx.deps.createId();
   if (ctx.get().services.shell.platform() !== "macos") {
     ctx.set((state) => ({ toasts: [...state.toasts, { id, ...toast }] }));
@@ -15,10 +43,10 @@ function addToast(ctx: ActionCtx, toast: Omit<Toast, "id">): string {
       // One HUD at a time: the newest message replaces the one showing.
       ctx.set({ hud: { id, message: toast.message } });
       return id;
-    case "none":
+    case "alert":
+      queueAlert(ctx, alerts, toast);
       return id;
     default:
-      ctx.set((state) => ({ toasts: [...state.toasts, { id, ...toast }] }));
       return id;
   }
 }
@@ -33,4 +61,4 @@ function dismissHud(set: SetState, id: string): void {
   set((state) => (state.hud?.id === id ? { hud: null } : {}));
 }
 
-export { addToast, dismissHud, dismissToast };
+export { type AlertQueue, addToast, createAlertQueue, dismissHud, dismissToast };

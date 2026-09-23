@@ -101,6 +101,9 @@ interface NewLinkFields extends NewEntryFields {
  *  the synchronous window.confirm / a stub. */
 interface AppStoreDeps {
   confirm: (message: string) => boolean | Promise<boolean>;
+  /** A native alert for an action that failed; resolves true for Try Again
+   *  (offered only when `retry` is set). */
+  alert: (message: string, options: { retry: boolean }) => Promise<boolean>;
   now: () => number;
   writeClipboardText: (text: string) => Promise<void>;
   createId: () => string;

@@ -17,6 +17,12 @@ function browserConfirm(message: string): boolean {
   return globalThis.window.confirm(message);
 }
 
+/** Alerts are only routed on macOS, and macOS is only ever the Tauri app,
+ *  which injects the native one (App.tsx); this default just declines. */
+function noAlert(): Promise<boolean> {
+  return Promise.resolve(false);
+}
+
 async function browserWriteClipboardText(text: string): Promise<void> {
   if (globalThis.navigator?.clipboard) {
     await globalThis.navigator.clipboard.writeText(text);
@@ -28,6 +34,7 @@ async function browserWriteClipboardText(text: string): Promise<void> {
 function buildDeps(overrides: Partial<AppStoreDeps>): AppStoreDeps {
   return {
     confirm: overrides.confirm ?? browserConfirm,
+    alert: overrides.alert ?? noAlert,
     now: overrides.now ?? Date.now,
     writeClipboardText: overrides.writeClipboardText ?? browserWriteClipboardText,
     createId: overrides.createId ?? (() => uuidv4()),

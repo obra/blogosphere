@@ -37,7 +37,13 @@ import {
   setServices,
   syncNow,
 } from "./state.miscActions";
-import { addToast, dismissHud, dismissToast } from "./state.noticeActions";
+import {
+  type AlertQueue,
+  addToast,
+  createAlertQueue,
+  dismissHud,
+  dismissToast,
+} from "./state.noticeActions";
 import { renameEntry } from "./state.renameActions";
 import {
   closeConflict,
@@ -95,10 +101,11 @@ interface ActionResources {
   pendingEdits: PendingEdits;
   searchDebouncer: SearchDebouncer;
   syncBox: SyncSubscriptionBox;
+  alerts: AlertQueue;
 }
 
 function bindActions(resources: ActionResources): AppActions {
-  const { ctx, pendingEdits, searchDebouncer, syncBox } = resources;
+  const { ctx, pendingEdits, searchDebouncer, syncBox, alerts } = resources;
   return {
     setServices: (next) => setServices(ctx, syncBox, next),
     attachSync: (sync) => attachSync(ctx, syncBox, sync),
@@ -124,7 +131,7 @@ function bindActions(resources: ActionResources): AppActions {
     copyText: (text) => copyText(ctx, text),
     setEditorMode: (path, mode) => setEditorMode(ctx, path, mode),
     setCommitTemplates: (templates) => setCommitTemplates(ctx, templates),
-    addToast: (toast) => addToast(ctx, toast),
+    addToast: (toast) => addToast(ctx, alerts, toast),
     dismissToast: (id) => dismissToast(ctx.set, id),
     dismissHud: (id) => dismissHud(ctx.set, id),
     openNewLinkDialog: () => openNewLinkDialog(ctx.get, ctx.set),
@@ -177,7 +184,7 @@ function createAppStore(
     const searchDebouncer = createSearchDebouncer(ctx);
     return {
       ...initialAppData(services, { ...DEFAULT_LAYOUT_PREFS, ...layout }),
-      ...bindActions({ ctx, pendingEdits, searchDebouncer, syncBox }),
+      ...bindActions({ ctx, pendingEdits, searchDebouncer, syncBox, alerts: createAlertQueue() }),
     };
   });
 

@@ -2,7 +2,7 @@
 // ABOUTME: the in-memory browser/dev demo), then renders the real app tree.
 // ABOUTME: Also owns the Settings "save token" -> live github+sync rebuild.
 import { isTauri } from "@tauri-apps/api/core";
-import { confirm as tauriConfirm } from "@tauri-apps/plugin-dialog";
+import { confirm as tauriConfirm, message as tauriMessage } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { boot, runInitialSync } from "./bootstrap";
 import { fetchPageTitle } from "./bootstrap/fetchTitle";
@@ -15,6 +15,20 @@ import { ServicesProvider } from "./ui/app/ServicesContext";
 import { AppStoreProvider } from "./ui/app/state";
 import type { AppStoreDeps } from "./ui/app/state.types";
 import { KEYCHAIN_TOKEN_KEY } from "./ui/app/state.types";
+
+const TRY_AGAIN = "Try Again";
+
+/** A native alert for an action that failed. With a retry it offers Try
+ *  Again (the default button) and OK; the dialog plugin answers with the
+ *  chosen button's label. */
+async function showFailureAlert(text: string, options: { retry: boolean }): Promise<boolean> {
+  const chosen = await tauriMessage(text, {
+    title: "Blogosphere",
+    kind: "warning",
+    buttons: options.retry ? { ok: TRY_AGAIN, cancel: "OK" } : "Ok",
+  });
+  return chosen === TRY_AGAIN;
+}
 
 function LoadingScreen() {
   return (
@@ -140,6 +154,7 @@ export function App(props: { platform: Platform }) {
         deps: {
           writeClipboardText: tauriWriteClipboardText,
           confirm: (message) => tauriConfirm(message, { title: "Blogosphere" }),
+          alert: showFailureAlert,
         },
       }
     : {};
