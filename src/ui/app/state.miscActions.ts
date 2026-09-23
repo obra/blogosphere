@@ -1,12 +1,17 @@
 // ABOUTME: Everything else: services/sync wiring, init, conflict resolution,
 // ABOUTME: token save, per-entry editor mode, commit templates, toasts, dialogs.
 import type { Services } from "../../core/services";
-import type { CommitMessageTemplates, ConflictResolution, SyncApi } from "../../core/sync/types";
+import type {
+  CommitMessageTemplates,
+  ConflictResolution,
+  SyncApi,
+  SyncStatus,
+} from "../../core/sync/types";
 import type { EditorMode } from "../types";
 import { parseCommitTemplates } from "./state.deps";
 import { refresh } from "./state.entryActions";
 import { restoreLastPosition } from "./state.lastPositionActions";
-import type { ActionCtx, SetState, Toast } from "./state.types";
+import type { ActionCtx, AppState, SetState, Toast } from "./state.types";
 import {
   editorModeMetaKey,
   KEYCHAIN_TOKEN_KEY,
@@ -23,6 +28,16 @@ function createSyncSubscriptionBox(): SyncSubscriptionBox {
   return { unsubscribe: null, unsubscribeLog: null };
 }
 
+/** A new sync status, closing the Conflict sheet if its conflict went away
+ *  (a pull merged it, or the remote reverted or deleted the entry): a sheet
+ *  that no longer shows must not keep the window modal. */
+function withStatus(state: AppState, status: SyncStatus): Partial<AppState> {
+  const sheet = state.conflictSheetPath;
+  return sheet !== null && !status.conflicts.includes(sheet)
+    ? { syncStatus: status, conflictSheetPath: null }
+    : { syncStatus: status };
+}
+
 function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | null): void {
   box.unsubscribe?.();
   box.unsubscribe = null;
@@ -31,14 +46,14 @@ function attachSync(ctx: ActionCtx, box: SyncSubscriptionBox, sync: SyncApi | nu
   if (!sync) {
     // syncLog is deliberately left intact: the history of what happened
     // before a disconnect is exactly what a user debugging one wants to see.
-    ctx.set({ syncStatus: null });
+    ctx.set({ syncStatus: null, conflictSheetPath: null });
     return;
   }
   const initialStatus = sync.status();
-  ctx.set({ syncStatus: initialStatus });
+  ctx.set((state) => withStatus(state, initialStatus));
   let wasSyncing = initialStatus.state === "syncing";
   box.unsubscribe = sync.onStatus((status) => {
-    ctx.set({ syncStatus: status });
+    ctx.set((state) => withStatus(state, status));
     // pull()/bootstrap() write straight to the store, bypassing the local
     // entries cache — reload it whenever a sync round just finished
     // (regardless of outcome) so remote-side changes actually show up
@@ -161,43 +176,18 @@ async function copyText(ctx: ActionCtx, text: string): Promise<void> {
   await ctx.deps.writeClipboardText(text).catch(() => undefined);
 }
 
-function openSettings(set: SetState): void {
-  set({ settingsOpen: true });
-}
-
-function closeSettings(set: SetState): void {
-  set({ settingsOpen: false });
-}
-
-function openSyncLog(set: SetState): void {
-  set({ syncLogOpen: true });
-}
-
-function toggleSyncLog(set: SetState): void {
-  set((state) => ({ syncLogOpen: !state.syncLogOpen }));
-}
-
-function closeSyncLog(set: SetState): void {
-  set({ syncLogOpen: false });
-}
-
 export type { SyncSubscriptionBox };
 export {
   addToast,
   attachSync,
-  closeSettings,
-  closeSyncLog,
   copyText,
   createSyncSubscriptionBox,
   dismissToast,
   init,
-  openSettings,
-  openSyncLog,
   resolveConflict,
   saveToken,
   setCommitTemplates,
   setEditorMode,
   setServices,
   syncNow,
-  toggleSyncLog,
 };

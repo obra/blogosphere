@@ -83,6 +83,8 @@ interface KeyNavState {
 function makeKeyDownHandler(nav: KeyNavState): (event: KeyboardEvent<HTMLDivElement>) => void {
   return (event) => {
     if (event.key === "Escape") {
+      // Handled here, so nothing underneath treats it as its own Escape.
+      event.preventDefault();
       nav.close();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -216,9 +218,11 @@ function QuickOpenPalette() {
     setActiveIndex(0);
   }
 
+  // Close first: what a row opens (a sheet, the Activity popover) can't
+  // open while the palette is still up.
   function pick(row: QuickOpenRow) {
-    row.activate();
     close();
+    row.activate();
   }
 
   function handleHover(key: string) {

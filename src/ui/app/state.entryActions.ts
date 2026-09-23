@@ -81,7 +81,9 @@ function hydrateEditorMode(ctx: ActionCtx, path: string): void {
 }
 
 function select(ctx: ActionCtx, path: string | null): void {
-  ctx.set({ selectedPath: path });
+  // The Publish sheet is for the selected entry: moving the selection dismisses it.
+  const { publishDialogOpen, selectedPath } = ctx.get();
+  ctx.set({ selectedPath: path, publishDialogOpen: publishDialogOpen && selectedPath === path });
   if (path && !(path in ctx.get().editorModes)) {
     hydrateEditorMode(ctx, path);
   }
