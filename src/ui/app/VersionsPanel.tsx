@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CommitSummary, GitHubApi } from "../../core/github/types";
 import { relativeTimeLabel } from "./format";
 import { useServices } from "./ServicesContext";
+import { focusSheetOnOpen } from "./sheetFocus";
 import { useAppStore, useAppStoreApi } from "./state";
 import { useEscapeToCancel } from "./useEscapeToCancel";
 
@@ -233,7 +234,12 @@ function VersionsPanel() {
         }
       }}
     >
-      <div className="dialog dialog-wide versions-panel" role="dialog" aria-label="Versions">
+      <div
+        className="dialog dialog-wide versions-panel"
+        role="dialog"
+        aria-label="Versions"
+        ref={focusSheetOnOpen}
+      >
         <header className="settings-header">
           <h2>Versions</h2>
           <button

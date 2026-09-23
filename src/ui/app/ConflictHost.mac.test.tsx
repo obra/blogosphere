@@ -3,6 +3,7 @@
 // ABOUTME: it opens from Resolve… in the editor bar or the Activity popover.
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
+import "../editor/jsdom-layout-shim";
 import { ConflictHost } from "./ConflictHost";
 import { EditorScreen } from "./EditorScreen";
 import { SyncStatusButton } from "./SyncStatusButton";

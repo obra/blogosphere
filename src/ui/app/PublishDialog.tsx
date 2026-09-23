@@ -4,6 +4,7 @@
 import { type FormEvent, useId, useState } from "react";
 import { slugForPath, slugify } from "../../core/model/paths";
 import type { PublishOptions } from "../../core/model/types";
+import { focusSheetOnOpen } from "./sheetFocus";
 import { useEscapeToCancel } from "./useEscapeToCancel";
 
 interface PublishDialogProps {
@@ -119,7 +120,7 @@ function PublishDialog(props: PublishDialogProps) {
 
   return (
     <div className="dialog-backdrop">
-      <div className="dialog" role="dialog" aria-label="Publish">
+      <div className="dialog" role="dialog" aria-label="Publish" ref={focusSheetOnOpen}>
         <h2>Publish</h2>
         <form onSubmit={handleSubmit}>
           <div className="dialog-field">

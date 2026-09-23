@@ -2,6 +2,7 @@
 // ABOUTME: button, and clipboard prefill on open.
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { useServices } from "./ServicesContext";
+import { focusSheetOnOpen } from "./sheetFocus";
 import { useAppStore, useAppStoreApi } from "./state";
 import { useEscapeToCancel } from "./useEscapeToCancel";
 
@@ -110,7 +111,7 @@ function NewLinkDialog(props: NewLinkDialogProps) {
 
   return (
     <div className="dialog-backdrop">
-      <div className="dialog" role="dialog" aria-label="New link post">
+      <div className="dialog" role="dialog" aria-label="New link post" ref={focusSheetOnOpen}>
         <h2>New link</h2>
         <form onSubmit={handleSubmit}>
           <div className="dialog-field">

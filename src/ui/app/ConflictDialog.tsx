@@ -2,6 +2,7 @@
 // ABOUTME: mine / use theirs buttons, and an "edit merged" hand-merge option.
 import { useState } from "react";
 import type { ConflictResolution } from "../../core/sync/types";
+import { focusSheetOnOpen } from "./sheetFocus";
 import { useEscapeToCancel } from "./useEscapeToCancel";
 
 interface ConflictDialogProps {
@@ -95,6 +96,7 @@ function ConflictDialog(props: ConflictDialogProps) {
     <div className="dialog-backdrop">
       <div
         className="dialog dialog-wide"
+        ref={focusSheetOnOpen}
         role="dialog"
         aria-label={`Resolve conflict in ${props.path}`}
       >
