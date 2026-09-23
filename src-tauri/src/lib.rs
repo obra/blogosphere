@@ -3,6 +3,7 @@
 
 mod keychain;
 mod platform;
+pub mod symbols;
 
 /// Runs the Tauri application. This is the process entry point.
 ///
@@ -37,6 +38,7 @@ pub fn run() {
             keychain::keychain_set,
             keychain::keychain_delete,
             platform::current_platform,
+            symbols::render_symbol,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

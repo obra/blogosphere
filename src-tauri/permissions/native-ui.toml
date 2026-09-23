@@ -1,12 +1,17 @@
 # ABOUTME: App-level ACL permissions for the native-UI helper commands
-# ABOUTME: (src/platform.rs), granted to the main window via capabilities/default.json.
+# ABOUTME: (src/platform.rs, src/symbols.rs), granted to the main window via capabilities/default.json.
 
 [[permission]]
 identifier = "allow-current-platform"
 description = "Enables the current_platform command, which reports the OS this build targets."
 commands.allow = ["current_platform"]
 
+[[permission]]
+identifier = "allow-render-symbol"
+description = "Enables the render_symbol command, which draws an SF Symbol to PNG."
+commands.allow = ["render_symbol"]
+
 [[set]]
 identifier = "native-ui"
-description = "Allows the native-UI helper commands (platform detection)."
-permissions = ["allow-current-platform"]
+description = "Allows the native-UI helper commands (platform detection, SF Symbol rendering)."
+permissions = ["allow-current-platform", "allow-render-symbol"]

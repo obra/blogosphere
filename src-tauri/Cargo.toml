@@ -43,8 +43,30 @@ tauri-plugin-clipboard-manager = "2.3.2"
 # Windows; Android uses the file fallback in keychain.rs (no keyring backend
 # exists there). keychain.rs has a test pinning "never the mock store".
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
+base64 = "0.22"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 # Dev-only agent access (screenshots, DOM, IPC) for the tauri-mcp CLI.
 # Registered only in debug builds and bound to localhost — see lib.rs.
 tauri-plugin-mcp-bridge = "0.13.0"
+
+# SF Symbol rendering (src/symbols.rs). default-features = false: the crates'
+# defaults switch on hundreds of AppKit features we don't use.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSData", "NSDictionary", "NSGeometry"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "NSImage",
+  "NSImageRep",
+  "NSBitmapImageRep",
+  "NSGraphics",
+  "NSGraphicsContext",
+  "NSFontDescriptor",
+  "objc2-core-foundation",
+] }
+
+# Runs on the main thread (AppKit drawing); libtest's harness doesn't.
+[[test]]
+name = "symbols"
+harness = false
