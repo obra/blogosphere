@@ -1,12 +1,11 @@
 // ABOUTME: First-run connect card — shown in the detail pane until a GitHub
 // ABOUTME: token is saved. Owns the token form, live progress, and errors.
 import { type FormEvent, useId, useState } from "react";
+import { describeConnectError } from "./connectErrors";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
 
 const TOKEN_URL = "https://github.com/settings/personal-access-tokens/new";
-const AUTH_ERROR_PATTERN = /401|403|auth/i;
-const NETWORK_ERROR_PATTERN = /network|fetch|offline/i;
 
 interface ConnectScreenProps {
   /** Integration's "validate token, rebuild github+sync, first sync" step.
@@ -15,17 +14,6 @@ interface ConnectScreenProps {
 }
 
 type Phase = "idle" | "connecting";
-
-function describeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : "";
-  if (AUTH_ERROR_PATTERN.test(message)) {
-    return "GitHub rejected that token. Check that it has read and write access to the blog repository's contents.";
-  }
-  if (NETWORK_ERROR_PATTERN.test(message)) {
-    return "Couldn't reach GitHub. Check your connection and try again.";
-  }
-  return "Connecting failed. Check the token and try again.";
-}
 
 function TokenHelp() {
   const store = useAppStoreApi();
@@ -50,7 +38,6 @@ function TokenHelp() {
 }
 
 function ConnectScreen(props: ConnectScreenProps) {
-  const store = useAppStoreApi();
   const services = useServices();
   const syncStatus = useAppStore((state) => state.syncStatus);
   const [token, setToken] = useState("");
@@ -72,11 +59,10 @@ function ConnectScreen(props: ConnectScreenProps) {
     setPhase("connecting");
     setError(null);
     try {
-      await store.getState().saveToken(trimmed);
       await props.onTokenSaved?.(trimmed);
       // Success unmounts this card (services.sync flips non-null upstream).
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeConnectError(cause));
       setPhase("idle");
     }
   }

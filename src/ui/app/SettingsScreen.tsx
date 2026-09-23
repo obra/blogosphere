@@ -1,8 +1,9 @@
 // ABOUTME: Settings screen — GitHub token entry, repo display, and commit
 // ABOUTME: message template fields, each persisted via the app store.
-import { type FormEvent, useId, useState } from "react";
 import type { CommitMessageTemplates } from "../../core/sync/types";
+import { describeConnectError } from "./connectErrors";
 import { useServices } from "./ServicesContext";
+import { CommitTemplatesSection, ConnectionSection } from "./SettingsSections";
 import { useAppStore, useAppStoreApi } from "./state";
 
 interface SettingsScreenProps {
@@ -13,122 +14,37 @@ interface SettingsScreenProps {
   onTokenSaved: ((token: string) => void | Promise<void>) | undefined;
 }
 
-type TokenFieldProps = SettingsScreenProps;
-
-function TokenField(props: TokenFieldProps) {
+/** Settings' two sections, bound to this window's store and connect(). */
+function SettingsBody(props: SettingsScreenProps) {
   const store = useAppStoreApi();
-  const [token, setToken] = useState("");
-  const [saving, setSaving] = useState(false);
-  const fieldId = useId();
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-    setSaving(true);
-    try {
-      await store.getState().saveToken(token);
-      await props.onTokenSaved?.(token);
-      setToken("");
-    } catch {
-      // Already surfaced as a toast by the store; nothing more to do here.
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form className="settings-token-form" onSubmit={handleSubmit}>
-      <div className="dialog-field">
-        <label htmlFor={fieldId}>GitHub token</label>
-        <input
-          id={fieldId}
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.currentTarget.value)}
-          placeholder="github_pat_…"
-          autoComplete="off"
-        />
-      </div>
-      <button type="submit" className="btn btn-primary" disabled={!token || saving}>
-        {saving ? "Saving…" : "Save token"}
-      </button>
-    </form>
-  );
-}
-
-/** Connection section: connected state with a replace-token disclosure when
- *  sync is configured; the bare token form when it isn't. */
-function ConnectionSection(props: TokenFieldProps) {
   const services = useServices();
-  const [replacing, setReplacing] = useState(false);
-  const connected = services.sync !== null;
-  const repoLabel = `${services.repo.owner}/${services.repo.repo}#${services.repo.branch}`;
-  return (
-    <section className="settings-section">
-      <h3>Connection</h3>
-      {connected ? (
-        <div className="settings-connection">
-          <span className="settings-connected-dot" aria-hidden="true" />
-          <span>
-            Connected to <strong>{repoLabel}</strong>
-          </span>
-          <button type="button" className="link-button" onClick={() => setReplacing(!replacing)}>
-            {replacing ? "Keep current token" : "Replace token…"}
-          </button>
-        </div>
-      ) : (
-        <p className="settings-hint">
-          Not connected. Save a fine-grained GitHub token with contents read &amp; write on{" "}
-          {repoLabel.split("#")[0]} to start syncing.
-        </p>
-      )}
-      {connected && !replacing ? null : <TokenField onTokenSaved={props.onTokenSaved} />}
-    </section>
-  );
-}
-
-const TEMPLATE_FIELDS: Array<{ key: keyof CommitMessageTemplates; label: string }> = [
-  { key: "newPost", label: "New post" },
-  { key: "edit", label: "Edit" },
-  { key: "newDraft", label: "New draft" },
-  { key: "newLink", label: "New link" },
-  { key: "delete", label: "Delete" },
-];
-
-function CommitTemplatesForm() {
-  const store = useAppStoreApi();
   const templates = useAppStore((state) => state.commitTemplates);
-  const [draft, setDraft] = useState(templates);
-  const baseId = useId();
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    store.getState().setCommitTemplates(draft);
+  const { owner, repo, branch } = services.repo;
+  async function saveToken(token: string): Promise<string | null> {
+    try {
+      await props.onTokenSaved?.(token);
+      return null;
+    } catch (error) {
+      return describeConnectError(error);
+    }
   }
-
+  async function saveTemplates(next: CommitMessageTemplates): Promise<string | null> {
+    try {
+      await store.getState().setCommitTemplates(next);
+      return null;
+    } catch {
+      return "Couldn't save the templates.";
+    }
+  }
   return (
-    <form className="settings-section" onSubmit={handleSubmit}>
-      <h3>Commit messages</h3>
-      <p className="settings-hint">
-        Used for the commits Blogosphere makes. {"{title}"} and {"{path}"} fill in.
-      </p>
-      {TEMPLATE_FIELDS.map((field) => (
-        <div className="dialog-field" key={field.key}>
-          <label htmlFor={`${baseId}-${field.key}`}>{field.label}</label>
-          <input
-            id={`${baseId}-${field.key}`}
-            type="text"
-            value={draft[field.key]}
-            onChange={(event) => setDraft({ ...draft, [field.key]: event.currentTarget.value })}
-          />
-        </div>
-      ))}
-      <button type="submit" className="btn">
-        Save templates
-      </button>
-    </form>
+    <>
+      <ConnectionSection
+        connected={services.sync !== null}
+        repoLabel={`${owner}/${repo}#${branch}`}
+        saveToken={saveToken}
+      />
+      <CommitTemplatesSection templates={templates} saveTemplates={saveTemplates} />
+    </>
   );
 }
 
@@ -174,8 +90,7 @@ function SettingsScreen(props: SettingsScreenProps) {
             ✕
           </button>
         </header>
-        <ConnectionSection onTokenSaved={props.onTokenSaved} />
-        <CommitTemplatesForm />
+        <SettingsBody onTokenSaved={props.onTokenSaved} />
       </div>
     </div>
   );

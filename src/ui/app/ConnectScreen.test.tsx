@@ -15,22 +15,23 @@ function fillAndSubmit(token: string): void {
   fireEvent.click(screen.getByRole("button", { name: "Connect and sync" }));
 }
 
-it("saves the token and calls onTokenSaved on submit", async () => {
+it("hands the token to connect (which checks and saves it) on submit", async () => {
   const onTokenSaved = vi.fn(() => Promise.resolve());
-  const { services } = renderWithStore(<ConnectScreen onTokenSaved={onTokenSaved} />, {
-    seedEntries: [],
-  });
+  renderWithStore(<ConnectScreen onTokenSaved={onTokenSaved} />, { seedEntries: [] });
   fillAndSubmit("github_pat_test123");
   await waitFor(() => expect(onTokenSaved).toHaveBeenCalledWith("github_pat_test123"));
-  expect(await services.shell.keychainGet("github-token")).toBe("github_pat_test123");
 });
 
 it("shows a plain-language error when the token is rejected and re-enables the form", async () => {
   const onTokenSaved = vi.fn(() => Promise.reject(new Error("GitHubError: auth (401)")));
-  renderWithStore(<ConnectScreen onTokenSaved={onTokenSaved} />, { seedEntries: [] });
+  const { store } = renderWithStore(<ConnectScreen onTokenSaved={onTokenSaved} />, {
+    seedEntries: [],
+  });
   fillAndSubmit("github_pat_bad");
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toContain("GitHub rejected that token");
+  // Said once, here: no toast on top of it.
+  expect(store.getState().toasts).toEqual([]);
   expect(screen.getByRole("button", { name: "Connect and sync" })).toHaveProperty(
     "disabled",
     false,

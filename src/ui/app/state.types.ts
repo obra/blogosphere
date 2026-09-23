@@ -81,7 +81,6 @@ interface BusyFlags {
   publishing: boolean;
   deleting: boolean;
   renaming: boolean;
-  savingToken: boolean;
   sharingLink: boolean;
 }
 
@@ -91,7 +90,6 @@ const INITIAL_BUSY: BusyFlags = {
   publishing: false,
   deleting: false,
   renaming: false,
-  savingToken: false,
   sharingLink: false,
 };
 
@@ -200,7 +198,6 @@ interface AppActions {
   discardChanges(path: string): Promise<void>;
   renameEntry(path: string, changes: { slug?: string; date?: string }): Promise<void>;
   resolveConflict(path: string, resolution: ConflictResolution): Promise<void>;
-  saveToken(token: string): Promise<void>;
   /** User-initiated "sync now" (⌘R / the sidebar sync button). No-op until a
    *  token is configured; failures surface through syncStatus, not a throw. */
   syncNow(): Promise<void>;

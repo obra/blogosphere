@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// ABOUTME: Tests for resolveConflict, saveToken, editor-mode/commit-template
+// ABOUTME: Tests for resolveConflict, editor-mode/commit-template
 // ABOUTME: persistence, toasts, and the sync-status mirror, against fakes.
 import { expect, it } from "vitest";
 import { createAppStore } from "./state";
@@ -34,29 +34,6 @@ it("resolveConflict delegates to sync.resolveConflict and refreshes entries", as
   expect(sync?.resolvedConflicts()).toEqual([
     { path: "content/drafts/2026-01-01-a.md", resolution: { choose: "mine" } },
   ]);
-});
-
-it("saveToken persists the token via shell.keychainSet", async () => {
-  const { services, shell } = buildFakeServices();
-  const store = createAppStore(services);
-
-  await store.getState().saveToken("ghp_example");
-
-  expect(await shell.keychainGet("github-token")).toBe("ghp_example");
-});
-
-it("saveToken toasts and rethrows when the keychain write fails", async () => {
-  const { services, shell } = buildFakeServices();
-  const originalSet = shell.keychainSet;
-  shell.keychainSet = () => Promise.reject(new Error("locked"));
-
-  const store = createAppStore(services);
-
-  await expect(store.getState().saveToken("ghp_example")).rejects.toThrow("locked");
-  expect(store.getState().toasts.some((toast) => toast.tone === "error")).toBe(true);
-  expect(store.getState().busy.savingToken).toBe(false);
-
-  shell.keychainSet = originalSet;
 });
 
 it("setEditorMode updates state and persists to store meta", async () => {

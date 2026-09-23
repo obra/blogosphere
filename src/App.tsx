@@ -1,10 +1,11 @@
 // ABOUTME: Root application component — boots the right Services (Tauri or
 // ABOUTME: the in-memory browser/dev demo), then renders the real app tree.
-// ABOUTME: Also owns the Settings "save token" -> live github+sync rebuild.
+// ABOUTME: Also owns connecting a GitHub token -> live github+sync rebuild.
 import { isTauri } from "@tauri-apps/api/core";
 import { confirm as tauriConfirm, message as tauriMessage } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { boot, runInitialSync } from "./bootstrap";
+import { createConnect } from "./bootstrap/connect";
 import { fetchPageTitle } from "./bootstrap/fetchTitle";
 import { buildGithubAndSync, tauriWriteClipboardText } from "./bootstrap/tauri";
 import type { Services } from "./core/services";
@@ -14,7 +15,6 @@ import { DEFAULT_LAYOUT_PREFS, type LayoutPrefs, loadLayoutPrefs } from "./ui/ap
 import { ServicesProvider } from "./ui/app/ServicesContext";
 import { AppStoreProvider } from "./ui/app/state";
 import type { AppStoreDeps } from "./ui/app/state.types";
-import { KEYCHAIN_TOKEN_KEY } from "./ui/app/state.types";
 
 const TRY_AGAIN = "Try Again";
 
@@ -39,37 +39,32 @@ function LoadingScreen() {
   );
 }
 
-/** Rebuilds github+sync from a freshly-saved token and swaps them into the
- *  live Services object — AppStoreProvider's effect (state.ts) picks up the
- *  new `sync` automatically and resubscribes, no app restart needed. */
-function buildTokenSavedHandler(
+/** One connect() for the app's lifetime (it remembers a token check in
+ *  flight), always acting on the Services current at the time it runs. */
+function useConnect(
   tauri: boolean,
   services: Services | null,
   setServices: (services: Services) => void,
 ): (token: string) => Promise<void> {
-  return async (token) => {
-    if (!(tauri && services)) {
-      return; // demo path: no real GitHub to talk to
-    }
-    const { github, sync } = buildGithubAndSync(
-      token,
-      services.store,
-      services.model,
-      services.shell,
-    );
-    // Validate before installing: one cheap authenticated read. A bad token
-    // rejects here — the connect card / settings show the error and the app
-    // keeps its previous (possibly unconfigured) sync instead of a broken one.
-    try {
-      await github.getRef();
-    } catch (cause) {
-      await services.shell.keychainDelete(KEYCHAIN_TOKEN_KEY).catch(() => undefined);
-      throw cause;
-    }
-    const next: Services = { ...services, github, sync };
-    setServices(next);
-    await runInitialSync(next);
-  };
+  const current = useRef(services);
+  current.current = services;
+  return useMemo(
+    () =>
+      createConnect({
+        current: () => {
+          if (!current.current) {
+            throw new Error("Services aren't ready yet");
+          }
+          return current.current;
+        },
+        install: setServices,
+        build: tauri
+          ? (token, base) => buildGithubAndSync(token, base.store, base.model, base.shell)
+          : null,
+        initialSync: runInitialSync,
+      }),
+    [tauri, setServices],
+  );
 }
 
 interface BootState {
@@ -128,6 +123,7 @@ function useBoot(platform: Platform): BootState {
 export function App(props: { platform: Platform }) {
   const tauri = isTauri();
   const { services, setServices, bootError, retryBoot, layout } = useBoot(props.platform);
+  const connect = useConnect(tauri, services, setServices);
 
   if (bootError !== null) {
     return (
@@ -163,10 +159,7 @@ export function App(props: { platform: Platform }) {
   return (
     <ServicesProvider services={services}>
       <AppStoreProvider {...storeProviderProps} layout={layout}>
-        <AppShell
-          fetchTitle={tauri ? fetchPageTitle : null}
-          onTokenSaved={buildTokenSavedHandler(tauri, services, setServices)}
-        />
+        <AppShell fetchTitle={tauri ? fetchPageTitle : null} onTokenSaved={connect} />
       </AppStoreProvider>
     </ServicesProvider>
   );

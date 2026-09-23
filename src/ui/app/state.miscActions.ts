@@ -13,12 +13,7 @@ import { parseCommitTemplates } from "./state.deps";
 import { restoreLastPosition } from "./state.lastPositionActions";
 import { refresh } from "./state.listActions";
 import type { ActionCtx, AppState } from "./state.types";
-import {
-  editorModeMetaKey,
-  KEYCHAIN_TOKEN_KEY,
-  META_COMMIT_TEMPLATES_KEY,
-  SYNC_LOG_CAP,
-} from "./state.types";
+import { editorModeMetaKey, META_COMMIT_TEMPLATES_KEY, SYNC_LOG_CAP } from "./state.types";
 
 interface SyncSubscriptionBox {
   unsubscribe: (() => void) | null;
@@ -122,24 +117,6 @@ async function resolveConflict(
   }
 }
 
-async function saveToken(ctx: ActionCtx, token: string): Promise<void> {
-  ctx.set((state) => ({ busy: { ...state.busy, savingToken: true } }));
-  try {
-    await ctx.get().services.shell.keychainSet(KEYCHAIN_TOKEN_KEY, token);
-  } catch (error) {
-    ctx.get().addToast({
-      tone: "error",
-      message: "Couldn't save the token.",
-      retry: () => saveToken(ctx, token),
-    });
-    // Rethrow so the caller (SettingsScreen) knows not to run its "rebuild
-    // sync" callback — the token was never actually persisted.
-    throw error;
-  } finally {
-    ctx.set((state) => ({ busy: { ...state.busy, savingToken: false } }));
-  }
-}
-
 async function setEditorMode(ctx: ActionCtx, path: string, mode: EditorMode): Promise<void> {
   ctx.set((state) => ({ editorModes: { ...state.editorModes, [path]: mode } }));
   await ctx.get().services.store.setMeta(editorModeMetaKey(path), mode);
@@ -175,7 +152,6 @@ export {
   createSyncSubscriptionBox,
   init,
   resolveConflict,
-  saveToken,
   setCommitTemplates,
   setEditorMode,
   setServices,
