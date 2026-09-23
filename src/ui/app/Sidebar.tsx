@@ -1,12 +1,15 @@
 // ABOUTME: Sidebar — section list with counts, the New Post / New Link buttons,
 // ABOUTME: and the footer utility row: sync-now button + settings gear.
 
+import type { MouseEvent } from "react";
 import { Icon } from "../icons/Icon";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { relativeTimeLabel } from "./format";
 import { countsBySection, SECTION_LABELS } from "./grouping";
 import { SidebarTopBar } from "./MacToolbar";
+import { runMenuCommand, sectionMenuItems } from "./menuModel";
+import { popupMenu } from "./menuPopup";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
 import { syncStatusLabel } from "./syncLabel";
@@ -101,11 +104,24 @@ interface SidebarSectionButtonProps {
 
 function SidebarSectionButton(props: SidebarSectionButtonProps) {
   const store = useAppStoreApi();
+  const mac = useServices().shell.platform() === "macos";
+  const items = sectionMenuItems(props.section);
+  const onContextMenu =
+    mac && items.length > 0
+      ? (event: MouseEvent<HTMLButtonElement>) => {
+          event.preventDefault();
+          popupMenu(`section:${props.section}`, items, (id) => runMenuCommand(id, store), {
+            x: event.clientX,
+            y: event.clientY,
+          });
+        }
+      : undefined;
   return (
     <li>
       <button
         type="button"
         className="sidebar-section-button"
+        onContextMenu={onContextMenu}
         aria-current={props.active ? "true" : undefined}
         onClick={(event) => {
           // WebKit doesn't focus a button on click; see EntryRow.

@@ -1,12 +1,15 @@
 // ABOUTME: Entry list — grouped by year/month (newest first), or search results;
 // ABOUTME: badges, click-to-select, and arrow/Home/End/Enter keyboard nav.
-import { type KeyboardEvent, useRef } from "react";
+import { type KeyboardEvent, type MouseEvent, useRef, useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import type { Section } from "../types";
 import { formatDisplayDate } from "./format";
 import type { YearGroup } from "./grouping";
 import { filterBySection, groupByYearMonth, monthGroupLabel } from "./grouping";
+import { entryLiveUrl } from "./liveUrl";
 import { ComposeButton, SidebarToggleButton, ToolbarRow } from "./MacToolbar";
+import { entryRowItems, runMenuCommand } from "./menuModel";
+import { popupMenu } from "./menuPopup";
 import { useServices } from "./ServicesContext";
 import type { BoundAppStore } from "./state";
 import { useAppStore, useAppStoreApi } from "./state";
@@ -21,13 +24,41 @@ interface EntryRowProps {
   rowRefs: Map<string, HTMLButtonElement>;
 }
 
+/** macOS: right-click opens the row's own menu, acting on this row whatever
+ *  is selected. The row keeps an outline (Finder's context ring) while the
+ *  menu is up. Elsewhere, right-click is left to the platform. */
+function useRowContextMenu(entry: EntryRecord) {
+  const store = useAppStoreApi();
+  const services = useServices();
+  const [menuOpen, setMenuOpen] = useState(false);
+  if (services.shell.platform() !== "macos") {
+    return { menuOpen: false, onContextMenu: undefined };
+  }
+  return {
+    menuOpen,
+    onContextMenu: (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      setMenuOpen(true);
+      popupMenu(
+        "entryRow",
+        entryRowItems(entry, entryLiveUrl(services.model, entry)),
+        (id) => runMenuCommand(id, store, entry.path),
+        { x: event.clientX, y: event.clientY },
+      ).finally(() => setMenuOpen(false));
+    },
+  };
+}
+
 function EntryRow(props: EntryRowProps) {
   const store = useAppStoreApi();
+  const contextMenu = useRowContextMenu(props.entry);
   return (
     <button
       type="button"
       className="entry-row"
       data-path={props.entry.path}
+      data-context={contextMenu.menuOpen ? "true" : undefined}
+      onContextMenu={contextMenu.onContextMenu}
       aria-current={props.selected ? "true" : undefined}
       onClick={(event) => {
         // WebKit doesn't focus a button on click; the list's focused-selection

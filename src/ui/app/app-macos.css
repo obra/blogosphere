@@ -101,6 +101,12 @@ html[data-platform="macos"]
 html[data-platform="macos"] :is(.sidebar-section-button, .entry-row)[aria-current="true"] {
   --focus-ring-width: 0;
 }
+/* The row a context menu is open for: AppKit's context ring, an accent
+   outline that leaves the selection where it was. */
+html[data-platform="macos"] .entry-row[data-context="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 /* Badges on a focused selection: accent-on-accent and red-on-blue vanish,
    so they go white, like AppKit's inverted text in selected rows. */
 html[data-platform="macos"] .entry-list-scroll:focus-within
