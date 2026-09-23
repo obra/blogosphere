@@ -1,0 +1,53 @@
+/* ABOUTME: The macOS look — system colors, type, and chrome behavior, scoped to
+   ABOUTME: html[data-platform="macos"]. Other platforms never see these rules. */
+
+html[data-platform="macos"] {
+  color-scheme: light dark;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text: -apple-system-label;
+  --text-muted: -apple-system-secondary-label;
+  --text-faint: -apple-system-tertiary-label;
+  --border: -apple-system-separator;
+  --border-strong: -apple-system-container-border;
+  --bg: -apple-system-text-background;
+  --bg-raised: #ececec;
+  --bg-sunken: #f5f5f5;
+  --bg-hover: color-mix(in srgb, -apple-system-label 6%, transparent);
+  --bg-selected: -apple-system-selected-content-background;
+  --bg-selected-inactive: -apple-system-unemphasized-selected-content-background;
+  --accent: AccentColor;
+  --accent-text: #ffffff;
+  --danger: -apple-system-red;
+  --success: -apple-system-green;
+  --warning: -apple-system-orange;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  --shadow-sheet: 0 16px 40px rgba(0, 0, 0, 0.24), 0 0 0 0.5px rgba(0, 0, 0, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-platform="macos"] {
+    --bg-raised: #2d2d2d;
+    --bg-sunken: #1a1a1a;
+    --shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+    --shadow-sheet: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  }
+}
+
+@media (prefers-contrast: more) {
+  html[data-platform="macos"] {
+    --border: -apple-system-container-border;
+  }
+}
+
+/* Crepe (Write mode) maps its palette onto our tokens on `.editor-doc
+   .milkdown` (app-crepe.css), so its overrides need that same selector. Keep
+   its selection a text selection, not a solid accent block, and drop the
+   red inline code. */
+html[data-platform="macos"] .editor-doc .milkdown {
+  --crepe-color-selected: -apple-system-selected-text-background;
+  --crepe-color-secondary: -apple-system-unemphasized-selected-content-background;
+  --crepe-color-inline-code: var(--text);
+}

@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const NOT_MAC = /^html:not\(\[data-platform="macos"\]\)\s/;
+const MAC = /^html\[data-platform="macos"\]/;
+const ROOT_TOKEN = /(--[a-z0-9-]+)\s*:/g;
+const IMPORT = /@import "\.\/([^"]+)"/g;
+const COLOR_SCHEME = /html\[data-platform="macos"\]\s*\{[^}]*color-scheme:\s*light dark/;
+const TEXT_LABEL = /--text:\s*-apple-system-label/;
+const BORDER_SEPARATOR = /--border:\s*-apple-system-separator/;
+const ACCENT = /--accent:\s*AccentColor/;
+const ACCENT_TEXT = /--accent-text:\s*#ffffff/;
 
 const APP_DIR = new URL("./", import.meta.url);
 
@@ -65,6 +73,12 @@ function blockBody(css: string, prelude: string): string {
   throw new Error(`unterminated block: ${prelude}`);
 }
 
+/** Custom property names declared in app.css's first :root block. */
+function rootTokens(): string[] {
+  const css = readCss("app.css");
+  return [...blockBody(css, ":root {").matchAll(ROOT_TOKEN)].map((m) => m[1] ?? "");
+}
+
 describe("compact (phone) CSS never applies on macOS", () => {
   it("scopes every selector in app-mobile.css's 760px block to non-Mac", () => {
     const block = blockBody(readCss("app-mobile.css"), "@media (max-width: 760px)");
@@ -73,5 +87,42 @@ describe("compact (phone) CSS never applies on macOS", () => {
     for (const selector of selectors) {
       expect(selector).toMatch(NOT_MAC);
     }
+  });
+});
+
+describe("macOS token block (app-macos.css)", () => {
+  const mac = readCss("app-macos.css");
+
+  it("overrides every token app.css defines", () => {
+    const tokens = rootTokens();
+    expect(tokens.length).toBeGreaterThan(10);
+    for (const token of tokens) {
+      expect(mac.includes(`${token}:`), `missing ${token}`).toBe(true);
+    }
+  });
+
+  it("declares color-scheme and never uses light-dark()", () => {
+    expect(mac).toMatch(COLOR_SCHEME);
+    expect(mac).not.toContain("light-dark(");
+  });
+
+  it("uses system colors for text, separators, and the accent", () => {
+    expect(mac).toMatch(TEXT_LABEL);
+    expect(mac).toMatch(BORDER_SEPARATOR);
+    expect(mac).toMatch(ACCENT);
+    expect(mac).toMatch(ACCENT_TEXT);
+  });
+
+  it("scopes every rule to the Mac platform", () => {
+    const selectors = ruleHeads(mac).flatMap(splitSelectors);
+    expect(selectors.length).toBeGreaterThan(0);
+    for (const selector of selectors) {
+      expect(selector).toMatch(MAC);
+    }
+  });
+
+  it("is loaded after the base tokens so it wins", () => {
+    const imports = [...readCss("app.css").matchAll(IMPORT)].map((m) => m[1]);
+    expect(imports.at(-1)).toBe("app-macos.css");
   });
 });
