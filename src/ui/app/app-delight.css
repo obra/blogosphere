@@ -172,6 +172,14 @@
 
 /* ---------- Editor chrome icon buttons (Versions, View on site) ---------- */
 
+.icon-symbol {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask: var(--icon-mask) center / contain no-repeat;
+  mask: var(--icon-mask) center / contain no-repeat;
+}
+
 .editor-icon-button {
   display: inline-flex;
   align-items: center;
