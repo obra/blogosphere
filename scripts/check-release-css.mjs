@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ABOUTME: Post-build guard: the minified CSS must still carry the macOS token
 // ABOUTME: block intact (minifiers can rewrite color functions we depend on), and
-// ABOUTME: the blog's typefaces must be bundled (Write mode works offline).
+// ABOUTME: the blog's typefaces must be bundled, with their OFL licenses (Write mode works offline).
 //
 // Usage: node scripts/check-release-css.mjs [distDir]   (default: dist)
 // Runs automatically at the end of `npm run build`.
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const REQUIRED = [
@@ -53,6 +53,13 @@ if (LIGHT_DARK.test(css)) {
   failures.push("light-dark() present");
 }
 const assetFiles = readdirSync(assets);
+// SIL OFL-1.1: the license travels with the fonts.
+const licenses = join(dist, "licenses", "fonts");
+for (const license of ["CrimsonPro-OFL.txt", "DMSerifDisplay-OFL.txt", "JetBrainsMono-OFL.txt"]) {
+  if (!existsSync(join(licenses, license))) {
+    failures.push(`missing font license ${license}`);
+  }
+}
 for (const [family, fontFiles] of FONTS) {
   if (!declaresFontFace(css, family)) {
     failures.push(`no @font-face for ${family}`);
