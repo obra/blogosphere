@@ -7,6 +7,7 @@ import { entryLiveUrl } from "./liveUrl";
 import { openExternal } from "./openExternal";
 import type { BoundAppStore } from "./state";
 import { modalOpen } from "./state.sheetActions";
+import { isViewModeCommand, runViewModeCommand, type ViewModeCommandId } from "./viewModes";
 
 type MenuCommandId =
   | "publish"
@@ -18,7 +19,8 @@ type MenuCommandId =
   | "discard"
   | "delete"
   | "toggleSidebar"
-  | FormatCommandId;
+  | FormatCommandId
+  | ViewModeCommandId;
 
 type MenuItemModel =
   | { kind: "command"; id: MenuCommandId; text: string; enabled: boolean; accelerator?: string }
@@ -141,39 +143,9 @@ function openOnSite(store: BoundAppStore, path: string): void {
   }
 }
 
-/** Runs a menu command against the store. Entry commands act on `path` (a
- *  context menu's row), or on the selected entry, and do nothing without one. */
-function runMenuCommand(
-  id: MenuCommandId,
-  store: BoundAppStore,
-  path: string | null = store.getState().selectedPath,
-): void {
-  // A sheet (or Quick Open, or Settings) is modal: nothing underneath it
-  // changes until it closes.
-  if (modalOpen(store.getState())) {
-    return;
-  }
-  if (isFormatCommand(id)) {
-    runFormatCommand(id, store);
-    return;
-  }
+/** Commands about the entry at `path`. */
+function runEntryCommand(id: MenuCommandId, store: BoundAppStore, path: string): void {
   const state = store.getState();
-  switch (id) {
-    case "newPost":
-      state.newDraft({ title: "" });
-      return;
-    case "newLink":
-      state.openNewLinkDialog();
-      return;
-    case "toggleSidebar":
-      state.toggleSidebar();
-      return;
-    default:
-      break;
-  }
-  if (path === null) {
-    return;
-  }
   switch (id) {
     case "publish":
       // Drafts only, rechecked here: a menu's enabled state can lag the store.
@@ -203,6 +175,45 @@ function runMenuCommand(
       return;
     default:
       return;
+  }
+}
+
+/** Commands about the app rather than an entry. Returns whether `id` was one. */
+function runAppCommand(id: MenuCommandId, store: BoundAppStore): boolean {
+  const state = store.getState();
+  switch (id) {
+    case "newPost":
+      state.newDraft({ title: "" });
+      return true;
+    case "newLink":
+      state.openNewLinkDialog();
+      return true;
+    case "toggleSidebar":
+      state.toggleSidebar();
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Runs a menu command against the store. Entry commands act on `path` (a
+ *  context menu's row), or on the selected entry, and do nothing without one. */
+function runMenuCommand(
+  id: MenuCommandId,
+  store: BoundAppStore,
+  path: string | null = store.getState().selectedPath,
+): void {
+  // A sheet (or Quick Open, or Settings) is modal: nothing underneath it
+  // changes until it closes.
+  if (modalOpen(store.getState())) {
+    return;
+  }
+  if (isViewModeCommand(id)) {
+    runViewModeCommand(id);
+  } else if (isFormatCommand(id)) {
+    runFormatCommand(id, store);
+  } else if (!runAppCommand(id, store) && path !== null) {
+    runEntryCommand(id, store, path);
   }
 }
 
