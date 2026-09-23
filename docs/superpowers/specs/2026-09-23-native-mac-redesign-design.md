@@ -366,7 +366,7 @@ Each restyled control keeps the system's size, placement, and behavior
   items carry the same shortcuts both editors already bind, and dispatch to
   whichever editor is active. Link gets no ⌘K (Quick Open owns it).
 - **View:** existing ⌘1–4 sections, Quick Open (⌘K), Activity Log (⌥⌘L), plus
-  Hide/Show Sidebar (⌃⌘S) and the three editor modes as ⌥⌘1–3 (titles follow
+  Hide/Show Sidebar (⌃⌘S) and the three editor modes as ⌃⌘1–3 (titles follow
   the entry: Write/Markdown/Live or Preview/HTML/Live), disabled when a mode
   isn't available.
 - **Help** (new): Blogosphere Help → opens the README on GitHub.
@@ -443,7 +443,7 @@ token is mapped:
 | Sync pill (label, time, error tooltip, not-connected → Settings, one-click sync) | Sync status button + tooltip + Activity popover (§3); one-click sync becomes ⌘R / popover Sync Now |
 | Activity button / modal | Activity popover; ⌥⌘L |
 | Settings gear / modal | Settings window; ⌘, |
-| Mode switch incl. legacy Preview/HTML, conditional Live | Toolbar segmented control; View ⌥⌘1–3 |
+| Mode switch incl. legacy Preview/HTML, conditional Live | Toolbar segmented control; View ⌃⌘1–3 |
 | Save-state indicator, Published pill | Toolbar document-status text |
 | Publish button (shown on every entry) | Toolbar Publish (drafts only, same action); Entry › Publish… |
 | Open on site ↗, Versions ⏱, Delete, Discard, Copy Secret Link, secret-link URL | Ellipsis menu; Entry menu; row context menu; HUD shows copied URL |
@@ -513,7 +513,7 @@ token is mapped:
 
 - **Moved to phase 4:** clicking a row's conflict symbol to open the Conflict
   sheet (rows are rebuilt there; today's conflict pill sits inside the row
-  button) and View › editor modes ⌥⌘1–3 (with the segmented control).
+  button) and View › editor modes ⌃⌘1–3 (with the segmented control).
 - **Settings window capability:** besides events, it may set its own size and
   read its own inner size and scale factor (to fit its content under the
   title bar), plus the dev-only `mcp-bridge:default`.
