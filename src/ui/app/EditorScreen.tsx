@@ -18,6 +18,7 @@ import { DetailToolbar, EntryActionsButton } from "./MacToolbar";
 import { MobileEditorBar } from "./MobileEditorBar";
 import { openExternal } from "./openExternal";
 import { PublishButton, PublishDialogHost } from "./PublishControls";
+import { SaveFailureStatus } from "./SaveFailureStatus";
 import { SecretLinkControl } from "./SecretLinkControl";
 import { useServices } from "./ServicesContext";
 import { saveStateLabel } from "./saveStateLabel";
@@ -60,7 +61,11 @@ function DeleteButton(props: { path: string }) {
  *  sync as drafts, and only Publish makes one public (see saveStateLabel.ts). */
 function SaveStateIndicator(props: { record: EntryRecord }) {
   const status = useAppStore((state) => state.syncStatus);
+  const failed = useAppStore((state) => state.saveFailure?.path === props.record.path);
   const label = saveStateLabel(props.record, status);
+  if (failed) {
+    return <SaveFailureStatus />;
+  }
   return (
     <span className="save-state" title={label.title}>
       {label.text}

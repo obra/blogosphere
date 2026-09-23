@@ -99,3 +99,7 @@ html[data-platform="macos"] .activity-deploy {
 html[data-platform="macos"] .activity-deploy[data-state="failed"] {
   color: var(--danger);
 }
+
+html[data-platform="macos"] .save-state[data-state="failed"] {
+  color: var(--danger);
+}

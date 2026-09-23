@@ -32,6 +32,15 @@ describe("routeToast", () => {
     expect(routeToast(deployed, background)).toBe("none");
   });
 
+  it("keeps a failed autosave with the editor: it would otherwise alert on every burst", () => {
+    expect(
+      routeToast(
+        { tone: "error", message: "Couldn't save your changes.", source: "autosave", path: "a.md" },
+        focused,
+      ),
+    ).toBe("editor");
+  });
+
   it("alerts for any other error: an action the person just took failed", () => {
     expect(routeToast({ tone: "error", message: "Couldn't delete this entry." }, focused)).toBe(
       "alert",

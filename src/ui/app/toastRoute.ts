@@ -2,7 +2,7 @@
 // ABOUTME: a native alert for an action that failed, nothing when state shows it.
 import type { Toast } from "./state.types";
 
-type ToastRoute = "hud" | "alert" | "none";
+type ToastRoute = "hud" | "alert" | "editor" | "none";
 
 interface RouteContext {
   /** Whether the main window is in front (document.hasFocus()). */
@@ -17,6 +17,11 @@ function routeToast(toast: Omit<Toast, "id">, context: RouteContext): ToastRoute
   // alert; with no entries the list says so itself.
   if (source === "sync" || source === "load") {
     return "none";
+  }
+  // Autosave runs on every typing burst: an alert would come back each time.
+  // The entry's editor shows it until a save lands.
+  if (source === "autosave") {
+    return "editor";
   }
   if (source === "deploy") {
     return context.windowFocused ? "hud" : "none";

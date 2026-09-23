@@ -81,6 +81,7 @@ function initialAppData(services: Services, layout: LayoutPrefs): AppData {
     toasts: [],
     entriesLoadFailed: false,
     deploy: null,
+    saveFailure: null,
     hud: null,
     editorModes: {},
     commitTemplates: DEFAULT_COMMIT_TEMPLATES,

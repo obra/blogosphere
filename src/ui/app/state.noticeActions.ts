@@ -59,6 +59,15 @@ function addToast(ctx: ActionCtx, alerts: AlertQueue, toast: Omit<Toast, "id">):
     case "alert":
       queueAlert(ctx, alerts, toast);
       return id;
+    case "editor":
+      ctx.set({
+        saveFailure: {
+          path: toast.path ?? "",
+          message: toast.message,
+          ...(toast.retry ? { retry: toast.retry } : {}),
+        },
+      });
+      return id;
     default:
       return id;
   }

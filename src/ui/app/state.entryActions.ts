@@ -105,6 +105,8 @@ function reportEditFailure(
     tone: "error",
     message: `Couldn't save "${record.title ?? record.path}": ${error}`,
     retry: () => commitPending(ctx, record.path, entry),
+    source: "autosave",
+    path: record.path,
   });
 }
 
@@ -132,6 +134,7 @@ async function commitPendingInner(
   };
   await svc.store.upsertEntry(updated);
   replaceEntryInCache(ctx.set, updated);
+  ctx.set((state) => (state.saveFailure?.path === path ? { saveFailure: null } : {}));
 }
 
 /** Commits to the local store only — never the network. Pushing is a
@@ -146,6 +149,8 @@ async function commitPending(ctx: ActionCtx, path: string, entry: PendingEntry):
       tone: "error",
       message: "Couldn't save your changes.",
       retry: () => commitPending(ctx, path, entry),
+      source: "autosave",
+      path,
     });
   }
 }

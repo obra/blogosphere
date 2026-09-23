@@ -62,7 +62,9 @@ interface Toast {
   retry?: () => void;
   /** Toasts the app's own state already shows on macOS (toastRoute.ts):
    *  background sync, loading the entry list, the site deploy. */
-  source?: "sync" | "load" | "deploy";
+  source?: "sync" | "load" | "deploy" | "autosave";
+  /** The entry an autosave failure is about. */
+  path?: string;
 }
 
 /** The latest push's site deploy, as the Activity popover shows it. */
@@ -142,6 +144,9 @@ interface AppData {
    *  list when there's nothing else to show). */
   entriesLoadFailed: boolean;
   deploy: DeployState | null;
+  /** macOS: the last autosave that failed, shown by that entry's editor
+   *  until a save for it lands. */
+  saveFailure: { path: string; message: string; retry?: () => void } | null;
   /** macOS: the HUD message showing now (info and success notices). */
   hud: { id: string; message: string } | null;
 
