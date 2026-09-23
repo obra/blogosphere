@@ -67,18 +67,40 @@ function trackStoreItems(store: BoundAppStore, entry: EntryMenu, view: ViewMenu)
 }
 
 /** View's editor-mode items follow whichever editor is showing: titles
- *  (Write/Markdown vs Preview/HTML) and whether Live is available. */
+ *  (Write/Markdown vs Preview/HTML) and whether Live is available. Switching
+ *  entries unmounts one editor screen and mounts the next in the same beat,
+ *  so updates wait a microtask and only what actually changed goes over IPC. */
 function trackViewModes(view: ViewMenu): () => void {
   const { modeItems } = view;
   if (!modeItems) {
     return () => undefined;
   }
-  const update = createItemTracker((models) => {
-    applyText(modeItems, models);
-    applyEnabled(modeItems, models);
+  let lastTitles: string | null = null;
+  let lastEnabled: string | null = null;
+  let scheduled = false;
+  const sync = () => {
+    const models = viewModeItems(getViewModes());
+    const commands = models.flatMap((model) => (model.kind === "command" ? [model] : []));
+    const titles = commands.map((model) => model.text).join("\n");
+    const enabled = commands.map((model) => model.enabled).join(",");
+    if (titles !== lastTitles) {
+      lastTitles = titles;
+      applyText(modeItems, models);
+    }
+    if (enabled !== lastEnabled) {
+      lastEnabled = enabled;
+      applyEnabled(modeItems, models);
+    }
+  };
+  const stop = subscribeViewModes(() => {
+    if (!scheduled) {
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        sync();
+      });
+    }
   });
-  const sync = () => update(viewModeItems(getViewModes()));
-  const stop = subscribeViewModes(sync);
   sync();
   return stop;
 }
