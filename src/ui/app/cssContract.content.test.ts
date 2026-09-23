@@ -84,3 +84,19 @@ describe("Write mode typography (macOS)", () => {
     }
   });
 });
+
+describe("entry rows (macOS)", () => {
+  it("turns the conflict symbol white on a focused selection", () => {
+    const symbol = declarationsFor(
+      'html[data-platform="macos"] .entry-list-scroll:focus-within .entry-row-item[data-selected="true"] .entry-row-conflict',
+    );
+    expect(symbol.color).toBe("#ffffff");
+  });
+
+  it("leaves room for the symbol on conflicted rows", () => {
+    const conflictedRow = declarationsFor(
+      'html[data-platform="macos"] .entry-row-item[data-conflicted="true"] .entry-row',
+    );
+    expect(conflictedRow["padding-right"]).toBe("32px");
+  });
+});

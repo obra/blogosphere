@@ -2,6 +2,7 @@
 // ABOUTME: context menu on macOS, and the arrow/Home/End/Enter keys between rows.
 import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
+import { Icon } from "../icons/Icon";
 import { formatDisplayDate } from "./format";
 import { entryLiveUrl } from "./liveUrl";
 import { entryRowItems, runMenuCommand } from "./menuModel";
@@ -95,9 +96,36 @@ function useRowContextMenu(path: string) {
   };
 }
 
-function EntryRow(props: EntryRowProps) {
+/** Today's badges: dot for unsaved changes, pills for HTML, Draft, Conflict. */
+function RowMeta(props: { entry: EntryRecord; conflicted: boolean; mac: boolean }) {
+  const { entry, mac } = props;
+  // macOS says these as secondary-label words (the conflict has its own
+  // symbol beside the row); elsewhere they stay pills.
+  const tag = (kind: string, text: string, title?: string) =>
+    mac ? (
+      <span className="entry-row-word" data-kind={kind} title={title}>
+        {text}
+      </span>
+    ) : (
+      <span className="pill-badge" data-kind={kind} title={title}>
+        {text}
+      </span>
+    );
+  return (
+    <span className="entry-row-meta">
+      {formatDisplayDate(entry.date)}
+      {entry.path.endsWith(".html") ? tag("html", "HTML", "Legacy HTML post") : null}
+      {entry.draft ? tag("draft", "Draft") : null}
+      {props.conflicted && !mac ? tag("conflict", "Conflict") : null}
+    </span>
+  );
+}
+
+type RowContextMenu = ReturnType<typeof useRowContextMenu>;
+
+function RowButton(props: EntryRowProps & { mac: boolean; contextMenu: RowContextMenu }) {
   const store = useAppStoreApi();
-  const contextMenu = useRowContextMenu(props.entry.path);
+  const { contextMenu } = props;
   return (
     <button
       type="button"
@@ -122,26 +150,47 @@ function EntryRow(props: EntryRowProps) {
       </span>
       <span className="entry-row-body">
         <span className="entry-row-title">{props.entry.title || "Untitled"}</span>
-        <span className="entry-row-meta">
-          {formatDisplayDate(props.entry.date)}
-          {props.entry.path.endsWith(".html") ? (
-            <span className="pill-badge" data-kind="html" title="Legacy HTML post">
-              HTML
-            </span>
-          ) : null}
-          {props.entry.draft ? (
-            <span className="pill-badge" data-kind="draft">
-              Draft
-            </span>
-          ) : null}
-          {props.conflicted ? (
-            <span className="pill-badge" data-kind="conflict">
-              Conflict
-            </span>
-          ) : null}
-        </span>
+        <RowMeta entry={props.entry} conflicted={props.conflicted} mac={props.mac} />
       </span>
     </button>
+  );
+}
+
+/** macOS: the conflict symbol beside a row (a button can't sit inside the
+ *  row's button). Out of the Tab order: ↑/↓ stay on rows, and the editor's
+ *  Resolve… bar is the keyboard way in. */
+function ConflictSymbol(props: { entry: EntryRecord; contextMenu: RowContextMenu }) {
+  const store = useAppStoreApi();
+  return (
+    <button
+      type="button"
+      className="entry-row-conflict"
+      tabIndex={-1}
+      onContextMenu={props.contextMenu.onContextMenu}
+      aria-label={`Resolve conflict in ${props.entry.title || "Untitled"}`}
+      title="Resolve conflict…"
+      onClick={() => store.getState().openConflict(props.entry.path)}
+    >
+      <Icon name="syncConflict" size={13} />
+    </button>
+  );
+}
+
+function EntryRow(props: EntryRowProps) {
+  const mac = useServices().shell.platform() === "macos";
+  const contextMenu = useRowContextMenu(props.entry.path);
+  if (!mac) {
+    return <RowButton {...props} mac={false} contextMenu={contextMenu} />;
+  }
+  return (
+    <div
+      className="entry-row-item"
+      data-selected={props.selected ? "true" : undefined}
+      data-conflicted={props.conflicted ? "true" : undefined}
+    >
+      <RowButton {...props} mac={true} contextMenu={contextMenu} />
+      {props.conflicted ? <ConflictSymbol entry={props.entry} contextMenu={contextMenu} /> : null}
+    </div>
   );
 }
 

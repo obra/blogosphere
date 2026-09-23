@@ -72,3 +72,42 @@ html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .editor-title-
   font-weight: 400;
   letter-spacing: -0.025em;
 }
+
+/* ---------- Entry rows ---------- */
+
+html[data-platform="macos"] .entry-row-item {
+  position: relative;
+}
+html[data-platform="macos"] .entry-row {
+  cursor: default;
+}
+/* Room for the conflict symbol, so a two-line title never runs under it. */
+html[data-platform="macos"] .entry-row-item[data-conflicted="true"] .entry-row {
+  padding-right: 32px;
+}
+html[data-platform="macos"] .entry-row-word {
+  color: inherit;
+}
+html[data-platform="macos"] .entry-row-conflict {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--warning);
+  cursor: default;
+  transform: translateY(-50%);
+}
+/* On a focused selection it turns white, like the row's own text and dot:
+   orange on the accent color is unreadable. */
+html[data-platform="macos"] .entry-list-scroll:focus-within
+  .entry-row-item[data-selected="true"]
+  .entry-row-conflict {
+  color: #ffffff;
+}
