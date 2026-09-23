@@ -1,0 +1,49 @@
+/* macOS surfaces over the chrome: sheets and the editor conflict bar.
+   Everything here is scoped to html[data-platform="macos"]. */
+
+/* ---------- Editor conflict bar (the way into the Conflict sheet) ---------- */
+
+html[data-platform="macos"] .editor-conflict-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* ---------- Sheets (Publish, New Link, Versions, Conflict) ---------- */
+
+/* The backdrop still covers the whole window, toolbar included: a sheet is
+   modal, so nothing behind it takes clicks. The sheet itself drops from just
+   under the 52pt toolbar row (sheets.md › Desktop). */
+html[data-platform="macos"] .dialog-backdrop {
+  background: rgba(0, 0, 0, 0.18);
+  padding-top: 52px;
+}
+html[data-platform="macos"] .dialog:not(.quick-open) {
+  border: none;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sheet);
+  animation-name: mac-sheet-in;
+  animation-duration: 200ms;
+}
+html[data-platform="macos"] .dialog:not(.quick-open) h2 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@keyframes mac-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
