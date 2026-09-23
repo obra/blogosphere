@@ -117,10 +117,10 @@ describe("SyncStatusButton", () => {
 });
 
 describe("Sidebar footer by platform", () => {
-  it("uses the sync status button on macOS instead of the pill and activity button", () => {
+  it("has no sync controls in the macOS sidebar (the status lives in the toolbar)", () => {
     renderWithStore(<Sidebar />, { ...MAC, seedEntries: [] });
     expect(screen.queryByLabelText("Activity log")).toBeNull();
-    expect(document.querySelector(".sync-status-button")).not.toBeNull();
+    expect(document.querySelector(".sync-status-button")).toBeNull();
     expect(document.querySelector(".sync-pill")).toBeNull();
   });
 

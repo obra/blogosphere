@@ -4,8 +4,8 @@ import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { relativeTimeLabel } from "./format";
 import { countsBySection, SECTION_LABELS } from "./grouping";
+import { SidebarTopBar } from "./MacToolbar";
 import { useServices } from "./ServicesContext";
-import { SyncStatusButton } from "./SyncStatusButton";
 import { useAppStore, useAppStoreApi } from "./state";
 import { syncStatusLabel } from "./syncLabel";
 import { useNowMs } from "./useNowMs";
@@ -139,15 +139,20 @@ function NewEntryButtons() {
 }
 
 /** The sync pill + activity/settings icons — the sidebar's footer on desktop,
- *  the header's right side on the phone shell (MobileShell). */
+ *  the header's right side on the phone shell (MobileShell). On macOS only
+ *  the gear remains; sync status is in the toolbar row. */
 function SidebarFooterWidgets() {
   // macOS: the sync status symbol opens the Activity popover, so it replaces
   // both the pill and the separate activity-log button.
   const mac = useServices().shell.platform() === "macos";
+  if (mac) {
+    // The sync status symbol lives in the toolbar row on macOS.
+    return <SettingsButton />;
+  }
   return (
     <>
-      {mac ? <SyncStatusButton /> : <SyncButton />}
-      {mac ? null : <ActivityLogButton />}
+      <SyncButton />
+      <ActivityLogButton />
       <SettingsButton />
     </>
   );
@@ -157,9 +162,11 @@ function Sidebar() {
   const section = useAppStore((state) => state.section);
   const entries = useAppStore((state) => state.entries);
   const counts = countsBySection(entries);
+  const mac = useServices().shell.platform() === "macos";
 
   return (
     <nav className="sidebar pane" aria-label="Sections">
+      {mac ? <SidebarTopBar /> : null}
       <div className="sidebar-brand">Blogosphere</div>
       <NewEntryButtons />
       <ul className="sidebar-sections">

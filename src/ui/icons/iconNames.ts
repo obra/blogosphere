@@ -1,14 +1,18 @@
 // ABOUTME: Semantic icon names → SF Symbol (Apple platforms, rendered by the OS)
 // ABOUTME: and Lucide (everywhere else). Components only ever use the semantic name.
 import {
+  ChevronDown,
   CircleArrowUp,
   CloudAlert,
   CloudCheck,
   CloudOff,
+  Ellipsis,
   ExternalLink,
   History,
   type LucideIcon,
+  PanelLeft,
   RefreshCw,
+  SquarePen,
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
@@ -28,6 +32,10 @@ const ICONS = {
   syncConflict: { sfSymbol: "exclamationmark.triangle", lucide: TriangleAlert },
   syncOffline: { sfSymbol: "wifi.slash", lucide: WifiOff },
   syncError: { sfSymbol: "exclamationmark.icloud", lucide: CloudAlert },
+  compose: { sfSymbol: "square.and.pencil", lucide: SquarePen },
+  composeMenu: { sfSymbol: "chevron.down", lucide: ChevronDown },
+  sidebarToggle: { sfSymbol: "sidebar.left", lucide: PanelLeft },
+  more: { sfSymbol: "ellipsis.circle", lucide: Ellipsis },
 } satisfies Record<string, IconSource>;
 
 type IconName = keyof typeof ICONS;

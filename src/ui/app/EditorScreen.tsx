@@ -14,18 +14,32 @@ import {
 } from "./EditorFieldControls";
 import { HtmlPreview } from "./HtmlPreview";
 import { LiveView } from "./LiveView";
+import { DetailToolbar, EntryActionsButton } from "./MacToolbar";
 import { MobileEditorBar } from "./MobileEditorBar";
 import { openExternal } from "./openExternal";
 import { PublishButton, PublishDialogHost } from "./PublishControls";
 import { SecretLinkControl } from "./SecretLinkControl";
+import { useServices } from "./ServicesContext";
 import { saveStateLabel } from "./saveStateLabel";
 import { useAppStore, useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
 import { useAppCompactLayout } from "./useCompactLayout";
 import { useEditorScreenState } from "./useEditorScreenState";
 
+/** A detail-pane message (nothing selected, unreadable entry), under the
+ *  toolbar row on macOS. */
+function DetailMessage(props: { text: string }) {
+  const mac = useServices().shell.platform() === "macos";
+  return (
+    <>
+      {mac ? <DetailToolbar /> : null}
+      <div className="editor-empty">{props.text}</div>
+    </>
+  );
+}
+
 function EditorEmptyState() {
-  return <div className="editor-empty">Select an entry, or start a new one.</div>;
+  return <DetailMessage text="Select an entry, or start a new one." />;
 }
 
 /** deleteEntry itself already owns confirmation, the busy flag, and a
@@ -122,34 +136,63 @@ interface EditorToolbarProps {
   onLive: (live: boolean) => void;
 }
 
-function EditorToolbar(props: EditorToolbarProps) {
+/** Write/Markdown/Live, or Preview/HTML/Live for legacy HTML entries. */
+function ModeControl(props: EditorToolbarProps) {
   const liveSegment = {
     liveAvailable: props.liveUrl !== null,
     live: props.live,
     onLive: () => props.onLive(true),
   };
+  return props.isLegacyHtml ? (
+    <HtmlModeToggle
+      mode={props.htmlView}
+      onChange={(mode) => {
+        props.onLive(false);
+        props.onHtmlViewChange(mode);
+      }}
+      {...liveSegment}
+    />
+  ) : (
+    <ModeToggle
+      mode={props.mode}
+      onChange={(mode) => {
+        props.onLive(false);
+        props.onModeChange(mode);
+      }}
+      {...liveSegment}
+    />
+  );
+}
+
+/** macOS: the editor's half of the window toolbar row — mode, status, then
+ *  (after the sync symbol) Publish for drafts and the "…" menu. */
+function MacEditorToolbar(props: EditorToolbarProps) {
+  return (
+    <DetailToolbar
+      leading={
+        <>
+          <ModeControl {...props} />
+          <span className="doc-status">
+            {props.record.draft ? null : "Published · "}
+            <SaveStateIndicator record={props.record} />
+          </span>
+        </>
+      }
+      trailing={
+        <>
+          {props.record.draft ? <PublishButton /> : null}
+          <EntryActionsButton record={props.record} liveUrl={props.liveUrl} />
+        </>
+      }
+    />
+  );
+}
+
+function EditorToolbar(props: EditorToolbarProps) {
   return (
     <div className="editor-toolbar">
       <DraftStateChip draft={props.record.draft} />
-      {props.isLegacyHtml ? (
-        <HtmlModeToggle
-          mode={props.htmlView}
-          onChange={(mode) => {
-            props.onLive(false);
-            props.onHtmlViewChange(mode);
-          }}
-          {...liveSegment}
-        />
-      ) : (
-        <ModeToggle
-          mode={props.mode}
-          onChange={(mode) => {
-            props.onLive(false);
-            props.onModeChange(mode);
-          }}
-          {...liveSegment}
-        />
-      )}
+      <ModeControl {...props} />
       <SaveStateIndicator record={props.record} />
       <div className="editor-actions">
         <DiscardButton record={props.record} />
@@ -163,15 +206,24 @@ function EditorToolbar(props: EditorToolbarProps) {
   );
 }
 
+/** The phone bar, the macOS toolbar row, or the desktop toolbar. */
+function EditorBar(props: EditorToolbarProps) {
+  const compact = useAppCompactLayout();
+  const mac = useServices().shell.platform() === "macos";
+  if (compact) {
+    return <MobileEditorBar {...props} />;
+  }
+  return mac ? <MacEditorToolbar {...props} /> : <EditorToolbar {...props} />;
+}
+
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
-  const compact = useAppCompactLayout();
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);
 
   if (!s.parsed) {
-    return <div className="editor-empty">Couldn't read this entry's front matter.</div>;
+    return <DetailMessage text="Couldn't read this entry's front matter." />;
   }
 
   const showLive = live && s.liveUrl !== null;
@@ -190,7 +242,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
   };
   return (
     <div className="editor-screen">
-      {compact ? <MobileEditorBar {...chromeProps} /> : <EditorToolbar {...chromeProps} />}
+      <EditorBar {...chromeProps} />
       <PublishDialogHost record={props.record} />
       {showLive || showHtmlPreview ? (
         <div className="editor-fill">{fill}</div>

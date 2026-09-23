@@ -9,6 +9,7 @@ import { ConnectScreen } from "./ConnectScreen";
 import { EditorScreen } from "./EditorScreen";
 import { EntryList } from "./EntryList";
 import { debounce } from "./format";
+import { DetailToolbar } from "./MacToolbar";
 import { MobileShell } from "./MobileShell";
 import { installAppMenu } from "./menu";
 import { NewLinkDialog } from "./NewLinkDialog";
@@ -190,7 +191,12 @@ function useFlushBeforeQuit(store: BoundAppStore): void {
 function DetailPane(props: { onTokenSaved: AppShellProps["onTokenSaved"] }) {
   const services = useServices();
   if (services.sync === null) {
-    return <ConnectScreen onTokenSaved={props.onTokenSaved} />;
+    return (
+      <>
+        {services.shell.platform() === "macos" ? <DetailToolbar /> : null}
+        <ConnectScreen onTokenSaved={props.onTokenSaved} />
+      </>
+    );
   }
   return <EditorScreen />;
 }

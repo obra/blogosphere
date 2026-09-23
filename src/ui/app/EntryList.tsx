@@ -6,6 +6,8 @@ import type { Section } from "../types";
 import { formatDisplayDate } from "./format";
 import type { YearGroup } from "./grouping";
 import { filterBySection, groupByYearMonth, monthGroupLabel } from "./grouping";
+import { ComposeButton, SidebarToggleButton, ToolbarRow } from "./MacToolbar";
+import { useServices } from "./ServicesContext";
 import type { BoundAppStore } from "./state";
 import { useAppStore, useAppStoreApi } from "./state";
 import { EMPTY_CONFLICTS } from "./state.types";
@@ -200,13 +202,23 @@ function EntryList() {
   const searchResults = useAppStore((state) => state.searchResults);
   const selectedPath = useAppStore((state) => state.selectedPath);
   const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
+  const mac = useServices().shell.platform() === "macos";
+  const sidebarHidden = useAppStore((state) => mac && state.sidebarHidden);
 
   const visible = filterBySection(searchResults ?? entries, section);
   const groups = groupByYearMonth(visible);
 
   return (
     <div className="entry-list-pane pane">
-      <EntrySearchBox />
+      {mac ? (
+        <ToolbarRow leadingInset={sidebarHidden}>
+          {sidebarHidden ? <SidebarToggleButton /> : null}
+          <EntrySearchBox />
+          <ComposeButton />
+        </ToolbarRow>
+      ) : (
+        <EntrySearchBox />
+      )}
       <EntryListGroups
         groups={groups}
         selectedPath={selectedPath}

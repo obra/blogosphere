@@ -118,3 +118,104 @@ html[data-platform="macos"] .activity-conflict:hover {
 html[data-platform="macos"] .app-shell[data-sidebar="hidden"] {
   grid-template-columns: 280px 1fr;
 }
+
+/* ---------- Toolbar row ----------
+   One 52pt row across the window, measured from a native unified toolbar
+   (macOS 26.5: traffic lights at x 19, centered 26pt down). The old 30px
+   drag strip and the padding that cleared it don't apply here. */
+
+html[data-platform="macos"] .app-shell[data-shell="tauri"] .titlebar-drag {
+  display: none;
+}
+html[data-platform="macos"] .app-shell[data-shell="tauri"] .sidebar {
+  padding-top: 0;
+}
+html[data-platform="macos"] .app-shell[data-shell="tauri"] .entry-list-pane,
+html[data-platform="macos"] .app-shell[data-shell="tauri"] .detail-pane {
+  padding-top: 0;
+}
+
+html[data-platform="macos"] .toolbar-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+/* Clear the traffic lights: x 19 + three 14pt buttons 6pt apart ≈ 73pt,
+   plus breathing room before the next control. */
+html[data-platform="macos"] .toolbar-row[data-leading-inset="true"],
+html[data-platform="macos"] .sidebar-top-bar {
+  padding-left: 88px;
+}
+html[data-platform="macos"] .sidebar-top-bar {
+  margin: 0 -8px;
+  border-bottom: 0;
+}
+
+html[data-platform="macos"] .toolbar-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+}
+html[data-platform="macos"] .toolbar-button:hover {
+  background: var(--bg-hover);
+}
+html[data-platform="macos"] .toolbar-button:active {
+  background: color-mix(in srgb, -apple-system-label 12%, transparent);
+}
+html[data-platform="macos"] .toolbar-compose {
+  display: inline-flex;
+  flex: none;
+}
+html[data-platform="macos"] .toolbar-menu-chevron {
+  width: 14px;
+}
+
+html[data-platform="macos"] .toolbar-row .entry-list-search {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+html[data-platform="macos"] .toolbar-row .entry-list-search input {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+}
+
+html[data-platform="macos"] .toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+/* The status gives way first when the editor column is narrow. */
+html[data-platform="macos"] .doc-status {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+html[data-platform="macos"] .doc-status .save-state {
+  color: inherit;
+}
+html[data-platform="macos"] .detail-toolbar .mode-toggle {
+  flex: none;
+}
+html[data-platform="macos"] .detail-toolbar .btn {
+  flex: none;
+  height: 28px;
+}
