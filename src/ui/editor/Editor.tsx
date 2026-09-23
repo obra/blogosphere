@@ -2,8 +2,9 @@
 // ABOUTME: src/ui/types.ts exactly) — WYSIWYG (Crepe) or source (CodeMirror), one markdown
 // ABOUTME: string as the document of record, with a formatting toolbar wired to whichever
 // ABOUTME: mode is active.
-import { useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import type { EditorProps } from "../types";
+import { setActiveEditor } from "./activeEditor";
 import { CrepeEditor } from "./CrepeEditor";
 import type { EditorHandle } from "./markdown-utils";
 import { SourceEditor } from "./SourceEditor";
@@ -62,18 +63,65 @@ const ROOT_STYLE = { display: "block" } as const;
  * entirely rather than left inert, since none of its buttons produce
  * meaningful HTML.
  */
+/**
+ * Makes this editor the Format menu's target while its body has focus. Only
+ * a focused body: a menu command must never type markdown at a stale cursor
+ * in a body the person isn't looking at. Legacy HTML and read-only bodies
+ * never register, which is what disables the Format menu for them.
+ */
+function useFormatTarget(
+  root: RefObject<HTMLDivElement | null>,
+  handleRef: RefObject<EditorHandle | null>,
+  onImage: EditorProps["onImage"],
+  formattable: boolean,
+): void {
+  const onImageRef = useRef(onImage);
+  onImageRef.current = onImage;
+  useEffect(() => {
+    const el = root.current;
+    if (!(el && formattable)) {
+      return;
+    }
+    let unregister: (() => void) | null = null;
+    const release = () => {
+      unregister?.();
+      unregister = null;
+    };
+    const onFocusIn = () => {
+      unregister ??= setActiveEditor({
+        handle: () => handleRef.current,
+        onImage: (bytes, ext) => onImageRef.current(bytes, ext),
+      });
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      if (!(event.relatedTarget instanceof Node && el.contains(event.relatedTarget))) {
+        release();
+      }
+    };
+    el.addEventListener("focusin", onFocusIn);
+    el.addEventListener("focusout", onFocusOut);
+    return () => {
+      el.removeEventListener("focusin", onFocusIn);
+      el.removeEventListener("focusout", onFocusOut);
+      release();
+    };
+  }, [root, handleRef, formattable]);
+}
+
 export function Editor(props: EditorProps) {
   const handleRef = useRef<EditorHandle | null>(null);
   const isReadOnly = props.readOnly ?? false;
   const isHtml = props.sourceLanguage === "html";
   const useSourceEditor = isHtml || props.mode === "source";
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useFormatTarget(bodyRef, handleRef, props.onImage, !(isHtml || isReadOnly));
 
   return (
     <div style={ROOT_STYLE}>
       {useSourceEditor && !isHtml ? (
         <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />
       ) : null}
-      <div>
+      <div ref={bodyRef}>
         {useSourceEditor ? (
           <SourceEditor
             ref={handleRef}
