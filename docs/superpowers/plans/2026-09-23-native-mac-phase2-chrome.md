@@ -22,7 +22,7 @@
 ## Review Focus
 
 1. A push fails while changes are pending → the sync button must show the error (Error outranks Pending), with the message in its tooltip. (Task 2.)
-2. The window is dragged narrow with a wide persisted list column → the editor keeps its 420px minimum; the sidebar auto-collapses; widening restores it unless the person hid it. (Task 6.)
+2. The window is dragged narrow with a wide persisted list column → the editor keeps its 420px minimum by shrinking the list, then the sidebar; the window can't go below 820. (Task 6.)
 3. Glass fails or Reduce Transparency is on → the sidebar is opaque; the window is never see-through with nothing behind it. (Task 7.)
 4. No entry selected, or first run with no token → the toolbar row and the sync button still exist. (Task 5.)
 5. The phone layout still shows its header widgets (sync pill, activity, settings) and New buttons. (Tasks 3, 4 keep existing MobileShell tests green.)
@@ -50,59 +50,114 @@ Icon names added: `syncNotConnected` (icloud.slash / CloudOff), `syncing` (arrow
 
 - [ ] Tests: one per state, plus "error with 3 pending → kind error, badge 3", "message appended to tooltip", "synced with no lastSyncAt". See them fail (module missing); implement; green; commit.
 
-### Task 3: Sync status button and Activity popover (macOS)
+## Revision after plan review (2026-09-23)
 
-**Files:** create `src/ui/app/SyncLogList.tsx` (the log list extracted from `SyncLogPanel.tsx`, no behavior change), `src/ui/app/SyncStatusButton.tsx`, `src/ui/app/ActivityPopover.tsx`, `src/ui/app/ActivityPopover.test.tsx`, CSS in a new `src/ui/app/app-macos-chrome.css` (imported from `app-macos.css`'s end is not allowed — CSS `@import` must be first; import it from `app.css` after `app-macos.css`); modify `SyncLogPanel.tsx` (uses `SyncLogList`), `AppShell.tsx` (render `SyncLogPanel` only off macOS).
+Two adversarial reviews (14 + 15 findings, verified) changed Tasks 3–7:
 
-- `SyncStatusButton`: borderless button, `<Icon name={state.icon}>`, badge span when `badge !== null`, `title`/`aria-label` = tooltip. Click toggles the store's `syncLogOpen` (reusing it keeps ⌥⌘L working unchanged).
-- `ActivityPopover`: renders when `syncLogOpen` and platform is macOS, positioned under the button (absolutely, anchored by the button's bounding rect), with: headline (state's tooltip), the conflicted entries (each a button that selects the entry and closes the popover), **Sync Now** (`syncNow()`), **Connect…** when not connected (`openSettings()` — the Settings window is phase 3), and `<SyncLogList>`. Escape and a click outside close it (`closeSyncLog()`).
-- [ ] Tests (jsdom, `buildFakeServices({ shellOptions: { platform: "macos" } })`): the button reflects state (error shown over pending); clicking opens the popover; Escape closes; clicking outside closes; Sync Now calls `sync.sync`; a conflict row selects the entry; not connected shows Connect…; on "web" the modal `SyncLogPanel` still opens instead.
-- [ ] Two commits: "Extract SyncLogList" (refactor, existing SyncLogPanel tests green), then the button + popover.
+- **No sidebar auto-collapse.** It hid the toggle, left the traffic lights
+  over the search field, made "Show Sidebar" a no-op in narrow windows, and
+  collapsed the sidebar mid-drag. Instead the macOS window's minimum width is
+  820 (160 sidebar + 240 list + 420 editor); dividers clamp so the editor
+  keeps 420; hiding the sidebar is manual only. Recorded as a spec deviation.
+- **The toolbar row can't hold today's ten editor items** at 420px, so the
+  secondary actions (Open on Site, Versions…, Copy Secret Link, Discard
+  Changes…, Delete…) move into a native "…" menu now, not in phase 3.
+- **Measured geometry** (offscreen AppKit window, native unified toolbar,
+  macOS 26.5): traffic lights at x 19pt, vertical center 26pt → toolbar row
+  52pt with the lights centered.
+- Drag region: `data-tauri-drag-region="deep"` (a bare attribute only drags
+  when that exact element is clicked). The old 30px padding bands go.
+- Popover: dismissal listens for `pointerdown` (capture) and ignores its own
+  button; a real `toggleSyncLog()` action.
+- Layout prefs (`ui:sidebarHidden`, `ui:sidebarWidth`, `ui:listWidth`) are
+  read before first render (boot), not after `refresh()`.
+- Menus: new items come from pure descriptor functions (tested); `menu.ts`
+  only maps descriptors to Tauri objects.
+- Spec items the first plan missed: compose menu with New Link; syncing
+  symbol rotates (static under Reduce Motion); conflict orange, error red;
+  Reduce Transparency reacts to its change notification; an opaque window
+  background whenever glass is off.
+- The glass plugin always calls a private `set_variant:` selector, even for
+  the default variant — the spec's claim is corrected.
+- Order: the sync button is placed before the sidebar footer is removed, so
+  macOS never loses sync status mid-phase.
 
-### Task 4: Sidebar cleanup, icons, and hide/show (macOS)
+### Task 3: Sync status button + Activity popover (macOS)
 
-**Files:** `Sidebar.tsx`, `Sidebar.test.tsx`, `state.types.ts`, a new `state.layoutActions.ts` (+ test), `state.ts` (wire actions + restore at init), `menu.ts` (View › Hide/Show Sidebar ⌃⌘S), `iconNames.ts`, CSS.
+- `SyncStatusButton` (borderless, `<Icon>`, badge, tooltip; syncing icon
+  rotates unless `prefers-reduced-motion`; conflict orange, error red) and
+  `ActivityPopover` (headline, conflicts → select entry, Sync Now,
+  Connect… when not connected, `SyncLogList`), `toggleSyncLog()` action, a
+  shared `useNowMs` tick hook (moved out of `Sidebar.tsx`).
+- Mounted on macOS in the sidebar footer, replacing the pill and the
+  activity button (the gear stays until Task 5b). `SyncLogPanel` renders off
+  macOS only. New CSS in `app-macos-chrome.css`, imported after
+  `app-macos.css`; the CSS contract tests learn about it.
+- Tests: states render; click toggles; a second click closes; Escape and
+  pointerdown outside close; Sync Now; conflict row selects; Connect… when
+  not connected; web still uses the modal.
 
-- On macOS the sidebar renders no brand, no New Post/New Link buttons, no footer; each section gets an icon (`drafts` pencil / PenLine, `posts` doc.text / FileText, `links` link / Link, `releases` shippingbox / Package) tinted with `--accent` (white in a focused selection).
-- Store: `sidebarHidden: boolean` (default false), `toggleSidebar()`, persisted to meta `ui:sidebarHidden`, restored in `init()` alongside `restoreLastPosition`.
-- Menu: View › "Hide Sidebar"/"Show Sidebar", accelerator `Ctrl+CmdOrCtrl+S`, calls `toggleSidebar()` (title follows state through the existing enabled-flags refresh, or a fixed "Toggle Sidebar" if the menu can't retitle — check `menu.ts` before choosing).
-- [ ] Tests: mac sidebar lacks brand/new buttons/footer and shows 4 icons; web sidebar unchanged; `toggleSidebar` flips and persists; restore reads meta; menu model contains the item with the accelerator. Commit.
+### Task 4: Menu descriptors — sidebar toggle, compose, entry actions
 
-### Task 5: One toolbar row (macOS)
+- Pure `viewSidebarItem(hidden)`, `composeMenuItems()`, and
+  `entryActionItems(record, liveUrl)` returning `{ id, text, accelerator?,
+  enabled }` lists; `menu.ts` adds View › Hide/Show Sidebar (⌃⌘S) from the
+  first. Enable rules: Copy Secret Link needs an opaque id or a draft; Open
+  on Site needs a live URL; Discard needs local changes with a base.
+- Store: `sidebarHidden`, `toggleSidebar()` persisted to `ui:sidebarHidden`.
+- Tests: descriptors (every rule); toggle flips and persists.
 
-**Files:** `AppShell.tsx`, `EntryList.tsx` (list header), `EditorScreen.tsx` (+ empty-state header), `app-macos-chrome.css`, `tauri.macos.conf.json`, `capabilities/default.json`, `iconNames.ts` (`compose` square.and.pencil / SquarePen, `sidebarToggle` sidebar.left / PanelLeft).
+### Task 5a: One toolbar row (macOS)
 
-- Measure first: screenshot Notes (computer-use, Notes granted) and record its toolbar row height and traffic-light center in points; use those numbers (named CSS variables `--toolbar-height`, and `trafficLightPosition` in `tauri.macos.conf.json`). Record the measurements in the commit message.
-- List header (mac): search field + compose button (`newDraft({ title: "" })`, title "New Post (⌘N)"). Sidebar top (mac): the traffic lights' space + the sidebar toggle. When the sidebar is hidden, the list header gets a leading inset for the lights and shows the toggle.
-- Editor header (mac) is **window-level**: `DetailPane` renders it in every state — entry selected (today's `EditorToolbar` items), nothing selected, and first-run connect screen — with `SyncStatusButton` at its trailing edge.
-- The whole row is `data-tauri-drag-region` except controls; grant `core:window:allow-start-dragging` (today's drag strip needs it too — it has silently never worked). Remove the old fixed 30px `.titlebar-drag` strip on macOS.
-- [ ] Tests: on mac, the sync button renders with nothing selected and on the connect screen; the list header has compose + search; the sidebar toggle appears in the list header only when hidden; web renders today's structure. Real-app check: row height matches Notes' within 1pt, lights centered, dragging the row moves the window. Commit.
+- `ToolbarRow` (52pt, `data-tauri-drag-region="deep"`) used by the list
+  header (search + compose with its New Post/New Link menu) and by every
+  detail state: entry (mode control, document status text, spacer, sync
+  button, Publish for drafts only, "…" menu), nothing selected, connect
+  screen, and the parse-error screen — each with the sync button.
+- `trafficLightPosition` {x: 19, y: 19} (close button top-left for a 26pt
+  center) in `tauri.macos.conf.json`; `core:window:allow-start-dragging`;
+  macOS drops the `.titlebar-drag` strip and the 30/40px pane padding.
+- The sidebar's top 52pt holds the lights and the sidebar toggle; when the
+  sidebar is hidden the list header gets a leading inset (lights + toggle).
+- Tests: every detail state has the sync button; compose and "…" menus pop
+  their descriptors; Publish only for drafts; web unchanged. Real app: row
+  height 52, lights centered, row drags the window.
 
-### Task 6: Resizable columns and sidebar auto-collapse (macOS)
+### Task 5b: Sidebar cleanup and icons (macOS)
 
-**Files:** create `src/ui/app/columnLayout.ts` (+ test), `src/ui/app/ColumnDivider.tsx` (+ test), modify `AppShell.tsx`, `state.layoutActions.ts` (persist widths `ui:sidebarWidth`, `ui:listWidth`), `tauri.macos.conf.json` (`minWidth` 660), CSS.
+- Remove brand, New buttons, footer on macOS; section icons (drafts
+  `pencil`/PenLine, posts `doc.text`/FileText, links `link`/Link, releases
+  `shippingbox`/Package) tinted accent, white in a focused selection.
+- Tests: mac sidebar has none of the removed parts and four icons; web and
+  the phone layout unchanged.
 
-**Produces:** `layoutColumns(input: { windowWidth: number; sidebarWidth: number; listWidth: number; sidebarHidden: boolean }): { sidebarVisible: boolean; sidebarWidth: number; listWidth: number }` with `MIN = { sidebar: 160, list: 240, editor: 420 }`:
-1. Clamp stored widths to their minimums.
-2. If `sidebarHidden`: sidebar not visible; list = min(listWidth, windowWidth − editorMin) floored at list min.
-3. Else if `sidebar + list + editorMin ≤ windowWidth`: all as stored.
-4. Else shrink the list toward its min; if still too wide, auto-collapse the sidebar (not visible) and re-apply step 2's list rule.
-Auto-collapse never writes `sidebarHidden`, so widening restores the sidebar; a manual hide stays.
+### Task 6: Resizable columns (macOS)
 
-- [ ] Tests for each rule, including: wide persisted list at a narrow window keeps editor ≥ 420; manual hide survives widening; auto-collapse reverses on widening; clamping below minimums.
-- `ColumnDivider`: 6px hit area, `cursor: col-resize`, pointer drag updates the width live (clamped), persists on pointer up; double-click does nothing. Tests with pointer events in jsdom.
-- AppShell (mac): grid columns from `layoutColumns` + `window.innerWidth` (resize listener).
-- [ ] Commit "columns" then "window min size" if split cleanly.
+- Pure `layoutColumns({ windowWidth, sidebarWidth, listWidth,
+  sidebarHidden })` → `{ sidebarWidth, listWidth }`: clamp each to its
+  minimum; the editor keeps ≥ 420 by shrinking the list, then the sidebar,
+  toward their minimums (never collapsing). Divider drags clamp to the
+  maximum that keeps the editor at 420. `setPointerCapture` is
+  feature-checked (jsdom lacks it).
+- Widths persist on pointer up; read before first render with the hidden
+  flag. macOS `minWidth` 820, default size 1100×720.
+- Tests: every rule; drag clamps at both ends; persisted.
 
 ### Task 7: Glass sidebar with fallbacks (macOS)
 
-**Files:** `src-tauri/Cargo.toml` (`tauri-plugin-liquid-glass = "0.1.6"`; tauri feature `macos-private-api`), `tauri.conf.json` (`app.macOSPrivateApi: true` — base config, because the Cargo feature applies to every target and tauri-build checks feature/config agreement; it only has an effect on macOS), `tauri.macos.conf.json` (`transparent: true`), `capabilities/default.json` (`liquid-glass:default` only if the frontend calls the plugin — it won't; Rust applies it), new `src-tauri/src/glass.rs` (+ unit test of the pure decision), `lib.rs`, `permissions/native-ui.toml` (`glass_active`), `src/bootstrap/platform.ts` (probe glass too), `main.tsx`, `app-macos-chrome.css`, `cssContract.test.ts`.
-
-- Rust setup (macOS): if `NSWorkspace.accessibilityDisplayShouldReduceTransparency` is true, skip glass; else apply the default-variant glass effect (never a private variant). Store the outcome in managed state; `glass_active` command returns it. Any error → false (logged).
-- Boot: probe `glass_active` with the platform (never rejects; defaults false) and set `data-glass="on"|"off"` on `<html>` before render.
-- CSS: only with `data-glass="on"` are `html`, `body`, `.app-shell`, and `.sidebar` transparent; list and editor panes always opaque `--bg`. With `data-glass="off"` or `prefers-contrast: more`, the sidebar is opaque `--bg-sunken` and the root opaque. Contract tests pin: transparency rules exist only under `[data-glass="on"]`; `prefers-contrast: more` restores opacity.
-- Known limit (documented in the commit): Reduce Transparency is read at launch; toggling it later takes effect on relaunch.
-- [ ] Real-app check: glass visible in light and dark; setting `data-glass="off"` by hand paints opaque. Commit.
+- Plugin + `macos-private-api` feature + `app.macOSPrivateApi` (base config)
+  + `transparent: true` (mac config). Rust `glass.rs`: apply the default
+  glass unless Reduce Transparency; otherwise set an opaque window
+  background. Observe the accessibility display-options change notification
+  and re-apply (glass on/off + background) and emit `glass-changed`.
+  `glass_active` command (permission in `native-ui`). objc2-app-kit gains
+  `NSWorkspace`/`NSAccessibility` features.
+- Boot sets `data-glass` before render; the frontend listens for
+  `glass-changed`. CSS: transparency only under `[data-glass="on"]`;
+  `prefers-contrast: more` → opaque.
+- Tests: CSS contract (transparency scoped to glass-on; contrast opaque);
+  Rust unit test of the pure decision. Real app: glass on; `data-glass=off`
+  opaque.
 
 ### Task 8: Phase verification, review, merge
 

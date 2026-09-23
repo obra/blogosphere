@@ -38,8 +38,10 @@ is in scope: status bookkeeping for "last checked" (§3).
 - **Approach:** native structure *and* native skin, not a restyle alone.
 - **Materials:** real Liquid Glass behind the sidebar via
   `tauri-plugin-liquid-glass` (proved in the `spike/native-materials` spike).
-  `NSGlassEffectView` is public API in macOS 26; the plugin's material
-  *variants* use a private setter, so we use the default variant only. The
+  `NSGlassEffectView` is public API in macOS 26, but the plugin always calls
+  a private `set_variant:` selector, even for the default variant (found in
+  the phase 2 plan review) — one more reason to move to Tauri's own glass
+  once it ships. The
   transparent window requires Tauri's `macOSPrivateApi`, which rules out the
   Mac App Store. Migrate to Tauri's own glass window effects
   (tauri-apps/tauri#14454, merged 2026-09-22, unreleased) when it ships.
@@ -198,18 +200,15 @@ Sidebar can be hidden: View › Hide Sidebar (⌃⌘S) and a toolbar toggle
 (`sidebar.left`).
 
 **Widths.** Sidebar and list column have draggable dividers (resize cursor),
-widths persisted in meta. Minimums: sidebar 160, list 240, editor 420.
-Window `minWidth` on macOS = list minimum + editor minimum (660). When the
-window narrows, space comes back in this order: the list shrinks toward its
-minimum, then the sidebar auto-collapses (`sidebars.md`: "consider
-automatically hiding and revealing a sidebar when its container window
-resizes"), then the list keeps shrinking to its minimum. Collapse is decided
-from the current (persisted) widths, not the minimums: the sidebar
-auto-collapses when `sidebar + list + 420 > window width` even with the list
-at its minimum. An auto-collapsed sidebar reappears when the window is wide
-enough again; a sidebar the person hid (⌃⌘S or the toggle) stays hidden until
-they show it. Default window size grows to 1100×720 so a first launch shows
-all three columns.
+widths persisted in meta and read before first render. Minimums: sidebar
+160, list 240, editor 420. The macOS window's `minWidth` is 820, the sum, so
+all three columns always fit; when the window narrows, the list and then the
+sidebar shrink toward their minimums so the editor keeps 420, and divider
+drags are clamped to the same limit. Hiding the sidebar is manual (⌃⌘S or
+the toggle). **Deliberate deviation:** `sidebars.md` suggests *considering*
+automatic hiding on resize; the phase 2 plan review showed auto-collapse
+broke the toggle, the traffic-light inset, and "Show Sidebar" in narrow
+windows, so it was dropped. Default window size is 1100×720.
 
 ### 3. Sync status button and Activity popover (macOS)
 
@@ -477,8 +476,8 @@ token is mapped:
   written on no-op pulls (core test); conflict sheets never auto-open or open
   on selection on macOS; the settings request/reply handlers in the main
   window (including token validation failure); toast routing by kind; width
-  and auto-collapse rules (pure function of window width, persisted widths,
-  and manual-hide flag); Publish/Copy Secret Link/Open on Site enable rules.
+  and width rules (pure function of window width, persisted widths, and
+  the manual-hide flag); Publish/Copy Secret Link/Open on Site enable rules.
   Existing tests keep passing.
 - **Rust:** `current_platform`; `open_settings` creates then focuses one
   window; symbol renderer returns a PNG of the expected pixel size for a known
@@ -489,7 +488,7 @@ token is mapped:
   `scripts/dev-app.sh`, driven by `scripts/tauri-mcp.sh`: keyboard-only
   new-post → write → Publish sheet → cancel; context menus present; Settings
   window singleton and token/template changes reaching the main window;
-  sidebar auto-collapse at narrow widths; light and dark.
+  narrow-window column limits; light and dark.
 - **Visual review:** apple-design pass on the finished screens, recorded in
   the PR; plus one manual check by Jesse of accent-color tracking.
 
@@ -499,7 +498,7 @@ token is mapped:
    Tauri config), macOS token block with `color-scheme`, typography, focus
    rings, scrollbars/`user-select`/cursor, icon system.
 2. **Chrome:** glass sidebar with fallbacks, toolbar row + traffic lights,
-   sidebar cleanup and collapse, column dividers and minimums, sync status
+   sidebar cleanup and hide/show, column dividers and minimums, sync status
    button (with Error-over-Pending and the last-checked fix) and Activity
    popover.
 3. **Surfaces:** Settings window (request/reply, `open_settings`, close
