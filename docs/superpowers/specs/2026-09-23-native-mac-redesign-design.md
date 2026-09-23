@@ -1,7 +1,7 @@
 # Native Mac redesign — design
 
-Date: 2026-09-23. Status: revised after adversarial review (two reviewers, 33
-findings, verified against code/HIG before incorporating).
+Date: 2026-09-23. Status: revised after two rounds of adversarial review
+(58 findings total, each verified against code/HIG before incorporating).
 
 ## Goal
 
@@ -26,7 +26,8 @@ Success criteria:
 
 Non-goals: redesigning the phone layout or iOS (next phase), Windows, changing
 sync semantics or the data model, rewriting the editors, adding in-document
-Find (neither editor has it today; tracked separately).
+Find (neither editor has it today; tracked separately). One small core change
+is in scope: status bookkeeping for "last checked" (§3).
 
 ## Decisions already made
 
@@ -106,37 +107,50 @@ Reads as web:
 ### 1. Platform gate (prerequisite)
 
 - A Rust command `current_platform` returns `"macos" | "ios" | "android"` from
-  `cfg!(target_os)`. `createTauriShell().platform()` calls it once at boot; the
-  fake/web shell keeps returning `"web"`.
-- Boot writes `data-platform` on `<html>`.
+  `cfg!(target_os)`. Boot awaits it **before the first render** and passes the
+  result into `createTauriShell(platform)`, so `ShellApi.platform()` stays
+  synchronous. The fake/web shell keeps returning `"web"`.
+- Boot writes `data-platform` on `<html>` before React mounts.
+- Compact layout is decided in two places today, and both are gated: the
+  `useCompactLayout` hook (returns false on macOS) and the
+  `@media (max-width: 760px)` block in `app-mobile.css` (scoped to
+  `html:not([data-platform="macos"])`).
+- Mac-only window settings (size, minimum size, transparency,
+  `trafficLightPosition`, `macOSPrivateApi`) go in `tauri.macos.conf.json`,
+  which Tauri merges only on macOS; `tauri.conf.json` keeps the shared values.
 - **The native Mac design applies only when `data-platform="macos"`.** Every
   other platform keeps today's CSS, components, modals, and hex palette. On
-  macOS the compact (phone) layout is never used: the compact media query is
-  gated to non-macOS platforms, and the Mac window's minimum size is set so
-  the desktop layout always fits (§2).
+  macOS the compact (phone) layout is never used, and the Mac window's minimum
+  size keeps the desktop layout usable (§2).
 
 ### 2. Window structure (macOS)
 
 Three columns, as in Mail and Notes: **glass sidebar | entry list | editor.**
 
 ```
-┌──────────────┬─────────────────────┬──────────────────────────────────────────┐
-│ ● ● ●        │ [🔍 Search      ] ✎ │ [Write|Markdown|Live] Saved to GitHub  ⟳ Publish … │
-│              ├─────────────────────┼──────────────────────────────────────────┤
-│ 📝 Drafts  3 │ 2026                │  B  I  </>  H2  🔗  🖼                    │
-│ 📄 Posts 541 │ September           │                                          │
-│ 🔗 Links   4 │  SF: A Birds of … • │   Superpowers 6.4                        │
-│ 📦 Releases  │  Superpowers 6.4 ◀──│   [Sep 21, 2026] superpowers ×           │
-│  28          │ August              │                                          │
-│  (glass)     │  …                  │   I'm pleased to announce …              │
-└──────────────┴─────────────────────┴──────────────────────────────────────────┘
+┌──────────────┬─────────────────────┬──────────────────────────────────────────────┐
+│ ● ● ● ◧      │ [🔍 Search      ] ✎ │ [Write|Markdown|Live] Saved on this device ⟳ Publish … │
+│              ├─────────────────────┼──────────────────────────────────────────────┤
+│ 📝 Drafts  3 │ 2026                │  B  I  </>  H2  🔗  🖼   ← Markdown mode only  │
+│ 📄 Posts 541 │ September           │                                              │
+│ 🔗 Links   4 │  Birds of a Feat… • │   SF: A Birds of a Feather on Agentic …      │
+│ 📦 Releases  │  Untitled draft ◀── │   [Sep 22, 2026] events ×                    │
+│  28          │ August              │                                              │
+│  (glass)     │  …                  │   Simon Willison and I have been talking …  │
+└──────────────┴─────────────────────┴──────────────────────────────────────────────┘
 ```
+(A draft is selected, in Markdown mode. `◧` is the sidebar toggle. Publish
+appears for drafts only.)
 
 **Toolbar row.** One row across the list and editor columns, acting as the
 title bar. Its height is measured from a native unified-toolbar app (Notes) on
 the running macOS, and the traffic lights are moved with
 `trafficLightPosition` so they sit vertically centered on that row
-(`windows.md`: controls must not overlap toolbar items). The row is a drag
+(`windows.md`: controls must not overlap toolbar items). The sidebar toggle
+(`sidebar.left`) sits just right of the traffic lights: in the sidebar's top
+area when the sidebar shows, and at the leading edge of the list toolbar when
+it's hidden, where the list toolbar also gains a leading inset equal to the
+traffic lights' width plus the toggle so nothing sits under them. The row is a drag
 region (`data-tauri-drag-region`) except its controls. The row is
 **window-level**: it renders even with no entry selected and on the first-run
 connect screen, so the sync button always exists (editor-side items are hidden
@@ -151,22 +165,30 @@ when nothing is selected).
   2. Document status, secondary-label text: the existing save-state strings
      ("Saved on this device", "Saved to GitHub · not public", …) plus
      "Published" where today's pill shows it. Replaces `SaveStateIndicator` and
-     the Published pill; the strings don't change.
+     the Published pill. The strings stay, except two tooltips in
+     `saveStateLabel.ts` that name UI being removed: "⌘S (or the sidebar sync
+     button)" becomes "⌘S or Sync Now", and "Connect GitHub in Settings" stays
+     but Settings is now the Settings window.
   3. Flexible space.
   4. Sync status button (§3).
-  5. **Publish** — the only prominent (accent-filled, white label) button.
-     Shown and enabled under exactly today's conditions, same action
-     (`PublishControls.tsx`). No new "Update" state: edits to published posts
-     keep going live through Save & Sync (⌘S).
+  5. **Publish** — the only prominent (accent-filled, white label) button,
+     shown **only for drafts**. Today it renders for every entry
+     (`EditorScreen.tsx:169`), but its action is `publishDraft`, which only
+     makes sense for a draft. Same action and sheet as today. Entry › Publish…
+     is enabled on the same rule. Edits to published posts keep going live
+     through Save & Sync (⌘S).
   6. Ellipsis menu (native, `Menu.popup()`): Open on Site, Versions…, Copy
      Secret Link, Discard Changes…, Delete….
 - The visible secret-link URL moves into the Copy Secret Link flow: the menu
   item copies it and a HUD (§5) shows the copied URL.
 
-**Formatting bar.** The Write-mode formatting buttons (bold, italic, code, H2,
-link, image — `src/ui/editor/Toolbar.tsx`) stay as a borderless symbol row
-pinned at the top of the editor column, below the toolbar, like Mail's
-compose format bar. Their commands also go in a new Format menu (§6).
+**Formatting bar.** Today the formatting buttons (bold, italic, code, H2,
+link, image — `src/ui/editor/Toolbar.tsx`) render only in **Markdown** mode
+(`Editor.tsx:72-74`); Write mode (Crepe) has its own inline affordances and
+binds ⌘B/⌘I/⌘E itself, as does CodeMirror. Keep that: in Markdown mode the
+bar becomes a borderless symbol row pinned at the top of the editor column,
+like Mail's compose format bar. Write mode gets no bar. Both modes get the
+new Format menu (§6); legacy HTML entries don't.
 
 **Sidebar.** Drafts, Posts, Links, Releases, each with an SF Symbol tinted
 with the accent color (`sidebars.md`: "By default, sidebar icons use your app's
@@ -176,17 +198,27 @@ Sidebar can be hidden: View › Hide Sidebar (⌃⌘S) and a toolbar toggle
 (`sidebar.left`).
 
 **Widths.** Sidebar and list column have draggable dividers (resize cursor),
-widths persisted in meta. Minimums: sidebar 160, list 240, editor 420. Window
-`minWidth` on macOS = list + editor minimums (660); below sidebar + list +
-editor (820) the sidebar auto-collapses (`sidebars.md`: "consider
+widths persisted in meta. Minimums: sidebar 160, list 240, editor 420.
+Window `minWidth` on macOS = list minimum + editor minimum (660). When the
+window narrows, space comes back in this order: the list shrinks toward its
+minimum, then the sidebar auto-collapses (`sidebars.md`: "consider
 automatically hiding and revealing a sidebar when its container window
-resizes"). Default window size grows to 1100×720 so a first launch shows all
-three columns comfortably.
+resizes"), then the list keeps shrinking to its minimum. Collapse is decided
+from the current (persisted) widths, not the minimums: the sidebar
+auto-collapses when `sidebar + list + 420 > window width` even with the list
+at its minimum. An auto-collapsed sidebar reappears when the window is wide
+enough again; a sidebar the person hid (⌃⌘S or the toggle) stays hidden until
+they show it. Default window size grows to 1100×720 so a first launch shows
+all three columns.
 
 ### 3. Sync status button and Activity popover (macOS)
 
 The button is a borderless symbol with an optional small badge. States, taken
-from today's `syncLabel.ts`:
+from today's `syncLabel.ts`, with one precedence change: **Error outranks
+Pending** for the button (today `syncLabel.ts:31-36` checks pending first, so
+a failed push shows only "N pending" and the failure disappears once the
+toast goes). The pending count still shows as the badge in the Error state.
+The status message, when present, appears in every state's tooltip.
 
 | State | Symbol | Badge | Tooltip |
 |---|---|---|---|
@@ -196,15 +228,21 @@ from today's `syncLabel.ts`:
 | Pending | `arrow.up.circle` | N | "{N} changes not yet on GitHub" |
 | Conflict | `exclamationmark.triangle` (orange) | N | "{N} conflicts" |
 | Offline | `wifi.slash` | — | "Offline — changes stay on this device" |
-| Error | `exclamationmark.icloud` (red) | — | "Couldn't sync: {message}" |
+| Error | `exclamationmark.icloud` (red) | N pending, if any | "Couldn't sync: {message}" |
 
-"Synced" uses the time of the last successful check, not the last change
-(fixes today's stale "32m ago" after a no-op pull).
+"Synced" shows the time of the last successful check. Today a no-op pull
+returns before writing `META_LAST_SYNC_AT` (`pull.ts:231-240`, both early
+returns), so the pill reads "32m ago" right after a check. The fix writes
+that timestamp on those returns too: a core change limited to status
+bookkeeping, with core tests.
 
-Click opens the **Activity popover** anchored to the button: status headline
-and detail, the activity log (today's `SyncLogPanel` content), a Sync Now
-button, and, when not connected, "Connect…" which opens the connect flow.
-Escape or clicking outside closes it. ⌥⌘L (View › Activity Log) opens it too.
+Click **always** opens the **Activity popover** anchored to the button (today
+one click syncs; syncing is now ⌘R, ⌘S, or Sync Now in the popover). The
+popover shows: the status headline and detail; conflicted entries, each with
+a Resolve… button; deploy status (§5); the activity log (today's
+`SyncLogPanel` content); Sync Now; and, when not connected, "Connect…", which
+opens the connect flow. Escape or clicking outside closes it. ⌥⌘L (View ›
+Activity Log) opens it too.
 
 ### 4. Controls (macOS)
 
@@ -230,7 +268,10 @@ Each restyled control keeps the system's size, placement, and behavior
 - **Context menus** (native, `Menu.popup()`): entry rows get Open on Site, Copy
   Secret Link, Publish…, Delete…; sidebar sections get New Post (Drafts, Posts)
   or New Link (Links). Editor text keeps the WebView's own text menu. Every
-  item also exists in the menu bar.
+  item also exists in the menu bar, with the same enable rules: Publish… only
+  for drafts; Copy Secret Link only when the entry has an opaque id or is a
+  draft (today's `SecretLinkControl.tsx:64-66` rule); Open on Site only with a
+  live URL.
 - **Scrollbars:** the custom `::-webkit-scrollbar` rules don't apply on macOS;
   native overlay scrollbars return.
 - **Chrome text:** `user-select: none` on chrome (sidebar, toolbar, list
@@ -243,39 +284,71 @@ Each restyled control keeps the system's size, placement, and behavior
   (Connection + Commit messages), so per `settings.md` it has no toolbar, is
   titled "Blogosphere Settings", and sizes to its content; minimize and zoom
   disabled. ⌘, focuses the window if it already exists.
-  - It is its own JS context: it builds only the pieces it needs (keychain via
-    shell, the SQLite store for meta) and never constructs GitHub or sync
-    services.
-  - After a save it emits a Tauri event `settings-changed` with
-    `{ kind: "token" | "templates" }`. The main window listens: `token` runs
-    today's `onTokenSaved` (rebuild services); `templates` reloads commit
-    templates from meta into its store. Errors in the Settings window show
-    inline in that window.
-  - Capabilities: a new `settings` capability file grants that window only
-    what it uses (keychain commands, `sql:default` + execute, event emit,
-    window close). The main capability stays `["main"]`.
-  - Lifecycle: closing the main window closes Settings and quits (unchanged
-    single-window behavior). Closing Settings affects nothing else.
+  - It is its own JS context and **owns no state**: no SQLite (the SQL plugin
+    replaces the connection pool per `load`, and the store's transactions are
+    only sound when all DB access is serial — `transactionRunner.ts:12-18`),
+    no keychain, no GitHub or sync services. The main window stays the only
+    writer.
+  - It talks to the main window with request/reply Tauri events, each
+    request carrying an id the reply echoes:
+    - `settings:get-state` → `{ connected, repo, templates }`. Sent on open.
+    - `settings:save-token { token }` → main runs today's `onTokenSaved`
+      (validates with `getRef`, deletes the token on failure) → `{ ok, error? ,
+      connected, repo }`. Errors show inline in the Settings window.
+    - `settings:save-templates { templates }` → main runs today's
+      `setCommitTemplates` → `{ ok, error? }`.
+    - Main also emits `settings:state` whenever connection or templates change,
+      so an open Settings window stays current.
+  - The window is created and focused by a Rust command `open_settings`
+    (added to the app's command permission set), so the main capability needs
+    no webview-creation permission. A new `settings` capability grants that
+    window only `core:event` (emit/listen) and closing itself.
+  - The main capability adds `core:window:allow-start-dragging` for the
+    toolbar's `data-tauri-drag-region`.
+  - Lifecycle: `handleCloseRequested` (`quitFlush.ts`) today destroys only the
+    main window, and Tauri keeps running while another window is open. It will
+    also close the Settings window after the flush, so closing the main window
+    still quits. Closing Settings affects nothing else.
   - The phone layout and non-macOS platforms keep the in-window Settings modal.
 - **Sheets.** Publish, New Link, Versions, and Conflict become macOS sheets
   (`sheets.md` › Desktop: "a cardlike view with rounded corners that floats on
   top of its parent window. The parent window is dimmed while the sheet is
   onscreen"). One at a time; Escape cancels; Return triggers the default
   button. **Conflicts never interrupt:** on macOS, background sync no longer
-  opens the Conflict sheet by itself. A conflict shows on the entry row and the
-  sync button; the sheet opens when the person clicks either or selects the
-  conflicted entry. (Today `ConflictHost` auto-opens; unchanged elsewhere.)
+  opens the Conflict sheet by itself, and selecting a conflicted entry doesn't
+  open it either (arrowing through the list must never pop a sheet). A
+  conflict shows on the entry row, in the sync button's badge, and as a
+  "This entry has a conflict — Resolve…" bar at the top of the editor when
+  that entry is selected. The sheet opens only from an explicit action:
+  Resolve… in that bar or in the Activity popover, or clicking the row's
+  conflict symbol. (Today `ConflictHost` auto-opens; unchanged elsewhere.)
 - **Quick Open (⌘K)** stays a centered floating palette (Spotlight idiom).
 - **Materials for popovers and sheets:** a deliberate deviation. HIG puts them
   in the Liquid Glass layer, but real glass can only sit behind the whole
   window, not float over opaque content. They use an opaque raised surface
   (`--bg-raised`) with the system popover/sheet shadow.
-- **Toasts → state, alerts, HUD.** Sync errors (including Retry) move to the
-  sync button's Error state and the Activity popover. Errors that need a
-  decision use native alerts (the dialog plugin, already used for
-  confirmations). Brief confirmations ("Copied") use a small non-interactive
-  HUD, bottom-center, 1.5s, fading (no fade with Reduce Motion). The toast
-  component remains for other platforms.
+- **Toasts → state, alerts, HUD.** There are 37 `addToast` call sites. On
+  macOS, `addToast` routes by kind, so call sites mostly don't change:
+  - *Background sync errors* ("Couldn't sync." with Retry,
+    `state.entryActions.ts:318`) → the sync button's Error state; Retry becomes
+    the popover's Sync Now.
+  - *Errors from an action the person just took* (couldn't save / create /
+    publish / delete / discard / rename / restore / resolve / build or copy a
+    secret link, search failed, path collision) → a native alert via the
+    dialog plugin, with "Try Again" when the toast has `retry`.
+  - *"Couldn't load your entries."* at startup → not an alert (HIG: never
+    alert on launch); the entry list shows an empty state with the message
+    and a Try Again button.
+  - *Info and success* ("Saved.", "Published.", "Changes discarded.",
+    "Restored — sync (⌘S) to make it live.", offline-save notice, "never been
+    synced" notice, copied secret link) → the HUD: small, non-interactive,
+    bottom-center, 2s (4s for messages over 60 characters), fading (no fade
+    with Reduce Motion).
+  - *Deploy* ("Live on blog.fsck.com", minutes after a push,
+    `state.deployActions.ts`) → a deploy line in the Activity popover
+    ("Deploying…", "Live at 10:42", "Deploy failed"), a HUD on success if the
+    window is key, and the Error state on failure.
+  The toast component and today's routing remain for other platforms.
 
 ### 6. Menu bar (macOS)
 
@@ -285,12 +358,14 @@ Each restyled control keeps the system's size, placement, and behavior
   (⌘R). Entry commands move out of File into a new **Entry** menu.
 - **Entry:** Publish… (⇧⌘P), Open on Site, Versions…, Copy Secret Link,
   Discard Changes…, Delete… (no shortcut: ⌘⌫ must stay "delete to line start"
-  in the editors). Items disable when not applicable (no selection, no live
-  URL, nothing to discard).
+  in the editors). Items disable when not applicable, using the rules in §4
+  (Publish… drafts only; Copy Secret Link needs an opaque id or a draft; Open
+  on Site needs a live URL; Discard needs local changes).
 - **Edit** gains Find › Search Entries (⌥⌘F).
-- **Format** (new): Bold (⌘B), Italic (⌘I), Code, Heading, Link…, Image…,
-  mirroring the formatting bar; enabled only in Write mode. Link gets no ⌘K
-  (Quick Open owns it).
+- **Format** (new): Bold (⌘B), Italic (⌘I), Code (⌘E), Heading, Link…,
+  Image…, enabled in Write and Markdown modes (not legacy HTML). The menu
+  items carry the same shortcuts both editors already bind, and dispatch to
+  whichever editor is active. Link gets no ⌘K (Quick Open owns it).
 - **View:** existing ⌘1–4 sections, Quick Open (⌘K), Activity Log (⌥⌘L), plus
   Hide/Show Sidebar (⌃⌘S) and the three editor modes as ⌥⌘1–3 (titles follow
   the entry: Write/Markdown/Live or Preview/HTML/Live), disabled when a mode
@@ -300,8 +375,14 @@ Each restyled control keeps the system's size, placement, and behavior
 ### 7. Visual system (macOS)
 
 CSS custom properties keep their current names so component CSS mostly
-doesn't change; a `html[data-platform="macos"]` block overrides their values.
-Every existing token is mapped:
+doesn't change; a `html[data-platform="macos"]` block overrides their values
+and declares `color-scheme: light dark` (needed for native form controls and
+the dark variants of system colors). Light/dark pairs use the codebase's
+existing `@media (prefers-color-scheme: dark)` pattern, **not** `light-dark()`:
+the production CSS target is `safari13` (`vite.config.ts`), and lightningcss
+rewrites `light-dark()` into variables that only resolve under a
+`color-scheme` declaration, so dev and release would differ. Every existing
+token is mapped:
 
 | Token | macOS value | Notes |
 |---|---|---|
@@ -311,8 +392,8 @@ Every existing token is mapped:
 | `--border` | `-apple-system-separator` | |
 | `--border-strong` | `-apple-system-container-border` | |
 | `--bg` | `-apple-system-text-background` | editor + list |
-| `--bg-raised` | `light-dark(#ececec, #2d2d2d)` | sheets, popovers; `window-background` isn't exposed and `control-background` equals `--bg` |
-| `--bg-sunken` | `light-dark(#f5f5f5, #1a1a1a)` | opaque sidebar fallback only |
+| `--bg-raised` | `#ececec` light / `#2d2d2d` dark | sheets, popovers; `window-background` isn't exposed and `control-background` equals `--bg` |
+| `--bg-sunken` | `#f5f5f5` light / `#1a1a1a` dark | opaque sidebar fallback only |
 | `--bg-hover` | `color-mix(in srgb, -apple-system-label 6%, transparent)` | |
 | `--bg-selected` | `-apple-system-selected-content-background` | focused selection, white text |
 | `--bg-selected-inactive` (new) | `-apple-system-unemphasized-selected-content-background` | unfocused selection |
@@ -335,9 +416,16 @@ Every existing token is mapped:
 - **Typography, chrome:** `-apple-system` 13px body, 11px captions/counts,
   13px semibold list titles. No other faces in chrome.
 - **Typography, content (the signature):** Write mode renders the post in
-  blog.fsck.com's own faces — Crimson Pro (body), DM Serif Display (headings),
-  JetBrains Mono (code) — at `site.css`'s sizes and line heights, bundled as
-  local font files (SIL OFL) so it works offline. What you write looks like
+  blog.fsck.com's own faces, bundled as local font files (SIL OFL) so it works
+  offline. Values from the live site's `/css/site.css` (`.post-page
+  .post-prose`, fetched 2026-09-23):
+  - body: Crimson Pro 19px, line-height 1.7, paragraph spacing 1.4em;
+  - h2: DM Serif Display 32px, margin 2em 0 0.6em;
+  - h3: JetBrains Mono 12px, same margins;
+  - code blocks: JetBrains Mono 14px, line-height 1.5; inline code 0.92em;
+  - title: DM Serif Display, weight 400, letter-spacing -0.025em. The blog
+    sets it at 64px for a full-width page; the editor column is narrower, so
+    the editor uses 40px (a judgment call, not a site value). What you write looks like
   what readers see; the chrome stays system around it. Markdown mode uses
   `ui-monospace`. Inline code: `--text` on a `color-mix(label 8%)` chip, no
   red.
@@ -353,17 +441,18 @@ Every existing token is mapped:
 | Today | macOS after redesign |
 |---|---|
 | Sidebar New Post / New Link | Compose button + its menu; File menu; sidebar context menu |
-| Sync pill (label, time, error tooltip, not-connected → Settings) | Sync status button + tooltip + Activity popover (§3) |
+| Sync pill (label, time, error tooltip, not-connected → Settings, one-click sync) | Sync status button + tooltip + Activity popover (§3); one-click sync becomes ⌘R / popover Sync Now |
 | Activity button / modal | Activity popover; ⌥⌘L |
 | Settings gear / modal | Settings window; ⌘, |
 | Mode switch incl. legacy Preview/HTML, conditional Live | Toolbar segmented control; View ⌥⌘1–3 |
 | Save-state indicator, Published pill | Toolbar document-status text |
-| Publish button | Toolbar Publish (same conditions/action); Entry › Publish… |
+| Publish button (shown on every entry) | Toolbar Publish (drafts only, same action); Entry › Publish… |
 | Open on site ↗, Versions ⏱, Delete, Discard, Copy Secret Link, secret-link URL | Ellipsis menu; Entry menu; row context menu; HUD shows copied URL |
-| Formatting toolbar | Formatting bar; Format menu |
+| Formatting toolbar (Markdown mode) | Formatting bar (Markdown mode); Format menu (Write + Markdown) |
 | Row badges (unsaved, conflict, HTML, draft) | Row indicators (§4) |
-| Conflict dialog (auto-opens) | Conflict sheet (on demand) |
-| Toasts (incl. Retry) | Sync error state + popover; native alerts; HUD |
+| Conflict dialog (auto-opens) | Conflict sheet (on demand: editor bar, popover, row symbol) |
+| Toasts (37 sites, incl. Retry) | Routed by kind (§5): sync state, alerts, empty state, HUD |
+| Deploy watch toast | Deploy line in Activity popover; HUD on success; Error on failure |
 | Quick Open ⌘K | Unchanged |
 | Connect screen (first run) | Unchanged content, restyled with tokens |
 | Phone layout + everything on iOS/Android/web | Unchanged |
@@ -375,7 +464,8 @@ Every existing token is mapped:
 - Symbol render fails (unknown name, older macOS): use the Lucide icon for
   that semantic name; log once per name.
 - `current_platform` fails: treat as `"web"` (today's non-Mac look) and log.
-- Settings window: already open → focus it; a failed save → inline error.
+- Settings window: already open → focus it; a failed save or a missing reply
+  (main didn't answer in 10s) → inline error in the Settings window.
 
 ### 10. Testing
 
@@ -383,11 +473,18 @@ Every existing token is mapped:
   layout never on macOS); semantic icon map (every name resolves on every
   platform); menu model (every toolbar, ellipsis, and context-menu command has
   a menu-bar twin; disabled states); sync status mapping (every `syncLabel`
-  state → symbol, badge, tooltip); "Synced" time uses last check; conflict
-  sheets never auto-open on macOS; `settings-changed` handling in the main
-  window. Existing tests keep passing.
-- **Rust:** `current_platform`; symbol renderer returns a PNG of the expected
-  pixel size for a known symbol and an error for an unknown one (macOS-only).
+  state → symbol, badge, tooltip; Error outranks Pending); "Synced" time
+  written on no-op pulls (core test); conflict sheets never auto-open or open
+  on selection on macOS; the settings request/reply handlers in the main
+  window (including token validation failure); toast routing by kind; width
+  and auto-collapse rules (pure function of window width, persisted widths,
+  and manual-hide flag); Publish/Copy Secret Link/Open on Site enable rules.
+  Existing tests keep passing.
+- **Rust:** `current_platform`; `open_settings` creates then focuses one
+  window; symbol renderer returns a PNG of the expected pixel size for a known
+  symbol and an error for an unknown one (macOS-only).
+- **Build check:** a release build's CSS still contains the macOS token block
+  intact (guards against minifier rewrites like the `light-dark()` one).
 - **End-to-end scenario cards** (e2e-scenario-testing skill) against
   `scripts/dev-app.sh`, driven by `scripts/tauri-mcp.sh`: keyboard-only
   new-post → write → Publish sheet → cancel; context menus present; Settings
@@ -398,14 +495,17 @@ Every existing token is mapped:
 
 ### 11. Phasing (each phase shippable on its own)
 
-1. **Foundation:** platform gate, compact-layout gate, macOS token block,
-   typography, focus rings, scrollbars/`user-select`/cursor, icon system.
+1. **Foundation:** platform gate (both compact switches, platform-specific
+   Tauri config), macOS token block with `color-scheme`, typography, focus
+   rings, scrollbars/`user-select`/cursor, icon system.
 2. **Chrome:** glass sidebar with fallbacks, toolbar row + traffic lights,
    sidebar cleanup and collapse, column dividers and minimums, sync status
-   button and Activity popover.
-3. **Surfaces:** Settings window, sheets (with conflict-on-demand), context
-   menus, HUD/alerts replacing toasts, menu bar changes (Entry, Format, Edit ›
-   Find, Help).
+   button (with Error-over-Pending and the last-checked fix) and Activity
+   popover.
+3. **Surfaces:** Settings window (request/reply, `open_settings`, close
+   handling), sheets (with conflict-on-demand), context menus, toast routing
+   (HUD, alerts, empty state, deploy line), menu bar changes (Entry, Format,
+   Edit › Find, Help).
 4. **Content:** entry rows, segmented control, search field, date/tag
    restyle, formatting bar, blog typography in Write mode.
 5. **Audit pass:** apple-design review of the result; fix findings.
@@ -419,5 +519,6 @@ Every existing token is mapped:
 - Accent-color live tracking unverified → phase 1 checks; if WebKit only reads
   it at load, forward `NSSystemColorsDidChangeNotification` from Rust and
   re-apply.
-- The Settings window adds a second JS context → keep its surface tiny (no
-  sync) and cover the event contract with tests.
+- The Settings window adds a second JS context → it owns no state (no DB, no
+  keychain, no sync); everything goes through main via request/reply, covered
+  by tests.
