@@ -1,70 +1,22 @@
-// ABOUTME: Native app menu (Tauri runtime only) — real menu commands for
-// ABOUTME: everything the buttons and shortcuts do, with enabled states
-// ABOUTME: tracking the current selection. Browser dev keeps DOM shortcuts.
+// ABOUTME: Native app menu (Tauri runtime only): builds and installs the menu
+// ABOUTME: bar; menuTracking.ts keeps its items current. Browser dev keeps DOM shortcuts.
 import { Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
-import type { ModelApi } from "../../core/model/types";
-import type { EntryRecord } from "../../core/store/types";
-import { getActiveEditor, subscribeActiveEditor } from "../editor/activeEditor";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
-import { formatMenuItems } from "./formatCommands";
 import { SECTION_LABELS } from "./grouping";
-import { entryLiveUrl } from "./liveUrl";
-import {
-  createEnabledTracker,
-  entryMenuItems,
-  FILE_MENU_COMMANDS,
-  type MenuItemModel,
-  runMenuCommand,
-  sidebarToggleItem,
-} from "./menuModel";
+import { FILE_MENU_COMMANDS, runMenuCommand, sidebarToggleItem } from "./menuModel";
+import { currentEntryItems } from "./menuState";
 import {
   buildEditSubmenu,
   buildFormatSubmenu,
   buildHelpSubmenu,
   buildWindowSubmenu,
-  type FormatMenu,
   separator,
 } from "./menuSubmenus";
-import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
+import { type EntryMenu, trackFormatMenu, trackStoreItems, type ViewMenu } from "./menuTracking";
+import { buildNativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
 import { modalOpen } from "./state.sheetActions";
-import type { AppState } from "./state.types";
-
-interface EntryMenuState {
-  /** The selected entry the Entry menu acts on, or null (all disabled). */
-  record: EntryRecord | null;
-  liveUrl: string | null;
-}
-
-/** Pure so it's testable without the Tauri runtime. While a sheet (or Quick
- *  Open, or Settings) is up there's no record: its commands are refused
- *  then, so they show disabled, like a Mac window's menus under a sheet. */
-function entryMenuState(
-  state: Pick<
-    AppState,
-    | "entries"
-    | "selectedPath"
-    | "publishDialogOpen"
-    | "newLinkDialogOpen"
-    | "versionsPath"
-    | "conflictSheetPath"
-    | "quickOpenOpen"
-    | "settingsOpen"
-  >,
-  model: ModelApi,
-): EntryMenuState {
-  if (modalOpen(state)) {
-    return { record: null, liveUrl: null };
-  }
-  const record = state.entries.find((entry) => entry.path === state.selectedPath) ?? null;
-  return { record, liveUrl: record ? entryLiveUrl(model, record) : null };
-}
-
-function currentEntryItems(state: AppState): MenuItemModel[] {
-  const { record, liveUrl } = entryMenuState(state, state.services.model);
-  return entryMenuItems(record, liveUrl);
-}
 
 async function buildAppSubmenu(store: BoundAppStore): Promise<Submenu> {
   return Submenu.new({
@@ -126,23 +78,12 @@ async function buildFileSubmenu(store: BoundAppStore): Promise<Submenu> {
   });
 }
 
-interface EntryMenu {
-  submenu: Submenu;
-  byId: NativeItems["byId"];
-}
-
 /** The selected entry's commands (Publish…, Open on Site, Versions…, …). */
 async function buildEntrySubmenu(store: BoundAppStore): Promise<EntryMenu> {
   const { items, byId } = await buildNativeItems(currentEntryItems(store.getState()), (id) =>
     runMenuCommand(id, store),
   );
   return { submenu: await Submenu.new({ text: "Entry", items }), byId };
-}
-
-interface ViewMenu {
-  submenu: Submenu;
-  /** View › Hide/Show Sidebar — macOS only (the sidebar hides only there). */
-  sidebarItem: MenuItem | null;
 }
 
 function buildSidebarItem(store: BoundAppStore): Promise<MenuItem | null> {
@@ -197,46 +138,6 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   return { submenu, sidebarItem };
 }
 
-/* Building the menu takes many IPC round trips, and the store (a restored
-   selection) or the focused editor may move meanwhile: each tracker brings
-   its items up to date right away, then follows changes. */
-
-function trackFormatMenu(format: FormatMenu): () => void {
-  const update = createEnabledTracker((models) => applyEnabled(format.byId, models));
-  const sync = () => update(formatMenuItems(getActiveEditor() !== null));
-  const stop = subscribeActiveEditor(sync);
-  sync();
-  return stop;
-}
-
-/** The Entry menu's enabled states and View › Hide/Show Sidebar's title. */
-function trackStoreItems(store: BoundAppStore, entry: EntryMenu, view: ViewMenu): () => void {
-  const updateEntry = createEnabledTracker((models) => applyEnabled(entry.byId, models));
-  // Parsing the entry for its live URL is only worth it when the selected
-  // record (or the services parsing it) actually changed.
-  let lastRecord: EntryRecord | null | undefined;
-  let lastServices: AppState["services"] | undefined;
-  let lastModal: boolean | undefined;
-  // Starts opposite to the store so the first sync always sets the title.
-  let lastSidebarHidden = !store.getState().sidebarHidden;
-  const sync = (state: AppState) => {
-    if (view.sidebarItem && state.sidebarHidden !== lastSidebarHidden) {
-      lastSidebarHidden = state.sidebarHidden;
-      view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
-    }
-    const record = state.entries.find((e) => e.path === state.selectedPath) ?? null;
-    const modal = modalOpen(state);
-    if (record !== lastRecord || state.services !== lastServices || modal !== lastModal) {
-      lastRecord = record;
-      lastServices = state.services;
-      lastModal = modal;
-      updateEntry(currentEntryItems(state));
-    }
-  };
-  sync(store.getState());
-  return store.subscribe(sync);
-}
-
 /**
  * Builds and installs the native application menu, keeping the selection-
  * dependent items' enabled state in sync with the store (diffed, so a
@@ -280,5 +181,4 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
   };
 }
 
-export type { EntryMenuState };
-export { entryMenuState, installAppMenu };
+export { installAppMenu };

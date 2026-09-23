@@ -1,7 +1,7 @@
-// ABOUTME: entryMenuState — the pure half of the Entry menu: which record the
+// ABOUTME: entryMenuState (menuState.ts) — the pure half of the Entry menu: which record the
 // ABOUTME: menu bar's entry commands act on, and its live URL.
 import { expect, it } from "vitest";
-import { entryMenuState } from "./menu";
+import { entryMenuState } from "./menuState";
 import { makeEntry, makeRaw } from "./testing/builders";
 import { createFakeModel } from "./testing/fakeModel";
 
