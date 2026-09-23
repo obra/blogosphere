@@ -10,6 +10,49 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-23-native-mac-redesign-design.md` (§1 Platform gate, §4 scrollbars/chrome text, §7 Visual system, §11 phase 1). Read it before starting.
 
+## Execution record (2026-09-23)
+
+Executed in commits `3fb475f`..`077d594`, one per task (Task 5 split into
+CSS and click-focus; Task 8 into shell+cache and component). Two
+adversarial reviews of this plan found real defects; the code was
+prototyped, verified, then replayed task by task with each test seen
+failing first. **Where the tasks below disagree with the commits, the
+commits are right.** Corrections:
+
+- **Task 3:** the testing fake shell (`src/ui/app/testing/fakeShell.ts`)
+  defaulted to `"macos"`; it now defaults to `"web"`, or the phone-layout
+  tests and the browser demo would lose compact mode. Callers use a new
+  `useAppCompactLayout()` wrapper (an inline `useServices()` call tripped a
+  Biome type-inference false positive). CSS test helpers live inside
+  `cssContract.test.ts` (Biome forbids exports from tests) and split
+  selectors only on top-level commas, so `:is(a, b)` stays one selector.
+- **Task 5:** the Mac focus halo is set through `--focus-ring-width` /
+  `--focus-ring-color` variables that the base `:focus-visible` rule reads.
+  A Mac-specific `:focus-visible` rule would outrank Crepe's and the title
+  field's deliberate `outline: none`. List rows set the width to 0: AppKit
+  lists show focus through the selection color. Rows and sidebar sections
+  now focus themselves on click; WebKit doesn't, so the focused selection
+  never showed after a click (commit `869bb8f`).
+- **Task 7:** `CGImageForProposedRect` applies the screen's backing scale
+  on top of the requested one (4× on Retina), so the renderer draws into an
+  explicitly sized `NSBitmapImageRep` instead. The objc2 crates build with
+  `default-features = false`. `SymbolPng` derives `Debug`. The test
+  compares integer pixel counts (clippy `float_cmp`). The command takes
+  `&str`.
+- **Task 8:** both fake shells gain `renderSymbol`. The component test
+  captures the fallback warning, and a new `iconNames.test.ts` covers spec
+  §10 (every semantic icon resolves). `console.warn` uses a documented
+  `biome-ignore`.
+- **Task 9:** `scripts/**/*.mjs` gets a Biome override (console, Node
+  modules, `process`). "Prove it fails" uses a fake dist dir, not an old
+  build.
+- **Task 10:** done during prototyping, in Blogosphere Dev via the bridge:
+  platform `macos`, wide layout at the minimum width, system label and
+  selection colors, `color-mix` with system colors resolving, a 1100×720
+  default window, SF Symbols in the editor toolbar, accent selection with
+  white text and no ring. **Still open:** Jesse's dark-mode check and the
+  accent-color live-tracking check.
+
 ## Global Constraints
 
 - The native Mac design applies only when `data-platform="macos"`. iOS, Android, web, and the phone layout keep today's look and behavior exactly.
