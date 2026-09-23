@@ -278,3 +278,18 @@ html[data-platform="macos"]
   .sidebar-section-icon {
   color: #ffffff;
 }
+
+/* ---------- Editor conflict bar (the way into the Conflict sheet) ---------- */
+
+html[data-platform="macos"] .editor-conflict-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 13px;
+}

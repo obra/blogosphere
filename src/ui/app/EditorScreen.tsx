@@ -216,6 +216,32 @@ function EditorBar(props: EditorToolbarProps) {
   return mac ? <MacEditorToolbar {...props} /> : <EditorToolbar {...props} />;
 }
 
+/** Why the body is read-only. On macOS the conflict sheet never opens by
+ *  itself, so the note carries the way in: Resolve…. */
+function ConflictNote(props: { path: string }) {
+  const store = useAppStoreApi();
+  const mac = useServices().shell.platform() === "macos";
+  if (!mac) {
+    return (
+      <p className="editor-conflict-note">
+        This entry has a conflicting change — resolve it to keep editing.
+      </p>
+    );
+  }
+  return (
+    <div className="editor-conflict-note editor-conflict-bar">
+      <span>This entry has a conflict.</span>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => store.getState().openConflict(props.path)}
+      >
+        Resolve…
+      </button>
+    </div>
+  );
+}
+
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
   // Legacy HTML entries open in the rendered view; editing is one click away.
@@ -254,11 +280,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
               <DateField value={props.record.date} onChange={s.commitDate} />
               <TagChipsEditor tags={s.tags} onChange={s.setTags} />
             </div>
-            {s.isConflicted ? (
-              <p className="editor-conflict-note">
-                This entry has a conflicting change — resolve it to keep editing.
-              </p>
-            ) : null}
+            {s.isConflicted ? <ConflictNote path={props.record.path} /> : null}
             <Editor
               value={s.body}
               onChange={s.setBody}

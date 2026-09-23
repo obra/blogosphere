@@ -70,6 +70,7 @@ function ConflictList() {
             onClick={() => {
               store.getState().select(path);
               store.getState().closeSyncLog();
+              store.getState().openConflict(path);
             }}
           >
             {entries.find((entry) => entry.path === path)?.title || path}
