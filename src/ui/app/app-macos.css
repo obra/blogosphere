@@ -78,25 +78,42 @@ html[data-platform="macos"] .entry-row[aria-current="true"] {
   color: var(--text);
   font-weight: 400;
 }
-html[data-platform="macos"] .sidebar:focus-within .sidebar-section-button[aria-current="true"],
-html[data-platform="macos"] .entry-list-pane:focus-within .entry-row[aria-current="true"] {
+html[data-platform="macos"]
+  .sidebar-sections:focus-within
+  .sidebar-section-button[aria-current="true"],
+html[data-platform="macos"] .entry-list-scroll:focus-within .entry-row[aria-current="true"] {
   background: var(--bg-selected);
   color: #ffffff;
 }
 html[data-platform="macos"]
-  .sidebar:focus-within
+  .sidebar-sections:focus-within
   .sidebar-section-button[aria-current="true"]
   .sidebar-section-count,
 html[data-platform="macos"]
-  .entry-list-pane:focus-within
+  .entry-list-scroll:focus-within
   .entry-row[aria-current="true"]
   .entry-row-meta {
   color: rgba(255, 255, 255, 0.8);
 }
 /* AppKit lists show focus through the selection color, never a ring around
-   the row. */
-html[data-platform="macos"] :is(.sidebar-section-button, .entry-row) {
+   the selected row. Other rows (and Versions rows, which are never
+   "current") keep the ring so keyboard focus stays visible. */
+html[data-platform="macos"] :is(.sidebar-section-button, .entry-row)[aria-current="true"] {
   --focus-ring-width: 0;
+}
+/* Badges on a focused selection: accent-on-accent and red-on-blue vanish,
+   so they go white, like AppKit's inverted text in selected rows. */
+html[data-platform="macos"] .entry-list-scroll:focus-within
+  .entry-row[aria-current="true"]
+  .pill-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+html[data-platform="macos"]
+  .entry-list-scroll:focus-within
+  .entry-row[aria-current="true"]
+  .dot-badge {
+  background: #ffffff;
 }
 html[data-platform="macos"] .quick-open-row:hover,
 html[data-platform="macos"] .quick-open-row[data-active="true"] {

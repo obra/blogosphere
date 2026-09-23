@@ -24,7 +24,12 @@ const BASE_FOCUS_RULE =
 const MAC_FOCUS_WIDTH = /--focus-ring-width:\s*3px/;
 const MAC_FOCUS_COLOR = /--focus-ring-color:\s*color-mix\(in srgb, AccentColor 50%, transparent\)/;
 const LIST_ROWS_NO_RING =
-  /:is\(\.sidebar-section-button, \.entry-row\)\s*\{[^}]*--focus-ring-width:\s*0/;
+  /:is\(\.sidebar-section-button, \.entry-row\)\[aria-current="true"\]\s*\{[^}]*--focus-ring-width:\s*0/;
+const FOCUS_SCOPE_TOO_WIDE = /\.(sidebar|entry-list-pane):focus-within/;
+const SELECTED_BADGES =
+  /:focus-within\s[^{]*\[aria-current="true"\]\s+\.pill-badge[^{]*\{[^}]*color:\s*#ffffff/;
+const SELECTED_DOT =
+  /:focus-within\s[^{]*\[aria-current="true"\]\s+\.dot-badge[^{]*\{[^}]*background:\s*#ffffff/;
 const SCROLLBAR_RULE = /::-webkit-scrollbar/;
 const CURSOR_DEFAULT = /cursor:\s*default/;
 const CHROME_UNSELECTABLE =
@@ -153,6 +158,17 @@ describe("macOS selection and focus", () => {
     expect(mac).toMatch(FOCUSED_SELECTION);
   });
 
+  it("counts only focus on the rows themselves, not the search field or sidebar buttons", () => {
+    expect(mac).toContain(".entry-list-scroll:focus-within");
+    expect(mac).toContain(".sidebar-sections:focus-within");
+    expect(mac).not.toMatch(FOCUS_SCOPE_TOO_WIDE);
+  });
+
+  it("keeps badges readable on a focused selection", () => {
+    expect(mac).toMatch(SELECTED_BADGES);
+    expect(mac).toMatch(SELECTED_DOT);
+  });
+
   it("draws an unfocused selection in unemphasized gray with label text", () => {
     expect(mac).toMatch(UNFOCUSED_SELECTION);
   });
@@ -161,7 +177,7 @@ describe("macOS selection and focus", () => {
     expect(mac).toMatch(SELECTED_META);
   });
 
-  it("draws no ring on list rows: the focused selection already shows focus", () => {
+  it("draws no ring on the selected row only: its selection color shows focus", () => {
     expect(mac).toMatch(LIST_ROWS_NO_RING);
   });
 
