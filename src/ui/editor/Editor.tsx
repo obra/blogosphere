@@ -119,7 +119,12 @@ export function Editor(props: EditorProps) {
   return (
     <div style={ROOT_STYLE}>
       {useSourceEditor && !isHtml ? (
-        <Toolbar handle={handleRef} onImage={props.onImage} readOnly={isReadOnly} />
+        <Toolbar
+          handle={handleRef}
+          onImage={props.onImage}
+          readOnly={isReadOnly}
+          {...(props.renderFormatIcon ? { renderIcon: props.renderFormatIcon } : {})}
+        />
       ) : null}
       <div ref={bodyRef}>
         {useSourceEditor ? (

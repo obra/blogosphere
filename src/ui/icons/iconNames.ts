@@ -1,15 +1,20 @@
 // ABOUTME: Semantic icon names → SF Symbol (Apple platforms, rendered by the OS)
 // ABOUTME: and Lucide (everywhere else). Components only ever use the semantic name.
 import {
+  Bold,
   ChevronDown,
   CircleArrowUp,
   CloudAlert,
   CloudCheck,
   CloudOff,
+  Code,
   Ellipsis,
   ExternalLink,
   FileText,
+  Heading2,
   History,
+  Image,
+  Italic,
   Link,
   type LucideIcon,
   Package,
@@ -46,6 +51,12 @@ const ICONS = {
   links: { sfSymbol: "link", lucide: Link },
   releases: { sfSymbol: "shippingbox", lucide: Package },
   search: { sfSymbol: "magnifyingglass", lucide: Search },
+  bold: { sfSymbol: "bold", lucide: Bold },
+  italic: { sfSymbol: "italic", lucide: Italic },
+  code: { sfSymbol: "chevron.left.forwardslash.chevron.right", lucide: Code },
+  heading: { sfSymbol: "textformat.size", lucide: Heading2 },
+  link: { sfSymbol: "link", lucide: Link },
+  image: { sfSymbol: "photo", lucide: Image },
 } satisfies Record<string, IconSource>;
 
 type IconName = keyof typeof ICONS;

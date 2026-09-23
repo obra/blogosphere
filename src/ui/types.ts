@@ -1,6 +1,9 @@
 // ABOUTME: Contract between UI layers — editor component props and the app store
 // ABOUTME: shape, so the editor and app-shell teams can build independently.
 
+import type { ReactNode } from "react";
+import type { FormatIconName } from "./editor/Toolbar";
+
 export type EditorMode = "wysiwyg" | "source";
 
 export interface EditorProps {
@@ -18,6 +21,8 @@ export interface EditorProps {
    *  (e.g. "/assets/2026/07/pasted-image-20260715-093012.png") or null to cancel. */
   onImage(bytes: Uint8Array, suggestedExt: string): Promise<string | null>;
   readOnly?: boolean;
+  /** The app's icons for the formatting bar (macOS symbols); text without. */
+  renderFormatIcon?: (name: FormatIconName) => ReactNode;
 }
 
 /** Sections shown in the sidebar, in order. */

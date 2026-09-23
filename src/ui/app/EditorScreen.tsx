@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import { Editor } from "../editor";
+import type { FormatIconName } from "../editor/Toolbar";
+import { Icon } from "../icons/Icon";
 import type { EditorMode, HtmlViewMode } from "../types";
 import { EditorBar } from "./EditorBar";
 import { DateField, TitleField } from "./EditorFieldControls";
@@ -65,8 +67,14 @@ function docMode(isLegacyHtml: boolean, mode: EditorMode): string {
   return mode === "wysiwyg" ? "write" : "markdown";
 }
 
+/** macOS formatting-bar symbols (the editor itself knows no app icons). */
+function formatSymbol(name: FormatIconName) {
+  return <Icon name={name} size={14} />;
+}
+
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
+  const mac = useServices().shell.platform() === "macos";
   // Legacy HTML entries open in the rendered view; editing is one click away.
   const [htmlView, setHtmlView] = useState<HtmlViewMode>("preview");
   const [live, setLive] = useState(false);
@@ -112,6 +120,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
               resolveImage={s.resolveImage}
               onImage={s.onImage}
               readOnly={s.isConflicted}
+              {...(mac ? { renderFormatIcon: formatSymbol } : {})}
             />
           </div>
         </div>
