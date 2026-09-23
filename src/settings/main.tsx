@@ -20,14 +20,23 @@ if (!container) {
 
 const client = createSettingsClient(tauriTransport, { createId: () => uuidv4() });
 
-function fitWindow(height: number): void {
-  getCurrentWindow()
-    .setSize(new LogicalSize(WINDOW_WIDTH, height))
-    .catch(() => undefined);
+/** Makes the page's viewport exactly `height` tall. The size Tauri sets
+ *  (and reports) includes the title bar the webview sits below, so the
+ *  difference between it and the page's own viewport is added on. */
+async function fitWindow(height: number): Promise<void> {
+  const tauriWindow = getCurrentWindow();
+  const [size, scale] = await Promise.all([tauriWindow.innerSize(), tauriWindow.scaleFactor()]);
+  const titleBar = size.height / scale - globalThis.innerHeight;
+  await tauriWindow.setSize(new LogicalSize(WINDOW_WIDTH, height + titleBar));
 }
 
 createRoot(container).render(
   <StrictMode>
-    <SettingsWindow client={client} onContentHeight={fitWindow} />
+    <SettingsWindow
+      client={client}
+      onContentHeight={(height) => {
+        fitWindow(height).catch(() => undefined);
+      }}
+    />
   </StrictMode>,
 );
