@@ -106,6 +106,7 @@ export {
   closeSettings,
   closeSyncLog,
   closeVersions,
+  modalOpen,
   openConflict,
   openNewLinkDialog,
   openPublishDialog,

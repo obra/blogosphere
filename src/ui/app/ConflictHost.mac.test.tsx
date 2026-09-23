@@ -79,3 +79,22 @@ it("opens from the Activity popover, selecting the entry", async () => {
   expect(store.getState().syncLogOpen).toBe(false);
   expect(conflictSheet()).not.toBeNull();
 });
+
+it("elsewhere, waits for an open sheet to close instead of stacking on it", async () => {
+  const { store, sync } = renderWithStore(<ConflictHost />, {
+    seedEntries: [entry],
+    shellOptions: { platform: "web" },
+  });
+  await act(async () => {
+    await store.getState().refresh();
+  });
+  act(() => store.getState().openNewLinkDialog());
+  act(() => sync?.setStatus(CONFLICTED.status));
+  expect(conflictSheet()).toBeNull();
+  act(() => store.getState().closeNewLinkDialog());
+  expect(conflictSheet()).not.toBeNull();
+  expect(store.getState().conflictSheetPath).toBe(PATH);
+  fireEvent.click(screen.getByText("Not now"));
+  expect(conflictSheet()).toBeNull();
+  expect(store.getState().conflictSheetPath).toBeNull();
+});

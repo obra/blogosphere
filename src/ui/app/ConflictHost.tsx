@@ -8,6 +8,7 @@ import { getConflictRemote } from "../../core/sync/meta";
 import { ConflictDialog } from "./ConflictDialog";
 import { useServices } from "./ServicesContext";
 import { useAppStore, useAppStoreApi } from "./state";
+import { modalOpen } from "./state.sheetActions";
 import { EMPTY_CONFLICTS } from "./state.types";
 
 /**
@@ -41,10 +42,11 @@ function useTheirsText(path: string | null, fallback: string): string {
 }
 
 /**
- * Which conflict the dialog is for. On macOS conflicts never interrupt: the
+ * Which conflict the sheet is for: always `conflictSheetPath`, so the
+ * one-sheet-at-a-time rule sees it. On macOS conflicts never interrupt: the
  * sheet opens only when asked for (Resolve… in the editor bar or the
- * Activity popover). Elsewhere the first conflict not dismissed this
- * session opens by itself.
+ * Activity popover). Elsewhere the first conflict not dismissed this session
+ * opens by itself, as soon as no other sheet is up.
  */
 function useActiveConflict(): {
   path: string | undefined;
@@ -56,19 +58,28 @@ function useActiveConflict(): {
   const conflicts = useAppStore((state) => state.syncStatus?.conflicts ?? EMPTY_CONFLICTS);
   const requested = useAppStore((state) => state.conflictSheetPath);
   const [dismissed, setDismissed] = useState<string | null>(null);
-  if (mac) {
-    return {
-      path: requested !== null && conflicts.includes(requested) ? requested : undefined,
-      cancel: () => store.getState().closeConflict(),
-      // resolveConflict closes the sheet itself.
-      resolved: () => undefined,
-    };
-  }
-  const path = conflicts.find((candidate) => candidate !== dismissed);
+  const next = mac ? undefined : conflicts.find((candidate) => candidate !== dismissed);
+
+  // openConflict itself refuses while another sheet (or Quick Open, or
+  // Settings) is up; this effect runs again when that closes.
+  const blocked = useAppStore((state) => modalOpen(state));
+  useEffect(() => {
+    if (next !== undefined && requested === null && !blocked) {
+      store.getState().openConflict(next);
+    }
+  }, [store, next, requested, blocked]);
+
+  const path = requested !== null && conflicts.includes(requested) ? requested : undefined;
   return {
     path,
-    cancel: () => setDismissed(path ?? null),
-    // A dismissed conflict gets another chance once another one is dealt with.
+    cancel: () => {
+      if (!mac) {
+        setDismissed(path ?? null);
+      }
+      store.getState().closeConflict();
+    },
+    // A dismissed conflict gets another chance once another one is dealt
+    // with; resolveConflict closes the sheet itself.
     resolved: () => setDismissed(null),
   };
 }
