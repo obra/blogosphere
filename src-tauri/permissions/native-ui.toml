@@ -16,7 +16,12 @@ identifier = "allow-glass-active"
 description = "Enables the glass_active command, which reports whether the glass sidebar is on."
 commands.allow = ["glass_active"]
 
+[[permission]]
+identifier = "allow-open-settings"
+description = "Enables the open_settings command, which opens (or focuses) the macOS Settings window."
+commands.allow = ["open_settings"]
+
 [[set]]
 identifier = "native-ui"
-description = "Allows the native-UI helper commands (platform detection, SF Symbol rendering, glass state)."
-permissions = ["allow-current-platform", "allow-render-symbol", "allow-glass-active"]
+description = "Allows the native-UI helper commands (platform detection, SF Symbol rendering, glass state, opening Settings)."
+permissions = ["allow-current-platform", "allow-render-symbol", "allow-glass-active", "allow-open-settings"]

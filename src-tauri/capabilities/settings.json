@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings",
+  "description": "The macOS Settings window: it only talks to the main window (events) and sizes itself to its content. It owns no data: no SQL, keychain, or network.",
+  "windows": ["settings"],
+  "permissions": ["core:event:default", "core:window:allow-set-size", "mcp-bridge:default"]
+}

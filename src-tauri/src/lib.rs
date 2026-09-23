@@ -4,7 +4,37 @@
 mod glass;
 mod keychain;
 mod platform;
+// Desktop only: mobile window builders have no size or decoration options,
+// and `warnings = "deny"` would fail the mobile builds on unused code.
+#[cfg(desktop)]
+mod settings_window;
 pub mod symbols;
+
+/// The app's commands. Opening Settings is desktop-only (see `settings_window`).
+#[cfg(desktop)]
+fn commands() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        keychain::keychain_get,
+        keychain::keychain_set,
+        keychain::keychain_delete,
+        platform::current_platform,
+        symbols::render_symbol,
+        glass::glass_active,
+        settings_window::open_settings,
+    ]
+}
+
+#[cfg(mobile)]
+fn commands() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        keychain::keychain_get,
+        keychain::keychain_set,
+        keychain::keychain_delete,
+        platform::current_platform,
+        symbols::render_symbol,
+        glass::glass_active,
+    ]
+}
 
 /// Runs the Tauri application. This is the process entry point.
 ///
@@ -36,14 +66,7 @@ pub fn run() {
         builder
     };
     builder
-        .invoke_handler(tauri::generate_handler![
-            keychain::keychain_get,
-            keychain::keychain_set,
-            keychain::keychain_delete,
-            platform::current_platform,
-            symbols::render_symbol,
-            glass::glass_active,
-        ])
+        .invoke_handler(commands())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

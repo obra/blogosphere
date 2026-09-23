@@ -73,6 +73,10 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-core-foundation",
 ] }
 
+# tauri::test's mock runtime, for settings_window's tests.
+[dev-dependencies]
+tauri = { version = "2.11.3", features = ["test"] }
+
 # Runs on the main thread (AppKit drawing); libtest's harness doesn't.
 [[test]]
 name = "symbols"
