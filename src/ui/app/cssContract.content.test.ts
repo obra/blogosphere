@@ -1,0 +1,86 @@
+// ABOUTME: The macOS Write-mode typography: the blog's values, on the elements
+// ABOUTME: that actually render them, and never outside a Write-mode document.
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
+const RULE = /([^{}]+)\{([^{}]*)\}/g;
+const WHITESPACE = /\s+/g;
+const SERIF_FAMILY = /font-family:[^;]*(Crimson|DM Serif)/;
+const WRITE_DOC = 'html[data-platform="macos"] .editor-doc[data-editor-mode="write"]';
+
+interface Rule {
+  selectors: string[];
+  body: string;
+}
+
+function rules(): Rule[] {
+  const css = readFileSync(
+    fileURLToPath(new URL("./app-macos-content.css", import.meta.url)),
+    "utf8",
+  ).replace(CSS_COMMENT, "");
+  return [...css.matchAll(RULE)].map((match) => ({
+    selectors: (match[1] ?? "").split(",").map((s) => s.replace(WHITESPACE, " ").trim()),
+    body: match[2] ?? "",
+  }));
+}
+
+/** The declarations applied to `selector` (a rule may list several), by property. */
+function declarationsFor(selector: string): Record<string, string> {
+  const declarations: Record<string, string> = {};
+  for (const rule of rules().filter((r) => r.selectors.includes(selector))) {
+    for (const declaration of rule.body.split(";")) {
+      const [property, ...value] = declaration.split(":");
+      if (property?.trim() && value.length > 0) {
+        declarations[property.trim()] = value.join(":").trim();
+      }
+    }
+  }
+  return declarations;
+}
+
+describe("Write mode typography (macOS)", () => {
+  it("sets paragraphs themselves in Crimson Pro 19px/1.7, clearing Crepe's padding", () => {
+    const p = declarationsFor(`${WRITE_DOC} .ProseMirror p`);
+    expect(p["font-family"]).toContain('"Crimson Pro Variable"');
+    expect(p).toMatchObject({
+      "font-size": "19px",
+      "line-height": "1.7",
+      padding: "0",
+      margin: "0 0 1.4em",
+    });
+  });
+
+  it("sets h2 in DM Serif Display 32px at the one weight that ships", () => {
+    const h2 = declarationsFor(`${WRITE_DOC} .ProseMirror h2`);
+    expect(h2["font-family"]).toContain('"DM Serif Display"');
+    expect(h2).toMatchObject({ "font-size": "32px", "font-weight": "400", margin: "2em 0 0.6em" });
+  });
+
+  it("sets h3 in JetBrains Mono 12px, weight 500, with a sane line height", () => {
+    const h3 = declarationsFor(`${WRITE_DOC} .ProseMirror h3`);
+    expect(h3["font-family"]).toContain('"JetBrains Mono"');
+    expect(h3).toMatchObject({ "font-size": "12px", "font-weight": "500", "line-height": "1.4" });
+  });
+
+  it("sets code blocks through CodeMirror's scroller", () => {
+    const code = declarationsFor(`${WRITE_DOC} .milkdown-code-block .cm-scroller`);
+    expect(code["font-family"]).toContain('"JetBrains Mono"');
+    expect(code).toMatchObject({ "font-size": "14px", "line-height": "1.5" });
+  });
+
+  it("sets the title in DM Serif Display 40px", () => {
+    const title = declarationsFor(`${WRITE_DOC} .editor-title-input`);
+    expect(title["font-family"]).toContain('"DM Serif Display"');
+    expect(title).toMatchObject({ "font-size": "40px", "letter-spacing": "-0.025em" });
+  });
+
+  it("names a serif only inside a Write-mode document", () => {
+    for (const rule of rules().filter((r) => SERIF_FAMILY.test(r.body))) {
+      for (const selector of rule.selectors) {
+        expect(selector.startsWith(WRITE_DOC)).toBe(true);
+      }
+    }
+  });
+});

@@ -161,7 +161,7 @@ describe("macOS token block (app-macos.css)", () => {
     expect(imports.slice(firstMac).every((name) => name.startsWith("app-macos"))).toBe(true);
   });
 
-  it.each(["app-macos-chrome.css", "app-macos-surfaces.css"])(
+  it.each(["app-macos-chrome.css", "app-macos-surfaces.css", "app-macos-content.css"])(
     "scopes every rule in %s to the Mac platform",
     (file) => {
       const selectors = ruleHeads(readCss(file)).flatMap(splitSelectors);

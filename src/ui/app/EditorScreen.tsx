@@ -247,6 +247,14 @@ function ConflictNote(props: { path: string }) {
   );
 }
 
+/** Which editor the document shows; the Write-mode typography keys off it. */
+function docMode(isLegacyHtml: boolean, mode: EditorMode): string {
+  if (isLegacyHtml) {
+    return "html";
+  }
+  return mode === "wysiwyg" ? "write" : "markdown";
+}
+
 function EditorScreenBody(props: { record: EntryRecord }) {
   const s = useEditorScreenState(props.record);
   // Legacy HTML entries open in the rendered view; editing is one click away.
@@ -279,7 +287,7 @@ function EditorScreenBody(props: { record: EntryRecord }) {
         <div className="editor-fill">{fill}</div>
       ) : (
         <div className="editor-scroll">
-          <div className="editor-doc">
+          <div className="editor-doc" data-editor-mode={docMode(s.isLegacyHtml, s.editorMode)}>
             <TitleField value={s.title} onChange={s.setTitle} />
             <div className="editor-meta-row">
               <DateField value={props.record.date} onChange={s.commitDate} />
