@@ -17,6 +17,13 @@ import {
   runMenuCommand,
   sidebarToggleItem,
 } from "./menuModel";
+import {
+  buildEditSubmenu,
+  buildFormatSubmenu,
+  buildHelpSubmenu,
+  buildWindowSubmenu,
+  separator,
+} from "./menuSubmenus";
 import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
 import type { AppState } from "./state.types";
@@ -39,10 +46,6 @@ function entryMenuState(
 function currentEntryItems(state: AppState): MenuItemModel[] {
   const { record, liveUrl } = entryMenuState(state, state.services.model);
   return entryMenuItems(record, liveUrl);
-}
-
-function separator(): Promise<PredefinedMenuItem> {
-  return PredefinedMenuItem.new({ item: "Separator" });
 }
 
 async function buildAppSubmenu(store: BoundAppStore): Promise<Submenu> {
@@ -118,37 +121,6 @@ async function buildEntrySubmenu(store: BoundAppStore): Promise<EntryMenu> {
   return { submenu: await Submenu.new({ text: "Entry", items }), byId };
 }
 
-/** Standard Edit bindings — without these, replacing the default app menu
- *  would silently break ⌘C/⌘V/⌘Z inside the webview. */
-async function buildEditSubmenu(): Promise<Submenu> {
-  return Submenu.new({
-    text: "Edit",
-    items: await Promise.all([
-      PredefinedMenuItem.new({ item: "Undo" }),
-      PredefinedMenuItem.new({ item: "Redo" }),
-      separator(),
-      PredefinedMenuItem.new({ item: "Cut" }),
-      PredefinedMenuItem.new({ item: "Copy" }),
-      PredefinedMenuItem.new({ item: "Paste" }),
-      PredefinedMenuItem.new({ item: "SelectAll" }),
-    ]),
-  });
-}
-
-interface FormatMenu {
-  submenu: Submenu;
-  byId: NativeItems["byId"];
-}
-
-/** Bold, Italic, Code, Heading, Link…, Image… for the focused body editor. */
-async function buildFormatSubmenu(store: BoundAppStore): Promise<FormatMenu> {
-  const { items, byId } = await buildNativeItems(
-    formatMenuItems(getActiveEditor() !== null),
-    (id) => runMenuCommand(id, store),
-  );
-  return { submenu: await Submenu.new({ text: "Format", items }), byId };
-}
-
 interface ViewMenu {
   submenu: Submenu;
   /** View › Hide/Show Sidebar — macOS only (the sidebar hides only there). */
@@ -202,18 +174,6 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
   return { submenu, sidebarItem };
 }
 
-async function buildWindowSubmenu(): Promise<Submenu> {
-  return Submenu.new({
-    text: "Window",
-    items: await Promise.all([
-      PredefinedMenuItem.new({ item: "Minimize" }),
-      PredefinedMenuItem.new({ item: "Maximize", text: "Zoom" }),
-      separator(),
-      PredefinedMenuItem.new({ item: "CloseWindow" }),
-    ]),
-  });
-}
-
 /** The enabled flags as one comparable string: typing replaces the record
  *  object on every keystroke, but the flags rarely change. */
 function enabledSignature(models: readonly MenuItemModel[]): string {
@@ -227,7 +187,7 @@ function enabledSignature(models: readonly MenuItemModel[]): string {
  * store subscription.
  */
 async function installAppMenu(store: BoundAppStore): Promise<() => void> {
-  const [appSubmenu, file, entry, edit, format, view, windowSubmenu] = await Promise.all([
+  const [appSubmenu, file, entry, edit, format, view, windowSubmenu, help] = await Promise.all([
     buildAppSubmenu(store),
     buildFileSubmenu(store),
     buildEntrySubmenu(store),
@@ -235,9 +195,19 @@ async function installAppMenu(store: BoundAppStore): Promise<() => void> {
     buildFormatSubmenu(store),
     buildViewSubmenu(store),
     buildWindowSubmenu(),
+    buildHelpSubmenu(),
   ]);
   const menu = await Menu.new({
-    items: [appSubmenu, file, entry.submenu, edit, format.submenu, view.submenu, windowSubmenu],
+    items: [
+      appSubmenu,
+      file,
+      entry.submenu,
+      edit,
+      format.submenu,
+      view.submenu,
+      windowSubmenu,
+      help,
+    ],
   });
   await menu.setAsAppMenu();
 
