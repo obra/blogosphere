@@ -40,7 +40,8 @@ npm run lint       # Biome, preset "all" — strict on purpose
 npm run tauri dev  # the real app (needs Rust; token in the OS keychain)
 ```
 
-Desktop builds: `npm run tauri build`. Windows cross-compiles from macOS via
+Desktop builds: `npm run tauri build`; `scripts/install-mac.sh` builds just the
+.app and installs it into /Applications. Windows cross-compiles from macOS via
 `cargo-xwin` + NSIS; Android/iOS build through `npm run tauri android|ios build`
 (see `docs/` for the design/plan documents this grew from).
 
