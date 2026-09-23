@@ -7,7 +7,7 @@ import type { Section } from "../types";
 import { entryLiveUrl } from "./liveUrl";
 import { openExternal } from "./openExternal";
 import type { BoundAppStore } from "./state";
-import { anySheetOpen } from "./state.sheetActions";
+import { modalOpen } from "./state.sheetActions";
 
 type MenuCommandId =
   | "publish"
@@ -229,8 +229,9 @@ function runMenuCommand(
   store: BoundAppStore,
   path: string | null = store.getState().selectedPath,
 ): void {
-  // A sheet is modal: nothing underneath it changes until it closes.
-  if (anySheetOpen(store.getState())) {
+  // A sheet (or Quick Open, or Settings) is modal: nothing underneath it
+  // changes until it closes.
+  if (modalOpen(store.getState())) {
     return;
   }
   if (isFormatCommand(id)) {

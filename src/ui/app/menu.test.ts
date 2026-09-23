@@ -7,6 +7,15 @@ import { createFakeModel } from "./testing/fakeModel";
 
 const model = createFakeModel();
 
+const NO_MODAL = {
+  publishDialogOpen: false,
+  newLinkDialogOpen: false,
+  versionsPath: null,
+  conflictSheetPath: null,
+  quickOpenOpen: false,
+  settingsOpen: false,
+};
+
 const POST = makeEntry({
   path: "content/blog/2026/2026-01-01-a.md",
   kind: "post",
@@ -15,22 +24,39 @@ const POST = makeEntry({
 });
 
 it("nothing selected: no record, no URL", () => {
-  expect(entryMenuState({ entries: [POST], selectedPath: null }, model)).toEqual({
+  expect(entryMenuState({ ...NO_MODAL, entries: [POST], selectedPath: null }, model)).toEqual({
     record: null,
     liveUrl: null,
   });
 });
 
 it("a selected post: that record and its live URL", () => {
-  expect(entryMenuState({ entries: [POST], selectedPath: POST.path }, model)).toEqual({
+  expect(entryMenuState({ ...NO_MODAL, entries: [POST], selectedPath: POST.path }, model)).toEqual({
     record: POST,
     liveUrl: "https://blog.fsck.com/2026/01/01/a/",
   });
 });
 
 it("a selection that isn't in the list (just deleted): no record", () => {
-  expect(entryMenuState({ entries: [], selectedPath: POST.path }, model)).toEqual({
+  expect(entryMenuState({ ...NO_MODAL, entries: [], selectedPath: POST.path }, model)).toEqual({
     record: null,
     liveUrl: null,
   });
+});
+
+it("a sheet or other modal is up: no record, so the Entry menu greys out", () => {
+  const state = {
+    entries: [POST],
+    selectedPath: POST.path,
+    publishDialogOpen: true,
+    newLinkDialogOpen: false,
+    versionsPath: null,
+    conflictSheetPath: null,
+    quickOpenOpen: false,
+    settingsOpen: false,
+  };
+  expect(entryMenuState(state, model)).toEqual({ record: null, liveUrl: null });
+  expect(
+    entryMenuState({ ...state, publishDialogOpen: false, quickOpenOpen: true }, model),
+  ).toEqual({ record: null, liveUrl: null });
 });

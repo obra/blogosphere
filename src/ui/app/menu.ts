@@ -28,7 +28,7 @@ import {
 } from "./menuSubmenus";
 import { applyEnabled, buildNativeItems, type NativeItems } from "./nativeMenu";
 import type { BoundAppStore } from "./state";
-import { anySheetOpen } from "./state.sheetActions";
+import { modalOpen } from "./state.sheetActions";
 import type { AppState } from "./state.types";
 
 interface EntryMenuState {
@@ -37,11 +37,26 @@ interface EntryMenuState {
   liveUrl: string | null;
 }
 
-/** Pure so it's testable without the Tauri runtime. */
+/** Pure so it's testable without the Tauri runtime. While a sheet (or Quick
+ *  Open, or Settings) is up there's no record: its commands are refused
+ *  then, so they show disabled, like a Mac window's menus under a sheet. */
 function entryMenuState(
-  state: Pick<AppState, "entries" | "selectedPath">,
+  state: Pick<
+    AppState,
+    | "entries"
+    | "selectedPath"
+    | "publishDialogOpen"
+    | "newLinkDialogOpen"
+    | "versionsPath"
+    | "conflictSheetPath"
+    | "quickOpenOpen"
+    | "settingsOpen"
+  >,
   model: ModelApi,
 ): EntryMenuState {
+  if (modalOpen(state)) {
+    return { record: null, liveUrl: null };
+  }
   const record = state.entries.find((entry) => entry.path === state.selectedPath) ?? null;
   return { record, liveUrl: record ? entryLiveUrl(model, record) : null };
 }
@@ -150,7 +165,7 @@ async function buildViewSubmenu(store: BoundAppStore): Promise<ViewMenu> {
         accelerator: `CmdOrCtrl+${index + 1}`,
         // Switching sections under an open sheet would change what it's for.
         action: () => {
-          if (!anySheetOpen(store.getState())) {
+          if (!modalOpen(store.getState())) {
             store.getState().setSection(section);
           }
         },
@@ -201,6 +216,7 @@ function trackStoreItems(store: BoundAppStore, entry: EntryMenu, view: ViewMenu)
   // record (or the services parsing it) actually changed.
   let lastRecord: EntryRecord | null | undefined;
   let lastServices: AppState["services"] | undefined;
+  let lastModal: boolean | undefined;
   // Starts opposite to the store so the first sync always sets the title.
   let lastSidebarHidden = !store.getState().sidebarHidden;
   const sync = (state: AppState) => {
@@ -209,9 +225,11 @@ function trackStoreItems(store: BoundAppStore, entry: EntryMenu, view: ViewMenu)
       view.sidebarItem.setText(sidebarToggleItem(state.sidebarHidden).text).catch(() => undefined);
     }
     const record = state.entries.find((e) => e.path === state.selectedPath) ?? null;
-    if (record !== lastRecord || state.services !== lastServices) {
+    const modal = modalOpen(state);
+    if (record !== lastRecord || state.services !== lastServices || modal !== lastModal) {
       lastRecord = record;
       lastServices = state.services;
+      lastModal = modal;
       updateEntry(currentEntryItems(state));
     }
   };

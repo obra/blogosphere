@@ -19,7 +19,17 @@ function anySheetOpen(
 
 /** A sheet, Quick Open, or the Settings modal: while one is up, no other
  *  opens over it. */
-function modalOpen(state: ReturnType<GetState>): boolean {
+function modalOpen(
+  state: Pick<
+    ReturnType<GetState>,
+    | "publishDialogOpen"
+    | "newLinkDialogOpen"
+    | "versionsPath"
+    | "conflictSheetPath"
+    | "quickOpenOpen"
+    | "settingsOpen"
+  >,
+): boolean {
   return anySheetOpen(state) || state.quickOpenOpen || state.settingsOpen;
 }
 
