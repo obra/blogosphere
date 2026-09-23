@@ -14,7 +14,8 @@
 @import "./app-macos.css";
 @import "./app-macos-chrome.css";
 @import "./app-macos-surfaces.css";
-@import "./app-macos-content.css";
+@import "./app-macos-writing.css";
+@import "./app-macos-controls.css";
 
 :root {
   --font-sans:

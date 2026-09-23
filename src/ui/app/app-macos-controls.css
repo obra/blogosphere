@@ -1,77 +1,6 @@
-/* macOS content column. Write mode sets the post in blog.fsck.com's own
-   faces (fonts.css; values from the site's .post-page .post-prose), so what
-   you write looks like what readers see; the chrome stays system around it.
+/* macOS controls in the list and editor columns: entry rows, the segmented
+   control, the search field, the formatting bar, date and tag fields.
    Everything here is scoped to html[data-platform="macos"]. */
-
-/* ---------- Write mode typography ---------- */
-
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .milkdown {
-  --crepe-font-default: "Crimson Pro Variable", Georgia, serif;
-  --crepe-font-title: "DM Serif Display", Georgia, serif;
-  --crepe-font-code: "JetBrains Mono", ui-monospace, monospace;
-  --crepe-color-inline-code: var(--text);
-}
-
-/* Crepe's reset sizes paragraphs itself (16px/24px, 4px padding), so the
-   body face goes on the blocks, not on .ProseMirror. */
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror p,
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror li,
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror blockquote {
-  font-family: "Crimson Pro Variable", Georgia, serif;
-  font-size: 19px;
-  line-height: 1.7;
-}
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror p {
-  padding: 0;
-  margin: 0 0 1.4em;
-}
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror li p {
-  margin: 0;
-}
-
-/* Only weight 400 ships for DM Serif Display; anything heavier is faux bold. */
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h2 {
-  font-family: "DM Serif Display", Georgia, serif;
-  font-size: 32px;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 1.2;
-  margin: 2em 0 0.6em;
-}
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror h3 {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.4;
-  margin: 2em 0 0.6em;
-}
-
-/* Code blocks are CodeMirror editors: their font is set on the scroller. */
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"]
-  .milkdown-code-block
-  .cm-scroller {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 14px;
-  line-height: 1.5;
-}
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .ProseMirror code {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 0.92em;
-  color: var(--text);
-  background: color-mix(in srgb, -apple-system-label 8%, transparent);
-  border-radius: 4px;
-  padding: 0.1em 0.3em;
-}
-
-/* The blog sets titles at 64px on a full-width page; the editor column is
-   narrower, so 40px. */
-html[data-platform="macos"] .editor-doc[data-editor-mode="write"] .editor-title-input {
-  font-family: "DM Serif Display", Georgia, serif;
-  font-size: 40px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-}
 
 /* ---------- Entry rows ---------- */
 
@@ -172,4 +101,49 @@ html[data-platform="macos"] .toolbar-row .entry-list-search input {
 }
 html[data-platform="macos"] .entry-list-search input::-webkit-search-cancel-button {
   cursor: default;
+}
+
+/* ---------- Formatting bar (Markdown mode) ---------- */
+
+/* Borderless symbol buttons, like the toolbar's. */
+html[data-platform="macos"] .format-toolbar-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  cursor: default;
+  transition: none;
+}
+html[data-platform="macos"] .format-toolbar-button:active:not(:disabled) {
+  background: color-mix(in srgb, -apple-system-label 12%, transparent);
+}
+
+/* ---------- Date and tags ---------- */
+
+/* WebKit draws the native date field; only its frame is ours. */
+html[data-platform="macos"] .editor-date-input {
+  border: 0;
+  border-radius: 5px;
+  background: var(--bg-hover);
+  font-size: 12px;
+}
+/* NSTokenField-style tokens: small, rounded, tinted. */
+html[data-platform="macos"] .tag-chip {
+  gap: 2px;
+  padding: 1px 2px 1px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, AccentColor 16%, transparent);
+  font-size: 11px;
+}
+html[data-platform="macos"] .tag-chip button {
+  width: 14px;
+  height: 14px;
+  cursor: default;
+}
+html[data-platform="macos"] .tag-chip-input {
+  font-size: 12px;
 }

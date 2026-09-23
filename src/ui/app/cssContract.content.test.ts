@@ -1,4 +1,4 @@
-// ABOUTME: The macOS Write-mode typography: the blog's values, on the elements
+// ABOUTME: macOS Write mode and controls CSS: the blog's values, on the elements
 // ABOUTME: that actually render them, and never outside a Write-mode document.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -16,10 +16,10 @@ interface Rule {
 }
 
 function rules(): Rule[] {
-  const css = readFileSync(
-    fileURLToPath(new URL("./app-macos-content.css", import.meta.url)),
-    "utf8",
-  ).replace(CSS_COMMENT, "");
+  const css = ["./app-macos-writing.css", "./app-macos-controls.css"]
+    .map((file) => readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8"))
+    .join("\n")
+    .replace(CSS_COMMENT, "");
   return [...css.matchAll(RULE)].map((match) => ({
     selectors: (match[1] ?? "").split(",").map((s) => s.replace(WHITESPACE, " ").trim()),
     body: match[2] ?? "",
