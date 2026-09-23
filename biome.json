@@ -100,6 +100,20 @@
       }
     },
     {
+      "includes": ["scripts/**/*.mjs"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "correctness": {
+            "noProcessGlobal": "off",
+            "noNodejsModules": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["vite.config.ts", "vitest.config.ts"],
       "linter": {
         "rules": {
