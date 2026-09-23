@@ -41,7 +41,8 @@ npm run tauri dev  # the real app (needs Rust; token in the OS keychain)
 ```
 
 Desktop builds: `npm run tauri build`; `scripts/install-mac.sh` builds just the
-.app and installs it into /Applications. Windows cross-compiles from macOS via
+.app and installs it into /Applications. Dev builds include a localhost-only MCP
+bridge so agents can screenshot and drive the running app via `scripts/tauri-mcp.sh`. Windows cross-compiles from macOS via
 `cargo-xwin` + NSIS; Android/iOS build through `npm run tauri android|ios build`
 (see `docs/` for the design/plan documents this grew from).
 

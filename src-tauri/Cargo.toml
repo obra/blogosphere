@@ -45,3 +45,6 @@ tauri-plugin-clipboard-manager = "2.3.2"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+# Dev-only agent access (screenshots, DOM, IPC) for the tauri-mcp CLI.
+# Registered only in debug builds and bound to localhost — see lib.rs.
+tauri-plugin-mcp-bridge = "0.13.0"
