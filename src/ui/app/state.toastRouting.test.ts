@@ -59,3 +59,15 @@ describe("addToast elsewhere", () => {
     expect(store.getState().hud).toBeNull();
   });
 });
+
+describe("a failed reload", () => {
+  it("goes in the Activity log, which keeps it whatever the list shows", async () => {
+    const { services } = buildFakeServices({ shellOptions: { platform: "macos" } });
+    const store = createAppStore(services, { windowFocused: () => true, now: () => 42 });
+    services.store.listEntries = () => Promise.reject(new Error("disk full"));
+    await store.getState().refresh();
+    expect(store.getState().syncLog).toEqual([
+      { at: 42, level: "error", message: "Couldn't reload your entries.", detail: "disk full" },
+    ]);
+  });
+});

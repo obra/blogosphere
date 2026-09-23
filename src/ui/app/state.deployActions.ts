@@ -3,9 +3,8 @@
 // ABOUTME: the activity log. Wired from attachSync's log subscription.
 import type { WorkflowRun } from "../../core/github/types";
 import { GitHubError } from "../../core/github/types";
-import type { SyncLogEntry } from "../../core/sync/types";
+import { appendLog } from "./state.logActions";
 import type { ActionCtx, DeployState } from "./state.types";
-import { SYNC_LOG_CAP } from "./state.types";
 
 /** Poll cadence and overall budget: check roughly every 10s, give up after
  *  roughly 4 minutes (a stuck/slow Pages build shouldn't poll forever). */
@@ -32,11 +31,6 @@ const activeWatches = new Set<string>();
  *  (the only thing this action can thread state through) has no per-session
  *  bag of its own — see the feature C contract. */
 let deployWatchDisabled = false;
-
-function appendLog(ctx: ActionCtx, entry: Omit<SyncLogEntry, "at">): void {
-  const full: SyncLogEntry = { at: ctx.deps.now(), ...entry };
-  ctx.set((state) => ({ syncLog: [...state.syncLog, full].slice(-SYNC_LOG_CAP) }));
-}
 
 function isAuthError(error: unknown): boolean {
   return error instanceof GitHubError && error.kind === "auth";

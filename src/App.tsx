@@ -19,13 +19,14 @@ import { KEYCHAIN_TOKEN_KEY } from "./ui/app/state.types";
 const TRY_AGAIN = "Try Again";
 
 /** A native alert for an action that failed. With a retry it offers Try
- *  Again (the default button) and OK; the dialog plugin answers with the
+ *  Again (the default button) and Cancel, which Escape picks; the dialog
+ *  plugin answers with the
  *  chosen button's label. */
 async function showFailureAlert(text: string, options: { retry: boolean }): Promise<boolean> {
   const chosen = await tauriMessage(text, {
     title: "Blogosphere",
     kind: "warning",
-    buttons: options.retry ? { ok: TRY_AGAIN, cancel: "OK" } : "Ok",
+    buttons: options.retry ? { ok: TRY_AGAIN, cancel: "Cancel" } : "Ok",
   });
   return chosen === TRY_AGAIN;
 }

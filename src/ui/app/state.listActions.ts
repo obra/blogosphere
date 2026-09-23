@@ -1,6 +1,7 @@
 // ABOUTME: The entry list's data: loading it from the store (refresh) and the
 // ABOUTME: debounced full-text search over it.
 import { debounce } from "./format";
+import { appendLog } from "./state.logActions";
 import type { ActionCtx } from "./state.types";
 
 interface SearchDebouncer {
@@ -18,8 +19,15 @@ async function refresh(ctx: ActionCtx): Promise<void> {
   try {
     const entries = await ctx.get().services.store.listEntries();
     ctx.set({ entries, entriesLoadFailed: false });
-  } catch {
+  } catch (error) {
     ctx.set({ entriesLoadFailed: true });
+    // On macOS the list shows this only when it's empty; the log keeps it
+    // either way (refresh runs after every sync round, often unattended).
+    appendLog(ctx, {
+      level: "error",
+      message: "Couldn't reload your entries.",
+      detail: error instanceof Error ? error.message : String(error),
+    });
     ctx.get().addToast({
       tone: "error",
       message: "Couldn't load your entries.",
