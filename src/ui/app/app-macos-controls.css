@@ -14,6 +14,11 @@ html[data-platform="macos"] .entry-row {
 html[data-platform="macos"] .entry-row-item[data-conflicted="true"] .entry-row {
   padding-right: 32px;
 }
+/* The unsaved-changes dot sits in a fixed gutter, like Mail's unread dot,
+   so titles line up whether or not a row has one. */
+html[data-platform="macos"] .entry-row-badges {
+  width: 6px;
+}
 html[data-platform="macos"] .entry-row-word {
   color: inherit;
 }

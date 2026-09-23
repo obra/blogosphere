@@ -100,3 +100,7 @@ describe("entry rows (macOS)", () => {
     expect(conflictedRow["padding-right"]).toBe("32px");
   });
 });
+
+it("keeps the unsaved-changes dot in a fixed gutter so titles line up", () => {
+  expect(declarationsFor('html[data-platform="macos"] .entry-row-badges').width).toBe("6px");
+});
