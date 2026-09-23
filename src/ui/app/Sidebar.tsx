@@ -1,25 +1,14 @@
 // ABOUTME: Sidebar — section list with counts, the New Post / New Link buttons,
 // ABOUTME: and the footer utility row: sync-now button + settings gear.
-import { useEffect, useState } from "react";
 import type { Section } from "../types";
 import { SECTIONS } from "../types";
 import { relativeTimeLabel } from "./format";
 import { countsBySection, SECTION_LABELS } from "./grouping";
 import { useServices } from "./ServicesContext";
+import { SyncStatusButton } from "./SyncStatusButton";
 import { useAppStore, useAppStoreApi } from "./state";
 import { syncStatusLabel } from "./syncLabel";
-
-const RELATIVE_TIME_TICK_MS = 30_000;
-
-/** Re-render on a slow tick so "3m ago" stays honest without a live clock. */
-function useNowMs(): number {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), RELATIVE_TIME_TICK_MS);
-    return () => clearInterval(id);
-  }, []);
-  return nowMs;
-}
+import { useNowMs } from "./useNowMs";
 
 function pillTitle(connected: boolean, statusMessage: string | undefined): string {
   if (!connected) {
@@ -152,10 +141,13 @@ function NewEntryButtons() {
 /** The sync pill + activity/settings icons — the sidebar's footer on desktop,
  *  the header's right side on the phone shell (MobileShell). */
 function SidebarFooterWidgets() {
+  // macOS: the sync status symbol opens the Activity popover, so it replaces
+  // both the pill and the separate activity-log button.
+  const mac = useServices().shell.platform() === "macos";
   return (
     <>
-      <SyncButton />
-      <ActivityLogButton />
+      {mac ? <SyncStatusButton /> : <SyncButton />}
+      {mac ? null : <ActivityLogButton />}
       <SettingsButton />
     </>
   );

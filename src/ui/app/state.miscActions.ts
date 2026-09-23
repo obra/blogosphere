@@ -180,6 +180,10 @@ function openSyncLog(set: SetState): void {
   set({ syncLogOpen: true });
 }
 
+function toggleSyncLog(set: SetState): void {
+  set((state) => ({ syncLogOpen: !state.syncLogOpen }));
+}
+
 function closeSyncLog(set: SetState): void {
   set({ syncLogOpen: false });
 }
@@ -234,4 +238,5 @@ export {
   setEditorMode,
   setServices,
   syncNow,
+  toggleSyncLog,
 };

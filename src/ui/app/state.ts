@@ -48,6 +48,7 @@ import {
   setEditorMode,
   setServices,
   syncNow,
+  toggleSyncLog,
 } from "./state.miscActions";
 import { renameEntry } from "./state.renameActions";
 import type { ActionCtx, AppActions, AppData, AppState, AppStoreDeps } from "./state.types";
@@ -121,6 +122,7 @@ function bindActions(resources: ActionResources): AppActions {
     closeSettings: () => closeSettings(ctx.set),
     openSyncLog: () => openSyncLog(ctx.set),
     closeSyncLog: () => closeSyncLog(ctx.set),
+    toggleSyncLog: () => toggleSyncLog(ctx.set),
     openPublishDialog: () => openPublishDialog(ctx.set),
     closePublishDialog: () => closePublishDialog(ctx.set),
     openQuickOpen: () => openQuickOpen(ctx.set),

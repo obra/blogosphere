@@ -1,0 +1,114 @@
+/* ABOUTME: macOS window chrome — the toolbar's sync status symbol and its
+   ABOUTME: Activity popover. Scoped to html[data-platform="macos"] like app-macos.css. */
+
+/* ---------- Sync status symbol ---------- */
+
+html[data-platform="macos"] .sync-status {
+  position: relative;
+  display: inline-flex;
+}
+
+html[data-platform="macos"] .sync-status-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  --sync-tint: var(--text-muted);
+  color: var(--sync-tint);
+}
+html[data-platform="macos"] .sync-status-button:hover,
+html[data-platform="macos"] .sync-status-button[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+html[data-platform="macos"] .sync-status-button[data-kind="conflict"] {
+  --sync-tint: var(--warning);
+}
+html[data-platform="macos"] .sync-status-button[data-kind="error"] {
+  --sync-tint: var(--danger);
+}
+html[data-platform="macos"] .sync-status-button[data-kind="syncing"] .icon-symbol,
+html[data-platform="macos"] .sync-status-button[data-kind="syncing"] svg {
+  animation: sync-status-spin 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-platform="macos"] .sync-status-button[data-kind="syncing"] .icon-symbol,
+  html[data-platform="macos"] .sync-status-button[data-kind="syncing"] svg {
+    animation: none;
+  }
+}
+@keyframes sync-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html[data-platform="macos"] .sync-status-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--sync-tint);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  /* The badge is filled with the state's tint, so its digits take the
+     window background to read against it. */
+  color: var(--bg);
+}
+
+/* ---------- Activity popover ---------- */
+
+/* position: fixed, placed from the button's rect (popoverPlacement.ts), so
+   the sidebar's scroller or the toolbar row can't clip it. */
+html[data-platform="macos"] .activity-popover {
+  position: fixed;
+  z-index: 60;
+  width: 340px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  -webkit-user-select: text;
+  user-select: text;
+}
+html[data-platform="macos"] .activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+html[data-platform="macos"] .activity-headline {
+  margin: 0;
+  font-weight: 600;
+}
+html[data-platform="macos"] .activity-conflicts {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+html[data-platform="macos"] .activity-conflict {
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--warning);
+  text-align: left;
+}
+html[data-platform="macos"] .activity-conflict:hover {
+  background: var(--bg-hover);
+}

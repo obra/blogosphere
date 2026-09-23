@@ -244,6 +244,8 @@ function useAndroidBack(store: BoundAppStore): void {
 function AppShell(props: AppShellProps) {
   const store = useAppStoreApi();
   const compact = useAppCompactLayout();
+  // macOS shows the activity log in the sync button's popover instead.
+  const mac = useServices().shell.platform() === "macos";
   const menuInstalled = useNativeMenu(store);
   useKeyboardShortcuts(store, menuInstalled);
   useAndroidBack(store);
@@ -277,7 +279,7 @@ function AppShell(props: AppShellProps) {
       )}
       <NewLinkDialog fetchTitle={props.fetchTitle ?? null} />
       <SettingsScreen onTokenSaved={props.onTokenSaved} />
-      <SyncLogPanel />
+      {mac ? null : <SyncLogPanel />}
       <QuickOpenPalette />
       <VersionsPanel />
       <ConflictHost />

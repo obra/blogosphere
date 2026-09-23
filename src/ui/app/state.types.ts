@@ -184,6 +184,7 @@ interface AppActions {
   closeSettings(): void;
   openSyncLog(): void;
   closeSyncLog(): void;
+  toggleSyncLog(): void;
   openPublishDialog(): void;
   closePublishDialog(): void;
   openQuickOpen(): void;

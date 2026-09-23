@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+/** Keyframe steps (`from`, `to`, `50%`) look like rule heads but aren't selectors. */
+const KEYFRAME_STEP = /^(from|to|[\d.]+%)$/;
 const NOT_MAC = /^html:not\(\[data-platform="macos"\]\)\s/;
 const MAC = /^html\[data-platform="macos"\]/;
 const ROOT_TOKEN = /(--[a-z0-9-]+)\s*:/g;
@@ -73,7 +75,7 @@ function ruleHeads(css: string): string[] {
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .split("}")
     .map((chunk) => chunk.split("{").at(-2)?.trim() ?? "")
-    .filter((head) => head.length > 0 && !head.startsWith("@"));
+    .filter((head) => head.length > 0 && !head.startsWith("@") && !KEYFRAME_STEP.test(head));
 }
 
 /** Body of the first block opened by `prelude` (e.g. an @media query). */
@@ -145,9 +147,19 @@ describe("macOS token block (app-macos.css)", () => {
     }
   });
 
-  it("is loaded after the base tokens so it wins", () => {
-    const imports = [...readCss("app.css").matchAll(IMPORT)].map((m) => m[1]);
-    expect(imports.at(-1)).toBe("app-macos.css");
+  it("is loaded after every base partial so it wins", () => {
+    const imports = [...readCss("app.css").matchAll(IMPORT)].map((m) => m[1] ?? "");
+    const firstMac = imports.findIndex((name) => name.startsWith("app-macos"));
+    expect(imports[firstMac]).toBe("app-macos.css");
+    expect(imports.slice(firstMac).every((name) => name.startsWith("app-macos"))).toBe(true);
+  });
+
+  it("scopes every rule in the macOS chrome stylesheet to the Mac platform", () => {
+    const selectors = ruleHeads(readCss("app-macos-chrome.css")).flatMap(splitSelectors);
+    expect(selectors.length).toBeGreaterThan(0);
+    for (const selector of selectors) {
+      expect(selector).toMatch(MAC);
+    }
   });
 });
 
