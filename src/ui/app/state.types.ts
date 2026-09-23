@@ -60,6 +60,9 @@ interface Toast {
   message: string;
   tone: "error" | "info" | "success";
   retry?: () => void;
+  /** Toasts the app's own state already shows on macOS (toastRoute.ts):
+   *  background sync, loading the entry list, the site deploy. */
+  source?: "sync" | "load" | "deploy";
 }
 
 interface BusyFlags {

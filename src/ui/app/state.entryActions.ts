@@ -62,6 +62,7 @@ async function refresh(ctx: ActionCtx): Promise<void> {
       tone: "error",
       message: "Couldn't load your entries.",
       retry: () => refresh(ctx),
+      source: "load",
     });
   } finally {
     ctx.set((state) => ({ busy: { ...state.busy, refreshing: false } }));
@@ -296,6 +297,8 @@ async function flushEdit(ctx: ActionCtx, pending: PendingEdits, path?: string): 
   await Promise.all([...pending.keys()].map((p) => flushOne(ctx, pending, p)));
 }
 
+const SYNC_FAILED = { tone: "error", message: "Couldn't sync.", source: "sync" } as const;
+
 async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
   await flushEdit(ctx, pending);
   const svc = ctx.get().services;
@@ -313,9 +316,7 @@ async function saveNow(ctx: ActionCtx, pending: PendingEdits): Promise<void> {
   try {
     await svc.sync.sync();
   } catch {
-    ctx
-      .get()
-      .addToast({ tone: "error", message: "Couldn't sync.", retry: () => saveNow(ctx, pending) });
+    ctx.get().addToast({ ...SYNC_FAILED, retry: () => saveNow(ctx, pending) });
   }
 }
 

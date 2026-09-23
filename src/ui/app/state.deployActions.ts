@@ -65,7 +65,7 @@ function findConcludedRun(runs: WorkflowRun[]): WorkflowRun | null {
 function reportConcludedRun(ctx: ActionCtx, run: WorkflowRun): void {
   if (run.conclusion === "success") {
     appendLog(ctx, { level: "info", message: "Live on blog.fsck.com ✓", detail: run.htmlUrl });
-    ctx.get().addToast({ tone: "success", message: "Live on blog.fsck.com" });
+    ctx.get().addToast({ tone: "success", message: "Live on blog.fsck.com", source: "deploy" });
     return;
   }
   appendLog(ctx, {
