@@ -1,0 +1,70 @@
+name: Release
+# Pushing a tag like v0.2.0 builds a universal (Apple silicon + Intel) macOS
+# app, signs it with the Developer ID certificate, notarizes and staples it,
+# and publishes the .dmg as a GitHub Release. Secrets and steps: docs/tooling.md
+# › Releasing; scripts/set-release-secrets.sh sets them.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: macOS (signed, notarized)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # The bundle is named from tauri.conf.json's version; a mismatched tag
+      # would publish "v0.2.0" holding Blogosphere_0.1.0.dmg.
+      - name: Tag matches the app version
+        run: |
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match tauri.conf.json version $version (expected v$version)."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # The Tauri bundler imports APPLE_CERTIFICATE into a temporary keychain,
+      # signs with the hardened runtime, then notarizes and staples the app.
+      - name: Build, sign and notarize
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Jesse Vincent (87WJ58S66M)"
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: 87WJ58S66M
+        run: npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
+
+      - name: Verify signature, Gatekeeper and staple
+        run: |
+          app="src-tauri/target/universal-apple-darwin/release/bundle/macos/Blogosphere.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          xcrun stapler validate "$app"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s failglob
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Blogosphere ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg

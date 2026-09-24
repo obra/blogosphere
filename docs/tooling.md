@@ -206,3 +206,28 @@ synthetic corpus (fixtures covering every front-matter shape in the real
 blog: block scalars, quoted titles, tag arrays, `opaqueId`, `draft`) so the
 round-trip guarantee doesn't depend on `inspo/blog` being present. That
 fixture set is quality-module work, not part of this scaffold.
+
+## Releasing
+
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. It builds a
+universal (Apple silicon + Intel) `Blogosphere.app`, signs it with the
+Developer ID certificate, notarizes and staples it, verifies all three
+(`codesign`, `spctl`, `stapler`), and publishes
+`Blogosphere_<version>_universal.dmg` as a GitHub Release with generated
+notes.
+
+One-time setup: export the Developer ID Application certificate as a `.p12`,
+then run `scripts/set-release-secrets.sh <file.p12>` (see its `--help`). It
+stores `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID` and
+`APPLE_PASSWORD` (an app-specific password) as repo secrets.
+
+To release:
+
+1. Set the same version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
+   and `package.json`, and commit.
+2. `git tag v<version>` and `git push origin v<version>`.
+
+The workflow fails before building if the tag isn't `v` plus
+`tauri.conf.json`'s version. To try the build locally without signing:
+`CI=true APPLE_SIGNING_IDENTITY=- npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`
+(needs `rustup target add x86_64-apple-darwin`).
