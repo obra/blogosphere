@@ -231,11 +231,14 @@ over an hour. On the runner the DMG gets Finder's default window layout
 (`CI=true` makes the bundler skip the AppleScript that arranges it).
 
 One-time setup: run `scripts/set-release-secrets.sh` (see its `--help`). It
-exports just the Developer ID Application identity from your keychain
-(`scripts/export-signing-identity.swift`; macOS asks you to allow it) with a
-random password, asks for your Apple ID and an app-specific password, and
-stores `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID` and
-`APPLE_PASSWORD` as repo secrets. After changing the exporter, run
+exports just the Developer ID Application identity for the team `release.yml`
+signs as (`scripts/find-developer-id.sh` picks it;
+`scripts/export-signing-identity.swift` exports it with a random password).
+macOS asks you to allow the export: click Allow, not Always Allow. It then
+asks for your Apple ID and an app-specific password, and stores
+`APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID` and
+`APPLE_PASSWORD` as repo secrets. Re-run it after renewing the certificate.
+Tests: `scripts/test-find-developer-id.sh` and
 `scripts/test-export-signing-identity.sh` (scratch keychains only).
 
 To release:

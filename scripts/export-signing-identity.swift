@@ -44,6 +44,10 @@ var query: [String: Any] = [
   kSecMatchLimit as String: kSecMatchLimitAll,
 ]
 if arguments.count == 4 {
+  // SecKeychainOpen succeeds for a path that doesn't exist; check first.
+  guard FileManager.default.fileExists(atPath: arguments[3]) else {
+    fail("no such keychain: \(arguments[3])")
+  }
   var keychain: SecKeychain?
   guard SecKeychainOpen(arguments[3], &keychain) == errSecSuccess, let keychain else {
     fail("can't open keychain \(arguments[3])")

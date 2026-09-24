@@ -26,7 +26,7 @@ search_list_before="$(security list-keychains -d user)"
 cleanup() {
   security delete-keychain "$source_kc" 2>/dev/null || true
   security delete-keychain "$dest_kc" 2>/dev/null || true
-  rm -f "$work"/*.pem "$work"/*.p12
+  rm -f "$work"/*.pem "$work"/*.p12 "$work"/err.txt
   rmdir "$work" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -64,7 +64,9 @@ printf '%s\n' "$passphrase" |
 [[ -s "$work/out.p12" ]] || fail "no .p12 written"
 [[ "$(stat -f %Lp "$work/out.p12")" == "600" ]] || fail ".p12 isn't mode 600"
 
-security import "$work/out.p12" -k "$dest_kc" -P "$passphrase" >/dev/null ||
+# The same trip CI makes: base64 (the secret), decoded, then Tauri's import.
+base64 -i "$work/out.p12" | base64 -D -o "$work/roundtrip.p12"
+security import "$work/roundtrip.p12" -k "$dest_kc" -P "$passphrase" -T /usr/bin/codesign >/dev/null ||
   fail "the .p12 doesn't import with the passphrase"
 identities="$(security find-identity "$dest_kc")"
 grep -q "$wanted" <<<"$identities" || fail "the wanted identity didn't arrive"
@@ -76,6 +78,11 @@ if printf '%s\n' "$passphrase" |
   fail "exporting an unknown identity succeeded"
 fi
 [[ ! -e "$work/none.p12" ]] || fail "an unknown identity still wrote a file"
+if printf '%s\n' "$passphrase" |
+  swift -suppress-warnings "$repo_root/scripts/export-signing-identity.swift" "$wanted" "$work/none.p12" "$work/missing.keychain-db" 2>"$work/err.txt"; then
+  fail "a missing keychain succeeded"
+fi
+grep -q "no such keychain" "$work/err.txt" || fail "a missing keychain gave: $(cat "$work/err.txt")"
 
 [[ "$(security list-keychains -d user)" == "$search_list_before" ]] ||
   fail "your keychain search list changed"
