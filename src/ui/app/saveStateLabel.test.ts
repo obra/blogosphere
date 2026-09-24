@@ -51,6 +51,14 @@ describe("saveStateLabel", () => {
     expect(label.text).toBe("Saved to GitHub · not public");
   });
 
+  it("where the draft state shows beside it, a clean draft doesn't repeat it", () => {
+    const label = saveStateLabel({ dirty: false, draft: true }, status(), {
+      draftStateShown: true,
+    });
+    expect(label.text).toBe("Saved to GitHub");
+    expect(label.title).toContain("not published");
+  });
+
   it("a clean published entry is simply saved to GitHub", () => {
     const label = saveStateLabel({ dirty: false, draft: false }, status());
     expect(label.text).toBe("Saved to GitHub");

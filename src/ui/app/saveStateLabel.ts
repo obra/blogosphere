@@ -17,9 +17,14 @@ export interface SaveStateLabel {
  * GitHub is deliberate (⌘S/the sync button, publish, share, rename, delete —
  * every push deploys the site, so nothing pushes on its own); a push sends
  * ALL dirty entries — drafts included, as drafts — and only the Publish
- * action makes a draft public.
+ * action makes a draft public. `draftStateShown`: the caller already says
+ * "Draft" next to the label (the macOS toolbar), so it needn't repeat it.
  */
-export function saveStateLabel(record: SaveStateFields, status: SyncStatus | null): SaveStateLabel {
+export function saveStateLabel(
+  record: SaveStateFields,
+  status: SyncStatus | null,
+  options: { draftStateShown?: boolean } = {},
+): SaveStateLabel {
   if (!status) {
     // No GitHub connection yet (first run) — nothing syncs anywhere.
     return {
@@ -44,7 +49,7 @@ export function saveStateLabel(record: SaveStateFields, status: SyncStatus | nul
   }
   if (record.draft) {
     return {
-      text: "Saved to GitHub · not public",
+      text: options.draftStateShown ? "Saved to GitHub" : "Saved to GitHub · not public",
       title:
         "This draft is saved in your blog's repo but not published. Only Publish makes it public.",
     };

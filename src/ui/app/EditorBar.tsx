@@ -31,10 +31,12 @@ function DeleteButton(props: { path: string }) {
 /** Answers "did I just make this public, and is my work safe?" without a Save
  *  button: edits autosave locally; ⌘S/the sync button push to GitHub — drafts
  *  sync as drafts, and only Publish makes one public (see saveStateLabel.ts). */
-function SaveStateIndicator(props: { record: EntryRecord }) {
+function SaveStateIndicator(props: { record: EntryRecord; draftStateShown?: boolean }) {
   const status = useAppStore((state) => state.syncStatus);
   const failed = useAppStore((state) => state.saveFailure?.path === props.record.path);
-  const label = saveStateLabel(props.record, status);
+  const label = saveStateLabel(props.record, status, {
+    draftStateShown: props.draftStateShown ?? false,
+  });
   if (failed) {
     return <SaveFailureStatus />;
   }
@@ -150,8 +152,8 @@ function MacEditorToolbar(props: EditorToolbarProps) {
         <>
           <ModeControl {...props} />
           <span className="doc-status">
-            {props.record.draft ? null : "Published · "}
-            <SaveStateIndicator record={props.record} />
+            {props.record.draft ? "Draft · " : "Published · "}
+            <SaveStateIndicator record={props.record} draftStateShown={true} />
           </span>
         </>
       }

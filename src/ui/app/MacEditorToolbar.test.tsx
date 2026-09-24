@@ -90,6 +90,14 @@ describe("macOS detail toolbar row", () => {
     expect(row.querySelector(".sync-status-button")).not.toBeNull();
   });
 
+  it("says Draft once, next to its Publish button, instead of repeating “not public”", async () => {
+    await renderShell("macos", { entries: [draft], select: draft.path });
+    const status = detailRow().querySelector(".doc-status");
+    expect(status?.textContent).toBe("Draft · Saved to GitHub");
+    // The tooltip still spells it out.
+    expect(status?.querySelector(".save-state")?.getAttribute("title")).toContain("not published");
+  });
+
   it("has no Publish button for an already-published post", async () => {
     await renderShell("macos", { entries: [post], select: post.path });
     const buttons = [...detailRow().querySelectorAll("button")].map((b) => b.textContent);
