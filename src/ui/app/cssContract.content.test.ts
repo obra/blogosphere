@@ -189,3 +189,9 @@ describe("audit fixes: fields (macOS)", () => {
     });
   });
 });
+
+it("Markdown mode's text lines up with the title", () => {
+  expect(declarationsFor('html[data-platform="macos"] .editor-doc .cm-line')["padding-left"]).toBe(
+    "0",
+  );
+});

@@ -98,50 +98,6 @@ html[data-platform="macos"] .sync-status-button[data-kind="conflict"] .sync-stat
   color: #000000;
 }
 
-/* ---------- Activity popover ---------- */
-
-/* position: fixed, placed from the button's rect (popoverPlacement.ts), so
-   the sidebar's scroller or the toolbar row can't clip it. */
-html[data-platform="macos"] .activity-popover {
-  position: fixed;
-  z-index: 60;
-  width: 340px;
-  border-radius: 12px;
-  background: var(--bg-raised);
-  box-shadow: var(--shadow);
-  color: var(--text);
-  -webkit-user-select: text;
-  user-select: text;
-}
-html[data-platform="macos"] .activity-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-html[data-platform="macos"] .activity-headline {
-  margin: 0;
-  font-weight: 600;
-}
-html[data-platform="macos"] .activity-conflicts {
-  margin: 0 0 8px;
-  padding: 0;
-  list-style: none;
-}
-html[data-platform="macos"] .activity-conflict {
-  width: 100%;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--warning);
-  text-align: left;
-}
-html[data-platform="macos"] .activity-conflict:hover {
-  background: var(--bg-hover);
-}
-
 /* ---------- Window layout ---------- */
 
 /* A 6pt hit area centered on the column edge; the line itself is the

@@ -173,3 +173,16 @@ html[data-platform="macos"] .tag-chip button {
 html[data-platform="macos"] .tag-chip-input {
   font-size: 12px;
 }
+
+/* ---------- Markdown mode ---------- */
+
+/* CodeMirror indents each line 6px; the text lines up with the title. */
+html[data-platform="macos"] .editor-doc .cm-line {
+  padding-left: 0;
+}
+
+/* ---------- Save status ---------- */
+
+html[data-platform="macos"] .save-state[data-state="failed"] {
+  color: var(--danger);
+}
