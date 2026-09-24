@@ -33,6 +33,8 @@
   --border: #e2e4e8;
   --border-strong: #cdd1d7;
   --accent: #2563eb;
+  /* Syntax colors: readable as text in both appearances. */
+  --syntax-accent: var(--accent);
   --accent-text: #ffffff;
   --danger: #dc2626;
   --success: #16a34a;

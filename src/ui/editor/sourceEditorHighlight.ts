@@ -5,8 +5,9 @@ import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
 /** A calm palette: most syntax stays in the text color; secondary marks
- *  (markdown punctuation, comments, URLs) step back; tag and keyword names
- *  take the accent; errors are red. Every value is a CSS variable, so light,
+ *  (markdown punctuation, comments, URLs) step back; links, tag and keyword
+ *  names take --syntax-accent (a fixed readable blue, never the person's
+ *  accent color, which may be yellow); errors are red. Every value is a CSS variable, so light,
  *  dark, and Increase Contrast all resolve through the platform tokens. */
 const SOURCE_HIGHLIGHT_RULES: readonly TagStyle[] = [
   {
@@ -21,14 +22,14 @@ const SOURCE_HIGHLIGHT_RULES: readonly TagStyle[] = [
     ],
     color: "var(--text-muted)",
   },
-  { tag: tags.link, color: "var(--accent)", textDecoration: "underline" },
+  { tag: tags.link, color: "var(--syntax-accent)", textDecoration: "underline" },
   { tag: tags.heading, fontWeight: "600" },
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "600" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
   {
     tag: [tags.keyword, tags.tagName, tags.angleBracket, tags.macroName],
-    color: "var(--accent)",
+    color: "var(--syntax-accent)",
   },
   {
     tag: [tags.attributeName, tags.propertyName, tags.typeName, tags.className, tags.namespace],

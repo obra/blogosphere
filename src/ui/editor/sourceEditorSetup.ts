@@ -142,4 +142,4 @@ function createView(container: HTMLElement, refs: ViewRefs): EditorView {
 }
 
 export type { OnImage, ViewRefs };
-export { createView };
+export { buildExtensions, createView };

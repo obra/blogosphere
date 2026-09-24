@@ -19,6 +19,9 @@ html[data-platform="macos"] {
   --bg-selected: -apple-system-selected-content-background;
   --bg-selected-inactive: -apple-system-unemphasized-selected-content-background;
   --accent: AccentColor;
+  /* The system link color, not the accent: a yellow or orange accent is
+     unreadable as text. */
+  --syntax-accent: LinkText;
   --accent-text: #ffffff;
   --danger: -apple-system-red;
   --success: -apple-system-green;
