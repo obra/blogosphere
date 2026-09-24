@@ -83,7 +83,11 @@ function Icon(props: IconProps) {
   if (symbol === undefined) {
     // Reserve the box while the OS renders, so the toolbar doesn't jump.
     return (
-      <span className="icon-symbol" aria-hidden="true" style={{ width: size, height: size }} />
+      <span
+        className="icon-symbol icon-symbol-pending"
+        aria-hidden="true"
+        style={{ width: size, height: size }}
+      />
     );
   }
   if (symbol === null) {
@@ -93,11 +97,17 @@ function Icon(props: IconProps) {
   // A fixed size x size box (the mask is `contain`), matching the
   // placeholder, so the swap never shifts the toolbar. CSSProperties has no
   // index signature for custom properties.
-  const style = {
+  // The mask image is set directly: WebKit doesn't repaint a composited
+  // mask when only a custom property it reads through var() changes, which
+  // left freshly rendered symbols drawn as solid squares.
+  const mask = `url("${symbol.dataUrl}")`;
+  const style: CSSProperties = {
     width: size,
     height: size,
-    "--icon-mask": `url("${symbol.dataUrl}")`,
-  } as CSSProperties;
+    // biome-ignore lint/style/useNamingConvention: React's name for -webkit-mask-image.
+    WebkitMaskImage: mask,
+    maskImage: mask,
+  };
   return <span className="icon-symbol" aria-hidden="true" style={style} />;
 }
 

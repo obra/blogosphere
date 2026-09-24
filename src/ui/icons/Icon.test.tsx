@@ -37,13 +37,28 @@ describe("Icon", () => {
     );
     await waitFor(() => {
       const mask = container.querySelector<HTMLElement>(".icon-symbol");
-      expect(mask?.style.getPropertyValue("--icon-mask")).toBe(`url("${image.dataUrl}")`);
+      // Set directly, not through a custom property: WebKit doesn't repaint
+      // a composited mask when only the var() it reads changes.
+      expect(mask?.style.getPropertyValue("-webkit-mask-image")).toBe(`url("${image.dataUrl}")`);
+      expect(mask?.style.getPropertyValue("mask-image")).toBe(`url("${image.dataUrl}")`);
+      expect(mask?.classList.contains("icon-symbol-pending")).toBe(false);
       // The box stays size x size (the mask is `contain`), so swapping the
       // placeholder for the symbol never shifts the toolbar.
       expect(mask?.style.width).toBe("14px");
       expect(mask?.style.height).toBe("14px");
     });
     expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it("reserves the box while the symbol renders, without painting it", () => {
+    const { container } = renderIcon(
+      <Icon name="versions" size={14} />,
+      "macos",
+      () => new Promise(() => undefined),
+    );
+    const placeholder = container.querySelector<HTMLElement>(".icon-symbol");
+    expect(placeholder?.classList.contains("icon-symbol-pending")).toBe(true);
+    expect(placeholder?.style.width).toBe("14px");
   });
 
   it("falls back to Lucide on macOS when the symbol can't be rendered, and says so once", async () => {
