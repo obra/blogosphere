@@ -1,8 +1,9 @@
 name: Release
-# Pushing a tag like v0.2.0 builds a universal (Apple silicon + Intel) macOS
-# app, signs it with the Developer ID certificate, notarizes and staples it,
-# and publishes the .dmg as a GitHub Release. Secrets and steps: docs/tooling.md
-# › Releasing; scripts/set-release-secrets.sh sets them.
+# Pushing a tag like v0.2.0 on a commit in main builds a universal (Apple
+# silicon + Intel) macOS app, signs it with the Developer ID certificate,
+# notarizes and staples the app and the .dmg, and publishes the .dmg as a
+# GitHub Release. Secrets and steps: docs/tooling.md › Releasing;
+# scripts/set-release-secrets.sh sets them.
 on:
   push:
     tags: ["v*"]
@@ -14,35 +15,54 @@ jobs:
   macos:
     name: macOS (signed, notarized)
     runs-on: macos-latest
-    timeout-minutes: 60
+    # Apple's first notarization of a new app can take well over an hour.
+    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      # Third-party actions are pinned to commits: this job holds the signing
+      # certificate. No saved credentials, so build code can't read the token.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       # The bundle is named from tauri.conf.json's version; a mismatched tag
-      # would publish "v0.2.0" holding Blogosphere_0.1.0.dmg.
-      - name: Tag matches the app version
+      # would publish "v0.2.0" holding Blogosphere_0.1.0.dmg. Only main ships.
+      - name: Tag matches the app version and is on main
         run: |
           version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
             echo "::error::Tag $GITHUB_REF_NAME doesn't match tauri.conf.json version $version (expected v$version)."
             exit 1
           fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME points at a commit that isn't on main."
+            exit 1
+          fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 26
           cache: npm
       - run: npm ci
-      - uses: dtolnay/rust-toolchain@stable
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
 
+      # Compiling runs every npm and Cargo build script, so it gets no secrets.
+      - name: Build
+        run: npm run tauri build -- --target universal-apple-darwin --no-bundle
+
       # The Tauri bundler imports APPLE_CERTIFICATE into a temporary keychain,
       # signs with the hardened runtime, then notarizes and staples the app.
-      - name: Build, sign and notarize
+      # It only signs the .dmg, so the .dmg is notarized and stapled here.
+      - name: Bundle, sign and notarize
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -50,21 +70,40 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: 87WJ58S66M
-        run: npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
-
-      - name: Verify signature, Gatekeeper and staple
         run: |
-          app="src-tauri/target/universal-apple-darwin/release/bundle/macos/Blogosphere.app"
+          npm run tauri bundle -- --target universal-apple-darwin --bundles app,dmg
+          shopt -s failglob
+          dmg=(src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          xcrun notarytool submit "${dmg[0]}" --wait \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID"
+          xcrun stapler staple "${dmg[0]}"
+
+      # Checks the file people download, and the app inside it, not just the
+      # app in the build folder.
+      - name: Verify signatures, Gatekeeper and staples
+        run: |
+          shopt -s failglob
+          dmg=(src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          spctl --assess --type open --context context:primary-signature --verbose=2 "${dmg[0]}"
+          xcrun stapler validate "${dmg[0]}"
+          mount="$RUNNER_TEMP/blogosphere-dmg"
+          hdiutil attach "${dmg[0]}" -nobrowse -readonly -mountpoint "$mount"
+          trap 'hdiutil detach "$mount"' EXIT
+          app="$mount/Blogosphere.app"
           codesign --verify --deep --strict --verbose=2 "$app"
           spctl --assess --type execute --verbose=2 "$app"
           xcrun stapler validate "$app"
 
+      # A re-run after the release exists replaces its .dmg instead of failing.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s failglob
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Blogosphere ${GITHUB_REF_NAME#v}" \
-            --generate-notes \
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          dmg=(src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${dmg[0]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" "${dmg[0]}" --repo "$GITHUB_REPOSITORY" \
+              --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes
+          fi

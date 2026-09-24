@@ -209,12 +209,26 @@ fixture set is quality-module work, not part of this scaffold.
 
 ## Releasing
 
-`.github/workflows/release.yml` runs when a `v*` tag is pushed. It builds a
-universal (Apple silicon + Intel) `Blogosphere.app`, signs it with the
-Developer ID certificate, notarizes and staples it, verifies all three
-(`codesign`, `spctl`, `stapler`), and publishes
-`Blogosphere_<version>_universal.dmg` as a GitHub Release with generated
-notes.
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. It refuses a
+tag that isn't `v` plus `tauri.conf.json`'s version or that points at a commit
+not on `main`, runs typecheck, lint and tests, then:
+
+1. Compiles a universal (Apple silicon + Intel) build with no secrets in
+   the environment (`tauri build --no-bundle`), since compiling runs every
+   npm and Cargo build script.
+2. Bundles with the secrets (`tauri bundle`): the Tauri bundler signs
+   `Blogosphere.app` with the Developer ID certificate and the hardened
+   runtime, notarizes it and staples it. It only signs the `.dmg`, so the
+   workflow notarizes and staples the `.dmg` itself.
+3. Checks the `.dmg` and the app inside it with `codesign`, `spctl` and
+   `stapler validate`.
+4. Publishes `Blogosphere_<version>_universal.dmg` as a GitHub Release with
+   generated notes. Re-running the job replaces the `.dmg` on the existing
+   release.
+
+The job allows 180 minutes: Apple's first notarization of a new app can take
+over an hour. On the runner the DMG gets Finder's default window layout
+(`CI=true` makes the bundler skip the AppleScript that arranges it).
 
 One-time setup: export the Developer ID Application certificate as a `.p12`,
 then run `scripts/set-release-secrets.sh <file.p12>` (see its `--help`). It
@@ -224,10 +238,11 @@ stores `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID` and
 To release:
 
 1. Set the same version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
-   and `package.json`, and commit.
-2. `git tag v<version>` and `git push origin v<version>`.
+   and `package.json` (only `tauri.conf.json` names the bundle; the others
+   keep things consistent), and commit to `main`.
+2. `git tag v<version>` and `git push origin main v<version>`.
 
-The workflow fails before building if the tag isn't `v` plus
-`tauri.conf.json`'s version. To try the build locally without signing:
-`CI=true APPLE_SIGNING_IDENTITY=- npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`
-(needs `rustup target add x86_64-apple-darwin`).
+To try the build locally without signing (needs
+`rustup target add x86_64-apple-darwin`):
+`CI=true npm run tauri build -- --target universal-apple-darwin --no-bundle`,
+then `CI=true APPLE_SIGNING_IDENTITY=- npm run tauri bundle -- --target universal-apple-darwin --bundles app,dmg`.
