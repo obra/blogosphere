@@ -106,9 +106,6 @@ html[data-platform="macos"] .activity-popover {
   position: fixed;
   z-index: 60;
   width: 340px;
-  max-height: 420px;
-  overflow: auto;
-  padding: 12px;
   border-radius: 12px;
   background: var(--bg-raised);
   box-shadow: var(--shadow);

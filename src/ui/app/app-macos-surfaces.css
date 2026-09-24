@@ -134,3 +134,32 @@ html[data-platform="macos"] .dialog-field input {
     box-shadow: inset 0 0 0 1px var(--border-strong);
   }
 }
+
+/* ---------- Activity popover: body and arrow ---------- */
+
+html[data-platform="macos"] .activity-popover-body {
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: inherit;
+}
+/* The log sizes to its entries here (the phone panel keeps its minimum). */
+html[data-platform="macos"] .activity-popover .sync-log-list {
+  min-height: 0;
+}
+/* A small rotated square in the popover's color, half outside the edge,
+   pointing at the button that opened it (popovers.md). */
+html[data-platform="macos"] .activity-popover-arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: var(--bg-raised);
+  transform: rotate(45deg);
+}
+html[data-platform="macos"] .activity-popover-arrow[data-edge="top"] {
+  top: -6px;
+}
+html[data-platform="macos"] .activity-popover-arrow[data-edge="bottom"] {
+  bottom: -6px;
+}

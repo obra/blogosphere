@@ -105,16 +105,20 @@ function DeployLine() {
 }
 
 /** Fixed-position placement next to `anchor`, kept current on window resize. */
+/** Matches .activity-popover's width in app-macos-chrome.css. */
+const POPOVER_WIDTH = 340;
+
 function usePlacement(anchor: React.RefObject<HTMLElement | null>): Placement | null {
   const [placement, setPlacement] = useState<Placement | null>(null);
   useLayoutEffect(() => {
     const place = () => {
       if (anchor.current) {
         setPlacement(
-          popoverPlacement(anchor.current.getBoundingClientRect(), {
-            width: window.innerWidth,
-            height: window.innerHeight,
-          }),
+          popoverPlacement(
+            anchor.current.getBoundingClientRect(),
+            { width: window.innerWidth, height: window.innerHeight },
+            POPOVER_WIDTH,
+          ),
         );
       }
     };
@@ -143,26 +147,37 @@ function ActivityPopover(props: {
     <div
       ref={props.popover}
       className="activity-popover"
-      style={(placement as CSSProperties | null) ?? undefined}
+      style={(placement?.style as CSSProperties | undefined) ?? undefined}
       role="dialog"
       aria-label="Activity"
       tabIndex={-1}
     >
-      <header className="activity-header">
-        <p className="activity-headline">{props.state.tooltip}</p>
-        {props.connected ? (
-          <button type="button" className="btn" onClick={() => store.getState().syncNow()}>
-            Sync Now
-          </button>
-        ) : (
-          <button type="button" className="btn" onClick={() => store.getState().openSettings()}>
-            Connect…
-          </button>
-        )}
-      </header>
-      <DeployLine />
-      <ConflictList />
-      <SyncLogList />
+      {placement ? (
+        <span
+          className="activity-popover-arrow"
+          data-edge={placement.arrow.edge}
+          style={{ left: placement.arrow.x }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {/* The body scrolls; the frame doesn't, so the arrow isn't clipped. */}
+      <div className="activity-popover-body">
+        <header className="activity-header">
+          <p className="activity-headline">{props.state.tooltip}</p>
+          {props.connected ? (
+            <button type="button" className="btn" onClick={() => store.getState().syncNow()}>
+              Sync Now
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => store.getState().openSettings()}>
+              Connect…
+            </button>
+          )}
+        </header>
+        <DeployLine />
+        <ConflictList />
+        <SyncLogList />
+      </div>
     </div>,
     document.body,
   );
