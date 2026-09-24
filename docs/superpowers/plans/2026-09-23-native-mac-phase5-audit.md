@@ -44,9 +44,9 @@ Not verified live, left for Jesse:
 
 Code review (/par) findings, all fixed:
 - Return after confirming an IME candidate left the title, because WebKit fires `compositionend` before the Enter keydown. Now a keyCode 229 check plus a 100ms window.
-- Paste replaced the whole title. Now it lands at the caret.
-- The title didn't re-measure when a web font loaded. It lost the scroll position while measuring.
-- Syntax text used the person's accent color, which can be unreadable (yellow). Now a fixed readable blue: `LinkText` on macOS.
+- A multi-line paste didn't land at the caret. Now it does.
+- The title didn't re-measure when a web font loaded, or keep the scroll position while measuring.
+- Syntax text used the person's accent color, which isn't guaranteed to be readable. Now a fixed readable blue: `LinkText` on macOS.
 - The highlight test checked a copy of the extension list. Now it goes through the real editor's `buildExtensions`.
 - The Markdown line padding clipped the caret and reached Write-mode code blocks.
 - The error badge's digits were unreadable.
