@@ -3,6 +3,7 @@
 import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import type { EntryRecord } from "../../core/store/types";
 import { Icon } from "../icons/Icon";
+import { focusEditorSurface } from "./editorFocus";
 import { formatDisplayDate } from "./format";
 import { entryLiveUrl } from "./liveUrl";
 import { entryRowItems, runMenuCommand } from "./menuModel";
@@ -10,12 +11,6 @@ import { popupMenu } from "./menuPopup";
 import { useServices } from "./ServicesContext";
 import type { BoundAppStore } from "./state";
 import { useAppStoreApi } from "./state";
-
-/** Enter's target: whichever editor surface is actually mounted (WYSIWYG's
- *  Milkdown ProseMirror root, or source mode's CodeMirror content). */
-function focusEditorSurface(): void {
-  document.querySelector<HTMLElement>(".milkdown .ProseMirror, .cm-content")?.focus();
-}
 
 function nextIndexForKey(key: string, currentIndex: number, lastIndex: number): number | null {
   switch (key) {
