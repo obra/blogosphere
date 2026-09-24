@@ -7,8 +7,24 @@
 html[data-platform="macos"] .entry-row-item {
   position: relative;
 }
+/* Inset, rounded rows like the sidebar's (and Mail's), not full-bleed web
+   rows; headers indent to the rows' text. */
 html[data-platform="macos"] .entry-row {
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  border-radius: 6px;
   cursor: default;
+}
+html[data-platform="macos"] :is(.entry-list-year, .entry-list-month) {
+  padding-left: 20px;
+}
+/* AppKit lists and push buttons don't light up under the pointer. */
+html[data-platform="macos"] .entry-row:not([aria-current="true"]):hover,
+html[data-platform="macos"] .sidebar-section-button:not([aria-current="true"]):hover {
+  background: transparent;
+}
+html[data-platform="macos"] .btn:not(.btn-primary):hover:not(:disabled) {
+  background: var(--bg-raised);
 }
 /* Room for the conflict symbol, so a two-line title never runs under it. */
 html[data-platform="macos"] .entry-row-item[data-conflicted="true"] .entry-row {
@@ -25,7 +41,7 @@ html[data-platform="macos"] .entry-row-word {
 html[data-platform="macos"] .entry-row-conflict {
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: 16px;
   width: 20px;
   height: 20px;
   display: grid;

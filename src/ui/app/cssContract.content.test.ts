@@ -158,3 +158,24 @@ describe("audit fixes: contrast and motion (macOS)", () => {
     expect(surfaces).toMatch(REDUCED_MOTION_SHEET);
   });
 });
+
+describe("audit fixes: native lists and buttons (macOS)", () => {
+  it("insets rows with a rounded selection", () => {
+    expect(declarationsFor('html[data-platform="macos"] .entry-row')).toMatchObject({
+      margin: "0 8px",
+      "border-radius": "6px",
+    });
+  });
+
+  it("drops hover fills without touching the selection or the primary button", () => {
+    const hoverSelectors = rules()
+      .flatMap((rule) => rule.selectors)
+      .filter((selector) => selector.includes(":hover") && selector.includes("macos"));
+    for (const selector of hoverSelectors.filter((s) => s.includes(".entry-row"))) {
+      expect(selector).toContain(':not([aria-current="true"])');
+    }
+    for (const selector of hoverSelectors.filter((s) => s.includes(".btn"))) {
+      expect(selector).toContain(":not(.btn-primary)");
+    }
+  });
+});
