@@ -46,6 +46,11 @@ html[data-platform="macos"] .entry-list-scroll:focus-within
   color: #ffffff;
 }
 
+/* Year headers: secondary label (tertiary is under 3:1 for bold 11px). */
+html[data-platform="macos"] .entry-list-year {
+  color: var(--text-muted);
+}
+
 /* ---------- Segmented control (editor modes) ---------- */
 
 /* NSSegmentedControl: one rounded track, the selected segment raised. */

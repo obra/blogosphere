@@ -37,6 +37,12 @@ html[data-platform="macos"] .dialog:not(.quick-open) h2 {
   font-weight: 600;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html[data-platform="macos"] .dialog:not(.quick-open) {
+    animation: none;
+  }
+}
+
 @keyframes mac-sheet-in {
   from {
     opacity: 0;

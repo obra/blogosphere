@@ -9,6 +9,8 @@ const RULE = /([^{}]+)\{([^{}]*)\}/g;
 const WHITESPACE = /\s+/g;
 const SERIF_FAMILY = /font-family:[^;]*(Crimson|DM Serif)/;
 const CREPE_FONT_VAR = /--crepe-font-/;
+const REDUCED_MOTION_SHEET =
+  /@media \(prefers-reduced-motion: reduce\)\s*\{\s*html\[data-platform="macos"\] \.dialog:not\(\.quick-open\)\s*\{\s*animation: none;/;
 const WRITE_DOC = 'html[data-platform="macos"] .editor-doc[data-editor-mode="write"]';
 
 interface Rule {
@@ -17,7 +19,12 @@ interface Rule {
 }
 
 function rules(): Rule[] {
-  const css = ["./app-macos-writing.css", "./app-macos-controls.css"]
+  const css = [
+    "./app-macos-writing.css",
+    "./app-macos-controls.css",
+    "./app-macos-chrome.css",
+    "./app-macos-surfaces.css",
+  ]
     .map((file) => readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8"))
     .join("\n")
     .replace(CSS_COMMENT, "");
@@ -125,5 +132,29 @@ describe("Write mode leaves Crepe's own controls alone", () => {
     expect(declarationsFor(`${WRITE_DOC} .ProseMirror`)["font-family"]).toContain(
       '"Crimson Pro Variable"',
     );
+  });
+});
+
+describe("audit fixes: contrast and motion (macOS)", () => {
+  it("year headers use secondary label, not tertiary (bold 11px needs 3:1)", () => {
+    expect(declarationsFor('html[data-platform="macos"] .entry-list-year').color).toBe(
+      "var(--text-muted)",
+    );
+  });
+
+  it("the conflict badge's digits are black on orange (white is 2.2:1)", () => {
+    expect(
+      declarationsFor(
+        'html[data-platform="macos"] .sync-status-button[data-kind="conflict"] .sync-status-badge',
+      ).color,
+    ).toBe("#000000");
+  });
+
+  it("Reduce Motion stops the macOS sheet's slide", () => {
+    const surfaces = readFileSync(
+      fileURLToPath(new URL("./app-macos-surfaces.css", import.meta.url)),
+      "utf8",
+    );
+    expect(surfaces).toMatch(REDUCED_MOTION_SHEET);
   });
 });
