@@ -18,7 +18,9 @@ function renderLog(platform: "macos" | "web") {
 }
 
 it("macOS: hours and minutes", () => {
-  expect(renderLog("macos")).toBe(clockTime(AT));
+  const shown = renderLog("macos");
+  expect(shown).toBe(clockTime(AT));
+  expect(shown).not.toContain("19");
 });
 
 it("elsewhere: to the second", () => {

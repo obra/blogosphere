@@ -104,10 +104,10 @@ function DeployLine() {
   );
 }
 
-/** Fixed-position placement next to `anchor`, kept current on window resize. */
-/** Matches .activity-popover's width in app-macos-chrome.css. */
+/** Matches .activity-popover's width in app-macos-surfaces.css. */
 const POPOVER_WIDTH = 340;
 
+/** Fixed-position placement next to `anchor`, kept current on window resize. */
 function usePlacement(anchor: React.RefObject<HTMLElement | null>): Placement | null {
   const [placement, setPlacement] = useState<Placement | null>(null);
   useLayoutEffect(() => {

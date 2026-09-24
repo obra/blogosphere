@@ -32,8 +32,8 @@ describe("saveStateLabel", () => {
     expect(idle.text).toBe("Saved on this device");
     expect(idle.title).toContain("⌘S");
     expect(idle.title).not.toContain("automatic");
-    // The sidebar has no sync button any more; name what's there.
-    expect(idle.title).toContain("Sync Now");
+    // The sync button lives in the sidebar or the Mac toolbar; name it, not its place.
+    expect(idle.title).toContain("the sync button");
     expect(idle.title).not.toContain("sidebar");
     expect(saveStateLabel({ dirty: true, draft: false }, status({ state: "error" })).text).toBe(
       "Saved on this device",

@@ -39,7 +39,7 @@ export function saveStateLabel(record: SaveStateFields, status: SyncStatus | nul
     }
     return {
       text: "Saved on this device",
-      title: "Saved on this device. ⌘S or Sync Now sends changes to GitHub.",
+      title: "Saved on this device. ⌘S or the sync button sends changes to GitHub.",
     };
   }
   if (record.draft) {
