@@ -14,7 +14,7 @@
     "format": "biome format --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fuzz": "FUZZ_RUNS=10000 vitest run --testNamePattern property",
+    "fuzz": "FUZZ_RUNS=10000 vitest run --testNamePattern property --testTimeout 0",
     "test:corpus": "scripts/corpus.sh",
     "tauri": "tauri"
   },

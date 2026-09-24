@@ -182,7 +182,10 @@ describe("model", () => {
 
 Name property-test blocks so their full name contains the word `property`
 (e.g. `it("property: ...")`) — `npm run fuzz` filters on exactly that via
-`vitest run --testNamePattern property`, and sets `FUZZ_RUNS=10000`.
+`vitest run --testNamePattern property`, and sets `FUZZ_RUNS=10000` with
+no per-test timeout (`--testTimeout 0`: 50× the runs outlasts vitest's 5s
+default on the async properties; the nightly job's 60-minute limit is the
+backstop).
 `npm run test` (and CI by default) runs at the low default (200) for speed;
 `npm run fuzz` is the nightly/pre-release high-iteration pass called for in
 the design doc.
