@@ -11,6 +11,7 @@ import { minimalSetup } from "codemirror";
 import type { RefObject } from "react";
 import type { SourceLanguage } from "./markdown-utils";
 import { dispatchSpec, filterImageFiles, insertImagesAt, wrapSelection } from "./markdown-utils";
+import { sourceHighlighting } from "./sourceEditorHighlight";
 
 type OnImage = (bytes: Uint8Array, suggestedExt: string) => Promise<string | null>;
 
@@ -91,6 +92,7 @@ interface BuildExtensionsConfig {
 function buildExtensions(config: BuildExtensionsConfig): Extension[] {
   return [
     minimalSetup,
+    sourceHighlighting,
     config.sourceLanguage === "html" ? htmlLang() : markdownLang(),
     EditorView.lineWrapping,
     EDITOR_THEME,
