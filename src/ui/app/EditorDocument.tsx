@@ -5,10 +5,11 @@ import { Editor } from "../editor";
 import type { FormatIconName } from "../editor/Toolbar";
 import { Icon } from "../icons/Icon";
 import type { EditorMode } from "../types";
-import { DateField, TitleField } from "./EditorFieldControls";
+import { DateField } from "./EditorFieldControls";
 import { useServices } from "./ServicesContext";
 import { useAppStoreApi } from "./state";
 import { TagChipsEditor } from "./TagChipsEditor";
+import { TitleField } from "./TitleField";
 import type { useEditorScreenState } from "./useEditorScreenState";
 
 /** Why the body is read-only. On macOS the conflict sheet never opens by
