@@ -230,10 +230,13 @@ The job allows 180 minutes: Apple's first notarization of a new app can take
 over an hour. On the runner the DMG gets Finder's default window layout
 (`CI=true` makes the bundler skip the AppleScript that arranges it).
 
-One-time setup: export the Developer ID Application certificate as a `.p12`,
-then run `scripts/set-release-secrets.sh <file.p12>` (see its `--help`). It
+One-time setup: run `scripts/set-release-secrets.sh` (see its `--help`). It
+exports just the Developer ID Application identity from your keychain
+(`scripts/export-signing-identity.swift`; macOS asks you to allow it) with a
+random password, asks for your Apple ID and an app-specific password, and
 stores `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID` and
-`APPLE_PASSWORD` (an app-specific password) as repo secrets.
+`APPLE_PASSWORD` as repo secrets. After changing the exporter, run
+`scripts/test-export-signing-identity.sh` (scratch keychains only).
 
 To release:
 
