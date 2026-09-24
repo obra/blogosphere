@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ABOUTME: Pre-commit hook — auto-formats staged files, then gates the commit
-# ABOUTME: on typecheck + tests. Installed via `git config core.hooksPath .githooks`.
+# ABOUTME: on rustfmt, typecheck + tests. Installed via `git config core.hooksPath .githooks`.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -24,6 +24,13 @@ if [ -n "$staged_files" ]; then
   # xargs word-splits on whitespace/newlines; repo paths here don't contain
   # either, so plain newline-separated input is fine.
   echo "$staged_files" | xargs -I{} git add -- "{}"
+fi
+
+# CI runs `cargo fmt --check`; catch it here instead of on GitHub.
+echo "[pre-commit] Checking Rust formatting..."
+if ! (cd src-tauri && cargo fmt --check >/dev/null); then
+  echo "[pre-commit] FAILED: Rust isn't rustfmt-formatted. Run '(cd src-tauri && cargo fmt)' and retry." >&2
+  exit 1
 fi
 
 echo "[pre-commit] Typechecking..."

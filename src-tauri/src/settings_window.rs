@@ -20,7 +20,9 @@ pub fn open_or_focus<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     // refuses a duplicate label once a window is attached, so without this
     // both could see "no window" and build one; the orphan would then keep
     // the app running after the main window closes.
-    let _one_at_a_time = OPENING.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _one_at_a_time = OPENING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
         window.show()?;
         return window.set_focus();
