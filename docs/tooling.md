@@ -244,6 +244,11 @@ asks for your Apple ID and an app-specific password, and stores
 Tests: `scripts/test-find-developer-id.sh` and
 `scripts/test-export-signing-identity.sh` (scratch keychains only).
 
+When Apple revokes app-specific passwords (it does, all at once), make one
+new one and run `scripts/rotate-apple-app-password.sh`: it sets it on every
+notarizing repo and org secret across `obra` and `prime-radiant-inc`
+(`--dry-run` checks the list first).
+
 To release:
 
 1. Set the same version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
