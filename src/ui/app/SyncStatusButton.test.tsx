@@ -77,6 +77,22 @@ describe("SyncStatusButton", () => {
     expect(dialog.closest("[data-tauri-drag-region]")).toBeNull();
   });
 
+  it("hangs below the button with its arrow pointing at the button's center", () => {
+    renderWithStore(<SyncStatusButton />, MAC);
+    const anchor = button().closest(".sync-status") as HTMLElement;
+    vi.spyOn(anchor, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 900, y: 12, width: 100, height: 28 }),
+    );
+    fireEvent.click(button());
+    const popover = screen.getByRole("dialog", { name: "Activity" });
+    const arrow = document.querySelector<HTMLElement>(".activity-popover-arrow");
+    expect(popover.style.top).toBe("48px");
+    expect(popover.style.right).toBe(`${window.innerWidth - 1000}px`);
+    expect(arrow?.dataset.edge).toBe("top");
+    // The popover's left edge is at innerWidth - right - 340; the center is 950.
+    expect(arrow?.style.left).toBe(`${950 - (1000 - 340)}px`);
+  });
+
   it("closes on a pointerdown outside it", () => {
     const { store } = renderWithStore(
       <div>
