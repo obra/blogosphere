@@ -53,7 +53,7 @@ function TokenField(props: { saveToken: Save<string> }) {
   );
 }
 
-/** Connected: the repo, with a Replace token… disclosure. Not connected: the
+/** Connected: the repo, with a Replace Token… disclosure. Not connected: the
  *  token form and what the token needs. */
 function ConnectionSection(props: {
   connected: boolean;
@@ -71,8 +71,8 @@ function ConnectionSection(props: {
           <span>
             Connected to <strong>{props.repoLabel}</strong>
           </span>
-          <button type="button" className="link-button" onClick={() => setReplacing(!replacing)}>
-            {replacing ? "Keep current token" : "Replace token…"}
+          <button type="button" className="btn" onClick={() => setReplacing(!replacing)}>
+            {replacing ? "Keep Current Token" : "Replace Token…"}
           </button>
         </div>
       ) : (
@@ -130,7 +130,7 @@ function CommitTemplatesSection(props: {
         </p>
       ) : null}
       <button type="submit" className="btn">
-        Save templates
+        Save Templates
       </button>
     </form>
   );

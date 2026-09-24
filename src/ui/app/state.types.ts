@@ -198,7 +198,7 @@ interface AppActions {
   discardChanges(path: string): Promise<void>;
   renameEntry(path: string, changes: { slug?: string; date?: string }): Promise<void>;
   resolveConflict(path: string, resolution: ConflictResolution): Promise<void>;
-  /** User-initiated "sync now" (⌘R / the sidebar sync button). No-op until a
+  /** User-initiated "sync now" (⌘R / Sync Now). No-op until a
    *  token is configured; failures surface through syncStatus, not a throw. */
   syncNow(): Promise<void>;
   /** Copy arbitrary text via the injected clipboard dep (Tauri or browser). */

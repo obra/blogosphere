@@ -35,12 +35,14 @@ it("clears the field once the token is saved", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("connected: names the repo and hides the token field until Replace token…", () => {
+it("connected: names the repo and hides the token field until Replace Token…", () => {
   render(<ConnectionSection connected={true} repoLabel="obra/blog#main" saveToken={vi.fn()} />);
   expect(screen.getByText("obra/blog#main")).not.toBeNull();
   expect(screen.queryByLabelText("GitHub token")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Replace token…" }));
+  fireEvent.click(screen.getByRole("button", { name: "Replace Token…" }));
   expect(screen.getByLabelText("GitHub token")).not.toBeNull();
+  // A push button, in title case like every Mac button.
+  expect(screen.getByRole("button", { name: "Keep Current Token" }).className).toContain("btn");
 });
 
 it("saves the templates as edited, showing an error inline", async () => {
@@ -49,7 +51,7 @@ it("saves the templates as edited, showing an error inline", async () => {
     <CommitTemplatesSection templates={DEFAULT_COMMIT_TEMPLATES} saveTemplates={saveTemplates} />,
   );
   fireEvent.change(screen.getByLabelText("Edit"), { target: { value: "Edit {title}!" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save templates" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save Templates" }));
   expect((await screen.findByRole("alert")).textContent).toBe("Couldn't save the templates.");
   expect(saveTemplates).toHaveBeenCalledWith({
     ...DEFAULT_COMMIT_TEMPLATES,
