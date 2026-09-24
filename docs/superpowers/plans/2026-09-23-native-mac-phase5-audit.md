@@ -21,6 +21,41 @@
 2. A long title wraps and stays editable; Return moves to the body instead of adding a newline; pasted newlines become spaces.
 3. Reduce Motion stops the sheet's slide on macOS.
 
+## Execution record (2026-09-23)
+
+Tasks 1–8 as planned, with these changes. The title field moved into `TitleField.tsx`, `EditorDocument.tsx` split out of EditorScreen, and `focusEditorSurface` into `editorFocus.ts`. The highlight style lives in `sourceEditorHighlight.ts`. The Activity popover's styles all moved into `app-macos-surfaces.css`. Task 7's status line reads "Draft · Saved to GitHub" beside Publish, mirroring "Published · ".
+
+Found live: SF Symbols drawn as solid squares on first mount, because WebKit doesn't repaint a `var()`-driven mask. The webview snapshot hid this; a real window capture showed it.
+
+Verified live:
+- Symbol rendering and toolbar glyphs.
+- Inset rows.
+- Title wrapping and Return moving to the body.
+- The popover arrow's center matches the sync button's center (1042px, measured).
+- A draft's status and tooltip.
+- Log times to the minute.
+
+Not verified live, left for Jesse:
+- Real IME entry in the title (secure input blocked keystrokes).
+- Dark mode and Increase Contrast.
+- Reduce Motion.
+- A real conflict badge.
+- Window captures after the screen locked.
+
+Code review (/par) findings, all fixed:
+- Return after confirming an IME candidate left the title, because WebKit fires `compositionend` before the Enter keydown. Now a keyCode 229 check plus a 100ms window.
+- Paste replaced the whole title. Now it lands at the caret.
+- The title didn't re-measure when a web font loaded. It lost the scroll position while measuring.
+- Syntax text used the person's accent color, which can be unreadable (yellow). Now a fixed readable blue: `LinkText` on macOS.
+- The highlight test checked a copy of the extension list. Now it goes through the real editor's `buildExtensions`.
+- The Markdown line padding clipped the caret and reached Write-mode code blocks.
+- The error badge's digits were unreadable.
+- The idle sync glyph wasn't primary label.
+- The popover arrow was clamped 4px off the button's center. Now the popover shifts clear of its corner.
+- The save tooltip named "Sync Now", a menu item that phones don't have. Now it names the sync button.
+- The macOS log-time test didn't prove the seconds were gone.
+- Stale stylesheet comments.
+
 ---
 
 ### Task 1 (Critical): Source-mode highlight colors from tokens
