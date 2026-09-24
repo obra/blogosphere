@@ -46,7 +46,8 @@ html[data-platform="macos"] .sync-status-button {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  --sync-tint: var(--text-muted);
+  /* Primary label like the other toolbar glyphs; states tint it below. */
+  --sync-tint: var(--text);
   color: var(--sync-tint);
 }
 html[data-platform="macos"] .sync-status-button:hover,
@@ -92,9 +93,10 @@ html[data-platform="macos"] .sync-status-badge {
      window background to read against it. */
   color: var(--bg);
 }
-/* White on orange is 2.2:1; black is 9.5:1. (White on the red error tint
-   passes, so only the conflict badge changes.) */
-html[data-platform="macos"] .sync-status-button[data-kind="conflict"] .sync-status-badge {
+/* Black digits on the status colors: white on orange is 2.2:1 and on red
+   3.6:1; black is 9.5:1 and 5.9:1. */
+html[data-platform="macos"] .sync-status-button[data-kind="conflict"] .sync-status-badge,
+html[data-platform="macos"] .sync-status-button[data-kind="error"] .sync-status-badge {
   color: #000000;
 }
 

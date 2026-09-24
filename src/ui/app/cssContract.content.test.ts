@@ -190,8 +190,26 @@ describe("audit fixes: fields (macOS)", () => {
   });
 });
 
-it("Markdown mode's text lines up with the title", () => {
-  expect(declarationsFor('html[data-platform="macos"] .editor-doc .cm-line')["padding-left"]).toBe(
-    "0",
-  );
+it("Markdown mode's text lines up with the title, leaving the caret room, and only there", () => {
+  expect(
+    declarationsFor(
+      'html[data-platform="macos"] .editor-doc:not([data-editor-mode="write"]) .cm-line',
+    )["padding-left"],
+  ).toBe("1px");
+  for (const rule of rules()) {
+    for (const selector of rule.selectors.filter((sel) => sel.includes(".cm-line"))) {
+      // Write mode's code blocks are CodeMirror too, with a gutter.
+      expect(selector).toContain(':not([data-editor-mode="write"])');
+    }
+  }
+});
+
+it("badge digits read on both the conflict orange and the error red", () => {
+  for (const kind of ["conflict", "error"]) {
+    expect(
+      declarationsFor(
+        `html[data-platform="macos"] .sync-status-button[data-kind="${kind}"] .sync-status-badge`,
+      ).color,
+    ).toBe("#000000");
+  }
 });

@@ -176,9 +176,11 @@ html[data-platform="macos"] .tag-chip-input {
 
 /* ---------- Markdown mode ---------- */
 
-/* CodeMirror indents each line 6px; the text lines up with the title. */
-html[data-platform="macos"] .editor-doc .cm-line {
-  padding-left: 0;
+/* CodeMirror indents each line 6px; the text lines up with the title, less
+   the 1px the caret needs at column 0. Not in Write mode, whose code blocks
+   are CodeMirror too, with a gutter. */
+html[data-platform="macos"] .editor-doc:not([data-editor-mode="write"]) .cm-line {
+  padding-left: 1px;
 }
 
 /* ---------- Save status ---------- */
