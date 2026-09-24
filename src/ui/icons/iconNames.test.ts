@@ -17,3 +17,8 @@ describe("ICONS", () => {
     expect(source.lucide).toBeTruthy();
   });
 });
+
+it("toolbar symbols carry no outlined circle (toolbars.md: borders aren't necessary)", () => {
+  expect(ICONS.more.sfSymbol).toBe("ellipsis");
+  expect(ICONS.syncPending.sfSymbol).toBe("arrow.up");
+});

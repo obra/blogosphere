@@ -209,7 +209,8 @@ html[data-platform="macos"] .toolbar-button {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-muted);
+  /* Primary label, like Tahoe's toolbar glyphs (secondary looks disabled). */
+  color: var(--text);
 }
 html[data-platform="macos"] .toolbar-button:hover {
   background: var(--bg-hover);
