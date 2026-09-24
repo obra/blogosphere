@@ -115,3 +115,22 @@ html[data-platform="macos"] .save-state[data-state="failed"] {
 html[data-platform="macos"] .settings-window {
   padding: 8px 20px 20px;
 }
+
+/* ---------- Text fields in sheets and Settings ---------- */
+
+/* NSTextField: the text background with a hairline, not a sunken fill
+   (on a raised sheet a darker fill reads as a hole in dark mode). */
+html[data-platform="macos"] .dialog-field input {
+  border-color: var(--border-strong);
+  background: var(--bg);
+}
+
+/* ---------- Increase Contrast ---------- */
+
+/* Filled controls get an outline, not just a 6% tint. */
+@media (prefers-contrast: more) {
+  html[data-platform="macos"]
+    :is(.toolbar-row .entry-list-search input, .mode-toggle, .editor-date-input) {
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+}

@@ -224,7 +224,7 @@ The status message, when present, appears in every state's tooltip.
 | Not connected | `icloud.slash` | — | "Not connected to GitHub" |
 | Syncing | `arrow.triangle.2.circlepath` (rotating; static with Reduce Motion) | — | "Syncing…" |
 | Synced | `checkmark.icloud` | — | "Synced · {relative time of last check}" |
-| Pending | `arrow.up.circle` | N | "{N} changes not yet on GitHub" |
+| Pending | `arrow.up` | N | "{N} changes not yet on GitHub" |
 | Conflict | `exclamationmark.triangle` (orange) | N | "{N} conflicts" |
 | Offline | `wifi.slash` | — | "Offline — changes stay on this device" |
 | Error | `exclamationmark.icloud` (red) | N pending, if any | "Couldn't sync: {message}" |
@@ -539,6 +539,8 @@ token is mapped:
   clears on Escape, so the field only adds the magnifier.
 - **Row conflict symbol** sits beside the row button (a button can't nest in
   one), out of the Tab order; the editor's Resolve… bar is the keyboard path.
+- **Borderless toolbar symbols** (phase 5 audit, `toolbars.md`): `ellipsis`
+  and `arrow.up`, not the outlined-circle variants.
 - **Fonts:** the Crimson Pro variable package has no Latin-only file, so its
   three subsets ship; `unicode-range` loads only what a post uses.
 

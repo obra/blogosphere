@@ -179,3 +179,13 @@ describe("audit fixes: native lists and buttons (macOS)", () => {
     }
   });
 });
+
+describe("audit fixes: fields (macOS)", () => {
+  it("text fields in sheets use the text background with a hairline", () => {
+    const field = declarationsFor('html[data-platform="macos"] .dialog-field input');
+    expect(field).toMatchObject({
+      background: "var(--bg)",
+      "border-color": "var(--border-strong)",
+    });
+  });
+});

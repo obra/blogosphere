@@ -1,9 +1,9 @@
 // ABOUTME: Semantic icon names → SF Symbol (Apple platforms, rendered by the OS)
 // ABOUTME: and Lucide (everywhere else). Components only ever use the semantic name.
 import {
-  ArrowUp,
   Bold,
   ChevronDown,
+  CircleArrowUp,
   CloudAlert,
   CloudCheck,
   CloudOff,
@@ -38,7 +38,7 @@ const ICONS = {
   syncNotConnected: { sfSymbol: "icloud.slash", lucide: CloudOff },
   syncing: { sfSymbol: "arrow.triangle.2.circlepath", lucide: RefreshCw },
   synced: { sfSymbol: "checkmark.icloud", lucide: CloudCheck },
-  syncPending: { sfSymbol: "arrow.up", lucide: ArrowUp },
+  syncPending: { sfSymbol: "arrow.up", lucide: CircleArrowUp },
   syncConflict: { sfSymbol: "exclamationmark.triangle", lucide: TriangleAlert },
   syncOffline: { sfSymbol: "wifi.slash", lucide: WifiOff },
   syncError: { sfSymbol: "exclamationmark.icloud", lucide: CloudAlert },
