@@ -2,8 +2,10 @@ name: Release
 # Pushing a tag like v0.2.0 on a commit in main builds a universal (Apple
 # silicon + Intel) macOS app, signs it with the Developer ID certificate,
 # notarizes and staples the app and the .dmg, and publishes the .dmg as a
-# GitHub Release. Secrets and steps: docs/tooling.md › Releasing;
-# scripts/set-release-secrets.sh sets them.
+# GitHub Release. Linux builds .deb and .AppImage packages on the same tag and
+# publishes them to the same release; the two jobs run in parallel. Secrets
+# and steps: docs/tooling.md › Releasing; scripts/set-release-secrets.sh sets
+# the macOS ones.
 on:
   push:
     tags: ["v*"]
@@ -105,5 +107,89 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "${dmg[0]}" --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$GITHUB_REF_NAME" "${dmg[0]}" --repo "$GITHUB_REPOSITORY" \
+              --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes
+          fi
+
+  linux:
+    name: Linux (.deb, .AppImage)
+    # The oldest Ubuntu the runners offer: the .deb's glibc dependency is
+    # whatever this image has, and a newer one wouldn't install on older
+    # distributions. Same reason CI's rust leg pins it.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      # Pinned to commits like the macOS job, and for the same reason: this
+      # job holds a write-capable release token.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Tag matches the app version and is on main
+        run: |
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match tauri.conf.json version $version (expected v$version)."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME points at a commit that isn't on main."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      - name: Install Linux webview and bundling prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            libssl-dev \
+            libxdo-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+
+      # Builds and bundles in one pass: nothing here is signed, so there are
+      # no secrets to keep out of the build scripts' environment.
+      - name: Build
+        run: npm run tauri build -- --bundles deb,appimage
+
+      # The .deb is the package that actually installs; check it as a package,
+      # not just that a file appeared.
+      - name: Verify the packages
+        run: |
+          shopt -s failglob
+          deb=(src-tauri/target/release/bundle/deb/*.deb)
+          appimage=(src-tauri/target/release/bundle/appimage/*.AppImage)
+          dpkg-deb --info "${deb[0]}"
+          dpkg-deb --contents "${deb[0]}" | grep -q usr/bin/app
+          test -x "${appimage[0]}"
+
+      # Same replace-or-create rule as the macOS job, so either job may finish
+      # first and a re-run doesn't fail on an existing release.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s failglob
+          deb=(src-tauri/target/release/bundle/deb/*.deb)
+          appimage=(src-tauri/target/release/bundle/appimage/*.AppImage)
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${deb[0]}" "${appimage[0]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" "${deb[0]}" "${appimage[0]}" --repo "$GITHUB_REPOSITORY" \
               --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes
           fi
