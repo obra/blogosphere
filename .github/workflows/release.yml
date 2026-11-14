@@ -96,18 +96,18 @@ jobs:
           spctl --assess --type execute --verbose=2 "$app"
           xcrun stapler validate "$app"
 
-      # A re-run after the release exists replaces its .dmg instead of failing.
+      # Create-or-upload: the linux job may create the release first (the two
+      # run in parallel), and a re-run replaces the .dmg instead of failing.
+      # A failed create means the release already exists, so upload.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s failglob
           dmg=(src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if ! gh release create "$GITHUB_REF_NAME" "${dmg[0]}" --repo "$GITHUB_REPOSITORY" \
+            --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes; then
             gh release upload "$GITHUB_REF_NAME" "${dmg[0]}" --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$GITHUB_REF_NAME" "${dmg[0]}" --repo "$GITHUB_REPOSITORY" \
-              --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes
           fi
 
   linux:
@@ -178,7 +178,7 @@ jobs:
           dpkg-deb --contents "${deb[0]}" | grep -q usr/bin/app
           test -x "${appimage[0]}"
 
-      # Same replace-or-create rule as the macOS job, so either job may finish
+      # Same create-or-upload rule as the macOS job, so either job may finish
       # first and a re-run doesn't fail on an existing release.
       - name: Publish the release
         env:
@@ -187,9 +187,7 @@ jobs:
           shopt -s failglob
           deb=(src-tauri/target/release/bundle/deb/*.deb)
           appimage=(src-tauri/target/release/bundle/appimage/*.AppImage)
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if ! gh release create "$GITHUB_REF_NAME" "${deb[0]}" "${appimage[0]}" --repo "$GITHUB_REPOSITORY" \
+            --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes; then
             gh release upload "$GITHUB_REF_NAME" "${deb[0]}" "${appimage[0]}" --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$GITHUB_REF_NAME" "${deb[0]}" "${appimage[0]}" --repo "$GITHUB_REPOSITORY" \
-              --title "Blogosphere ${GITHUB_REF_NAME#v}" --generate-notes
           fi
