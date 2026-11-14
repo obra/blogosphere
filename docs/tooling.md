@@ -23,6 +23,12 @@ One-page reference for the toolchain, set up before any feature code lands (see
 | `(cd src-tauri && cargo clippy -- -D warnings)` | Clippy with `clippy::pedantic` promoted to hard errors. |
 | `(cd src-tauri && cargo fmt --check)` | Rust formatting check (stable rustfmt defaults). |
 
+CI runs the Rust checks above plus `cargo test` on both macOS and Ubuntu; the
+Linux leg needs the webview packages listed under **Releasing › Linux**. The
+keychain test fails on any desktop platform whose keyring backend feature is
+missing from `src-tauri/Cargo.toml` (the crate then silently uses an in-memory
+mock store), which is what caught Linux having no backend at all.
+
 ## Git hooks
 
 `git config core.hooksPath .githooks` is set locally, and re-applied by the
@@ -232,6 +238,21 @@ not on `main`, runs typecheck, lint and tests, then:
 The job allows 180 minutes: Apple's first notarization of a new app can take
 over an hour. On the runner the DMG gets Finder's default window layout
 (`CI=true` makes the bundler skip the AppleScript that arranges it).
+
+A `linux` job runs in parallel on the same tag, with the same tag/version
+check and no secrets. It builds `--bundles deb,appimage` on `ubuntu-22.04`
+(the oldest glibc the runners offer, so the `.deb` installs on older
+distributions) and publishes `Blogosphere_<version>_amd64.deb` and
+`Blogosphere_<version>_amd64.AppImage` to the same release, using the same
+replace-or-create rule. It checks the `.deb` with `dpkg-deb` before publishing.
+The Linux leg needs Tauri v2's prerequisites:
+
+```sh
+sudo apt install libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev \
+  libayatana-appindicator3-dev librsvg2-dev
+```
+
+Nothing is signed on Linux; the packages are published unsigned.
 
 One-time setup: run `scripts/set-release-secrets.sh` (see its `--help`). It
 exports just the Developer ID Application identity for the team `release.yml`

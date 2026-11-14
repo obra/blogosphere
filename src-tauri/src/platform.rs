@@ -25,11 +25,15 @@ pub fn current_platform() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::platform_name;
-
     #[test]
     #[cfg(target_os = "macos")]
     fn reports_macos_on_macos() {
-        assert_eq!(platform_name(), "macos");
+        assert_eq!(super::platform_name(), "macos");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn reports_linux_on_linux() {
+        assert_eq!(super::platform_name(), "linux");
     }
 }

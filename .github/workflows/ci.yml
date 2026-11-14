@@ -7,7 +7,7 @@ on:
 jobs:
   web:
     name: web
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,8 +21,16 @@ jobs:
       - run: npm run build
 
   rust:
-    name: rust
-    runs-on: macos-latest
+    name: rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04, not ubuntu-latest: the release workflow builds the
+        # .deb and .AppImage here, and those need the oldest glibc that
+        # ships to people. Gating on the same image keeps CI and the
+        # release from disagreeing.
+        os: [macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +38,18 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
+      # Tauri v2's Linux prerequisites (v2.tauri.app/start/prerequisites).
+      - name: Install Linux webview and bundling prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            libssl-dev \
+            libxdo-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
@@ -40,5 +60,10 @@ jobs:
         run: cargo fmt --check
       - working-directory: src-tauri
         run: cargo clippy -- -D warnings
+      # Runs the keychain guard test on both platforms: it fails if keyring
+      # falls back to its in-memory mock store, which is how the missing
+      # Linux backend went unnoticed.
+      - working-directory: src-tauri
+        run: cargo test
       - working-directory: src-tauri
         run: cargo check

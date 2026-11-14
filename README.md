@@ -2,8 +2,9 @@
 
 A local-first blogging client for [blog.fsck.com](https://blog.fsck.com) — an
 [11ty](https://www.11ty.dev/) site that lives in a GitHub repo and deploys via
-GitHub Pages. Write, edit, and publish from macOS, Windows, iOS, or Android;
-fully offline-capable; talks straight to the GitHub API (no server anywhere).
+GitHub Pages. Write, edit, and publish from macOS, Windows, Linux, iOS, or
+Android; fully offline-capable; talks straight to the GitHub API (no server
+anywhere).
 
 Built by [Claude Code](https://claude.com/claude-code), directed by
 [@obra](https://github.com/obra). It's a personal tool: the repo it syncs
@@ -35,7 +36,7 @@ Generalizing it wouldn't be hard; nobody has needed it yet.
 ```sh
 npm install
 npm run dev        # browser demo with an in-memory fake backend
-npm run test       # vitest (~950 tests); FUZZ_RUNS=10000 npm run fuzz for property tests
+npm run test       # vitest (~1,400 tests); FUZZ_RUNS=10000 npm run fuzz for property tests
 npm run lint       # Biome, preset "all" — strict on purpose
 npm run tauri dev  # the real app (needs Rust; token in the OS keychain)
 ```
@@ -45,6 +46,21 @@ Desktop builds: `npm run tauri build`; `scripts/install-mac.sh` builds just the
 bridge so agents can screenshot and drive the running app via `scripts/tauri-mcp.sh`. Windows cross-compiles from macOS via
 `cargo-xwin` + NSIS; Android/iOS build through `npm run tauri android|ios build`
 (see `docs/` for the design/plan documents this grew from).
+
+On Debian/Ubuntu, install the webview and bundling prerequisites first, then
+build packages with `--bundles deb,appimage`:
+
+```sh
+sudo apt install libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev \
+  libayatana-appindicator3-dev librsvg2-dev
+npm run tauri build -- --bundles deb,appimage
+```
+
+Releases publish a `.deb` and an `.AppImage` for Linux alongside the macOS
+`.dmg`, built by CI (see `docs/tooling.md` › Releasing). Linux runs the same
+three-pane desktop layout and window with the same menu bar; the macOS-only
+pieces (the glass sidebar and SF Symbols) are compiled out, so icons come from
+the bundled Lucide set instead of the system.
 
 ## Status
 
