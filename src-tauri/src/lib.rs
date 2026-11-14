@@ -55,7 +55,10 @@ pub fn run() {
         .manage(glass::GlassState::default());
     // Lets the tauri-mcp CLI drive a dev build (screenshots, DOM, IPC). Never
     // in release builds, and localhost-only: the plugin's default 0.0.0.0
-    // bind would hand app control to anyone on the network.
+    // bind would hand app control to anyone on the network. Desktop only:
+    // it calls window APIs the mobile runtime doesn't have, so it fails to
+    // compile for iOS and Android.
+    #[cfg(desktop)]
     let builder = if cfg!(debug_assertions) {
         builder.plugin(
             tauri_plugin_mcp_bridge::Builder::new()

@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mcp-bridge",
+  "description": "Lets the tauri-mcp CLI drive a debug build (screenshots, DOM, IPC). The plugin only exists in desktop builds, so this capability is desktop-only: a mobile build that lists a permission from a missing plugin fails to compile.",
+  "windows": ["main", "settings"],
+  "platforms": ["macOS", "windows", "linux"],
+  "permissions": ["mcp-bridge:default"]
+}

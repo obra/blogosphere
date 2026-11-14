@@ -6,3 +6,8 @@ dist/
 target/
 _site/
 .DS_Store
+
+# iOS ad-hoc distribution: the device list holds other people's device
+# identifiers, and the build output holds the signed .ipa.
+ios-devices.txt
+dist-ios-adhoc/

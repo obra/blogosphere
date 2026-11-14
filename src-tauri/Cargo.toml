@@ -54,9 +54,6 @@ keyring = { version = "3.6.3", features = [
 base64 = "0.22"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
-# Dev-only agent access (screenshots, DOM, IPC) for the tauri-mcp CLI.
-# Registered only in debug builds and bound to localhost — see lib.rs.
-tauri-plugin-mcp-bridge = "0.13.0"
 # Glass behind the macOS sidebar (src/glass.rs). A no-op on other platforms.
 tauri-plugin-liquid-glass = "0.1.6"
 
@@ -81,9 +78,22 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-core-foundation",
 ] }
 
+# Dev-only agent access (screenshots, DOM, IPC) for the tauri-mcp CLI.
+# Registered only in debug builds and bound to localhost — see lib.rs. Desktop
+# only: it calls window APIs the mobile runtime doesn't have and won't compile
+# for iOS or Android.
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
+tauri-plugin-mcp-bridge = "0.13.0"
+
 # tauri::test's mock runtime, for settings_window's tests.
 [dev-dependencies]
 tauri = { version = "2.11.3", features = ["test"] }
+
+# Pulled in by tauri-utils to link the Swift side of Tauri. 1.0.9 is the first
+# release that copes with Xcode 27's SwiftPM layout and its internalized
+# @_cdecl symbols; 1.0.7 fails the iOS link with "Undefined symbols:
+# _register_plugin". Remove this pin once tauri-utils requires 1.0.9 itself.
+swift-rs = "1.0.9"
 
 # Runs on the main thread (AppKit drawing); libtest's harness doesn't.
 [[test]]

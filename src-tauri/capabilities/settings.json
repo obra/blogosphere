@@ -3,11 +3,11 @@
   "identifier": "settings",
   "description": "The macOS Settings window: it only talks to the main window (events) and sizes itself to its content, reading its own sizes to allow for the title bar. It owns no data: no SQL, keychain, or network.",
   "windows": ["settings"],
+  "platforms": ["macOS", "windows", "linux"],
   "permissions": [
     "core:event:default",
     "core:window:allow-set-size",
     "core:window:allow-inner-size",
-    "core:window:allow-scale-factor",
-    "mcp-bridge:default"
+    "core:window:allow-scale-factor"
   ]
 }

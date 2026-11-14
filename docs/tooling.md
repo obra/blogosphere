@@ -281,3 +281,64 @@ To try the build locally without signing (needs
 `rustup target add x86_64-apple-darwin`):
 `CI=true npm run tauri build -- --target universal-apple-darwin --no-bundle`,
 then `CI=true APPLE_SIGNING_IDENTITY=- npm run tauri bundle -- --target universal-apple-darwin --bundles app,dmg`.
+
+## iOS ad-hoc builds
+
+`scripts/adhoc-ios.sh` builds an `.ipa` that installs on a fixed list of
+registered devices, plus the page that installs it. It is how a build reaches
+a phone without TestFlight or the App Store.
+
+```
+ios-devices.txt     one device per line, tab-separated (Device ID, Device Name)
+dist-ios-adhoc/     the .ipa, manifest.plist and index.html the script writes
+```
+
+`ios-devices.txt` is the input the script reads; keep it out of git, since it
+holds other people's device identifiers. `scripts/adhoc-ios.sh --help` explains
+the flags.
+
+The script registers the listed UDIDs with the Apple Developer portal, mints an
+ad-hoc profile covering them, archives, and exports the `.ipa`. A profile only
+covers the devices registered when it was created, so it registers and mints on
+every run; adding a phone means adding its UDID and re-running.
+
+Three details cost real time to find, so they are worth stating:
+
+- The export method is `release-testing`, not `ad-hoc`. Xcode 27 renamed it,
+  and the old name is rejected with "No profiles for … were found".
+- Signing is manual with an explicit profile UUID and certificate, because
+  automatic signing wants an account in Xcode and fails from a bare command
+  line.
+- Signing needs an unlocked login keychain. Run the script from a Terminal on
+  the Mac holding the certificates, not over ssh: over ssh, `codesign` fails
+  with `errSecInternalComponent`.
+
+iOS builds also need `rustup component add llvm-tools`, which is not part of a
+default Rust install. Xcode 27's SwiftPM marks the Swift entry points Tauri
+links against as local symbols, and swift-rs promotes them back to global with
+`llvm-objcopy` from that component. Without it the link fails with `Undefined
+symbols: _register_plugin, _run_plugin_command, _on_webview_created` and no
+hint about the cause. `src-tauri/Cargo.toml` pins `swift-rs` 1.0.9, the first
+release that handles Xcode 27's SwiftPM layout and symbol visibility.
+
+The device installs whatever `manifest.plist` points at, and iOS requires the
+`.ipa` to be served over HTTPS. Set `ADHOC_BASE_URL` to the HTTPS URL the
+output directory will be served from. A plain link to the `.ipa` does nothing;
+the install link has to go through the manifest, which `index.html` does.
+
+On this Mac the output directory was published with Tailscale, which supplies
+the certificate:
+
+```sh
+tailscale serve --bg --set-path /blogosphere-adhoc "$PWD/dist-ios-adhoc"
+export ADHOC_BASE_URL="https://$(tailscale status --json | jq -r .Self.DNSName | sed 's/\.$//')/blogosphere-adhoc"
+```
+
+`tailscale serve status` shows what is published, and `tailscale serve reset`
+takes it down. The page only resolves for devices on the tailnet, which suits
+a private build.
+
+Collecting a UDID from someone else's device can be done with a `.mobileconfig`
+that asks iOS to post just the UDID to a URL you control. Nothing in this repo
+does that yet; until it does, ask for the UDID, or read it in Finder with the
+device connected (the device name row shows it in the sidebar's Info pane).
