@@ -45,6 +45,10 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "iOS": {
+      "minimumSystemVersion": "15.0",
+      "developmentTeam": "87WJ58S66M"
     }
   }
 }
