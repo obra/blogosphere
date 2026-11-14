@@ -17,9 +17,18 @@ interface Migration {
 }
 
 /**
- * Versioned migrations. Each entry's statements run once, inside one
- * transaction, the first time a database's schema_version is below it.
+ * Versioned migrations. Each entry's statements run once, the first time a
+ * database's schema_version is below it, and only then is the version bumped.
  * Append new migrations here; never edit a shipped one in place.
+ *
+ * Keep every statement idempotent (`IF NOT EXISTS`). A migration can be
+ * interrupted partway (the app is killed, a statement fails), and because the
+ * version only advances after the last statement, the next launch re-runs it
+ * from the top. No transaction is used: tauri-plugin-sql hands each statement
+ * a connection from a pool, so BEGIN IMMEDIATE would take its write lock on
+ * one connection while the rest ran on others and failed "database is locked"
+ * — which is exactly how schema creation broke on iOS. Idempotent statements
+ * that converge on re-run give the same guarantee a transaction would here.
  */
 const MIGRATIONS: readonly Migration[] = [
   {
@@ -81,9 +90,6 @@ const FTS_TRIGGER_DDL: readonly string[] = [
    END`,
 ];
 
-/** Thrown deliberately inside the FTS5 probe transaction so it always rolls back. */
-class Fts5ProbeRollback extends Error {}
-
 async function currentSchemaVersion(driver: SqlDriver): Promise<number> {
   const rows = await driver.select<{ value: string | null }>(
     "SELECT value FROM meta WHERE key = ?",
@@ -112,32 +118,26 @@ async function runMigrations(driver: SqlDriver): Promise<void> {
     (a, b) => a.version - b.version,
   );
   for (const migration of pending) {
-    await driver.transaction(async () => {
-      for (const statement of migration.statements) {
-        await driver.execute(statement);
-      }
-      await setSchemaVersion(driver, migration.version);
-    });
+    for (const statement of migration.statements) {
+      await driver.execute(statement);
+    }
+    await setSchemaVersion(driver, migration.version);
   }
 }
 
 /**
- * Create-and-rollback probe: attempts to create a throwaway FTS5 virtual
- * table inside a transaction it always aborts, so a successful probe never
- * leaves anything behind (and an unsuccessful one never partially applies).
+ * True when this SQLite build has FTS5 compiled in. A read-only check of the
+ * module list, deliberately not a create-and-rollback probe: a probe needs a
+ * transaction to undo itself, and transactions are unsafe across
+ * tauri-plugin-sql's connection pool (see MIGRATIONS above). This also leaves
+ * nothing behind to clean up.
  */
 async function probeFts5(driver: SqlDriver): Promise<boolean> {
-  try {
-    await driver.transaction(async (): Promise<void> => {
-      await driver.execute(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS __blogosphere_fts5_probe USING fts5(probe)",
-      );
-      throw new Fts5ProbeRollback();
-    });
-  } catch (err) {
-    return err instanceof Fts5ProbeRollback;
-  }
-  return false;
+  const rows = await driver.select<{ name: string }>(
+    "SELECT name FROM pragma_module_list WHERE name = ?",
+    ["fts5"],
+  );
+  return rows.length > 0;
 }
 
 async function ensureFts(driver: SqlDriver): Promise<boolean> {

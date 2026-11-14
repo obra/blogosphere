@@ -1,11 +1,72 @@
 // ABOUTME: Tests for schema.ts — migration from an empty db, migration idempotency,
 // ABOUTME: FTS5 detection/fallback, and buildSearchQuery's pure query-building.
 
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { createBetterSqliteDriver } from "./drivers/better-sqlite3";
+import { createTransactionRunner } from "./drivers/transactionRunner";
 import { buildSearchQuery, initSchema } from "./schema";
 import { byString, withFts5ProbeFailing } from "./testHelpers";
 import type { SqlDriver } from "./types";
+
+/**
+ * A driver that hands each call a different connection, the way
+ * tauri-plugin-sql hands each execute() a connection from its sqlx pool.
+ * Statements a real transaction would keep on one connection land on
+ * different ones here, which is what broke boot on iOS.
+ */
+function createRotatingConnectionDriver(connections: number): {
+  driver: SqlDriver;
+  dispose: () => void;
+} {
+  const dir = mkdtempSync(join(tmpdir(), "blogosphere-schema-"));
+  const path = join(dir, "pool.db");
+  const conns = Array.from({ length: connections }, () => {
+    const db = new Database(path);
+    db.pragma("journal_mode = WAL");
+    return db;
+  });
+  let next = 0;
+  const checkOut = (): Database.Database => {
+    const conn = conns[next % conns.length] as Database.Database;
+    next += 1;
+    return conn;
+  };
+
+  // The async modifiers below are required, not stylistic: better-sqlite3
+  // throws synchronously, and SqlDriver promises a rejected Promise, never a
+  // synchronous throw. Same reason as the real driver's own suppression.
+  const driver: SqlDriver = {
+    // biome-ignore lint/suspicious/useAwait: converts a synchronous throw into a rejection
+    execute: async (sql, params = []) => {
+      const info = checkOut()
+        .prepare(sql)
+        .run(...params);
+      return { rowsAffected: info.changes };
+    },
+    select: async <T = Record<string, unknown>>(
+      sql: string,
+      params: unknown[] = [],
+    ): Promise<T[]> =>
+      checkOut()
+        .prepare(sql)
+        .all(...params) as T[],
+    transaction: createTransactionRunner((sql, params = []) => driver.execute(sql, params)),
+  };
+
+  return {
+    driver,
+    dispose: () => {
+      for (const conn of conns) {
+        conn.close();
+      }
+      rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
 
 async function tableNames(driver: SqlDriver): Promise<string[]> {
   const rows = await driver.select<{ name: string }>(
@@ -15,6 +76,15 @@ async function tableNames(driver: SqlDriver): Promise<string[]> {
 }
 
 describe("initSchema: from an empty database", () => {
+  it("succeeds when every statement lands on a different pooled connection", async () => {
+    const { driver, dispose } = createRotatingConnectionDriver(4);
+    try {
+      await expect(initSchema(driver)).resolves.toEqual({ ftsAvailable: true });
+    } finally {
+      dispose();
+    }
+  });
+
   it("creates every table and reports FTS5 available", async () => {
     const driver = createBetterSqliteDriver();
 

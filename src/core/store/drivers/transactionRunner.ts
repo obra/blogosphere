@@ -9,13 +9,16 @@ type Execute = (sql: string, params?: unknown[]) => Promise<{ rowsAffected: numb
  * keeps better-sqlite3 and tauri-plugin-sql on identical BEGIN/COMMIT/ROLLBACK
  * behavior instead of two divergent implementations.
  *
- * ONLY SOUND WHILE ALL DB ACCESS IS STRICTLY SERIAL (boot-time schema work).
- * tauri-plugin-sql checks a connection out of a sqlx pool per execute() call:
- * under concurrency, BEGIN's connection and later statements' connections can
- * differ — the transaction never sees its own statements and writes collide
- * ("database is locked", hit live during publish on Windows). Anything that
- * runs after boot must get atomicity from a single statement instead (see
- * StoreApi.upsertEntryPair).
+ * The `execute` passed in MUST run every statement on one connection for the
+ * duration of the callback; otherwise BEGIN takes its write lock on one
+ * connection while later statements wait on a different one and fail with
+ * "database is locked". better-sqlite3 has exactly one connection, so it uses
+ * this runner as-is. tauri-plugin-sql checks a connection out of its sqlx pool
+ * per call and exposes no single-connection transaction command, so its driver
+ * cannot use this runner at all — see drivers/tauri-sql.ts.
+ *
+ * A failing ROLLBACK never masks the callback's error: the original reason a
+ * transaction failed is what the caller needs to see.
  *
  * Nested calls (transaction() invoked again while one is already running on
  * this runner) reject with a clear error instead of silently corrupting state.
@@ -36,15 +39,31 @@ export function createTransactionRunner(execute: Execute): <T>(fn: () => Promise
       throw err;
     }
 
+    let result: T;
     try {
-      const result = await fn();
-      await execute("COMMIT");
-      return result;
+      result = await fn();
     } catch (err) {
-      await execute("ROLLBACK");
+      // ROLLBACK can fail on its own (a dead connection, a transaction the
+      // server already aborted). That failure explains why cleanup did not
+      // happen; it does not explain why the transaction failed. Keep the
+      // original error and attach the rollback one to it.
+      try {
+        await execute("ROLLBACK");
+      } catch (rollbackErr) {
+        const rollbackMessage =
+          rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+        const failure = new Error(
+          `transaction failed and rolling it back also failed: ${rollbackMessage}`,
+        );
+        failure.cause = err;
+        throw failure;
+      }
       throw err;
     } finally {
       active = false;
     }
+
+    await execute("COMMIT");
+    return result;
   };
 }

@@ -7,7 +7,6 @@
 
 import type Database from "@tauri-apps/plugin-sql";
 import type { SqlDriver } from "../types";
-import { createTransactionRunner } from "./transactionRunner";
 
 /**
  * Wrap an already-loaded tauri-plugin-sql `Database` in the portable
@@ -33,6 +32,21 @@ export function createTauriSqlDriver(db: Database): SqlDriver {
   return {
     execute,
     select,
-    transaction: createTransactionRunner(execute),
+    /**
+     * Refused rather than approximated. The plugin checks a connection out of
+     * its sqlx pool per call and offers no single-connection transaction
+     * command, so `BEGIN IMMEDIATE` would take its write lock on one
+     * connection while the callback's statements ran on others. They then fail
+     * with "database is locked" — or, worse, half-apply outside the
+     * transaction the caller believes it holds. Anything needing atomicity
+     * gets it from a single statement instead (StoreApi.upsertEntryPair).
+     */
+    transaction: <T>(): Promise<T> =>
+      Promise.reject(
+        new Error(
+          "SqlDriver.transaction is unsupported over tauri-plugin-sql's connection pool; " +
+            "use a single atomic statement instead (see StoreApi.upsertEntryPair)",
+        ),
+      ),
   };
 }

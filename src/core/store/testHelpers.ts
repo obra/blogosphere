@@ -6,6 +6,7 @@ import { createStore } from "./store";
 import type { EntryRecord, SqlDriver, StoreApi } from "./types";
 
 const FTS5_DDL_RE = /fts5/i;
+const FTS5_MODULE_RE = /pragma_module_list/i;
 
 /** Explicit string comparator for `.sort()` calls — plain lexicographic order. */
 export function byString(a: string, b: string): number {
@@ -40,9 +41,10 @@ export async function createTestStore(): Promise<{ driver: SqlDriver; store: Sto
 }
 
 /**
- * Wraps a real driver, failing any statement that would create an FTS5
- * virtual table — simulates a SQLite build without FTS5 compiled in, so the
- * create-and-rollback probe in schema.ts observes unavailability for real.
+ * Wraps a real driver so the FTS5 module probe reports the module missing —
+ * simulates a SQLite build without FTS5 compiled in. The DDL is also failed,
+ * so a probe that wrongly reports availability fails loudly instead of
+ * silently creating the virtual table.
  */
 export function withFts5ProbeFailing(real: SqlDriver): SqlDriver {
   return {
@@ -52,7 +54,12 @@ export function withFts5ProbeFailing(real: SqlDriver): SqlDriver {
       }
       return real.execute(sql, params);
     },
-    select: (sql, params) => real.select(sql, params),
+    select: <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => {
+      if (FTS5_MODULE_RE.test(sql)) {
+        return Promise.resolve([] as T[]);
+      }
+      return real.select<T>(sql, params);
+    },
     transaction: (fn) => real.transaction(fn),
   };
 }
