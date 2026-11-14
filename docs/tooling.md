@@ -297,6 +297,10 @@ dist-ios-adhoc/     the .ipa, manifest.plist and index.html the script writes
 holds other people's device identifiers. `scripts/adhoc-ios.sh --help` explains
 the flags.
 
+The script needs `APPLE_ID` in the environment for the `fastlane` calls that
+talk to the developer portal. Apple intermittently answers those with a 503;
+it is transient, and re-running is the fix.
+
 The script registers the listed UDIDs with the Apple Developer portal, mints an
 ad-hoc profile covering them, archives, and exports the `.ipa`. A profile only
 covers the devices registered when it was created, so it registers and mints on
@@ -312,6 +316,12 @@ Three details cost real time to find, so they are worth stating:
 - Signing needs an unlocked login keychain. Run the script from a Terminal on
   the Mac holding the certificates, not over ssh: over ssh, `codesign` fails
   with `errSecInternalComponent`.
+- The archive must be driven by `npx tauri ios build`, not `xcodebuild
+  archive`. The project's pre-build script calls back into the tauri CLI over
+  a socket that the CLI only opens for a build it started, so a bare
+  `xcodebuild archive` fails with "Connection refused". The script then
+  exports the `.ipa` itself, because the CLI's own export wants an Xcode
+  account.
 
 iOS builds also need `rustup component add llvm-tools`, which is not part of a
 default Rust install. Xcode 27's SwiftPM marks the Swift entry points Tauri
@@ -327,16 +337,19 @@ output directory will be served from. A plain link to the `.ipa` does nothing;
 the install link has to go through the manifest, which `index.html` does.
 
 On this Mac the output directory was published with Tailscale, which supplies
-the certificate:
+the certificate. The macOS build of Tailscale cannot serve a path, only a
+port, so the directory is served by any static server and proxied:
 
 ```sh
-tailscale serve --bg --set-path /blogosphere-adhoc "$PWD/dist-ios-adhoc"
-export ADHOC_BASE_URL="https://$(tailscale status --json | jq -r .Self.DNSName | sed 's/\.$//')/blogosphere-adhoc"
+( cd dist-ios-adhoc && python3 -m http.server 8088 --bind 127.0.0.1 ) &
+tailscale serve --bg 8088
+export ADHOC_BASE_URL="https://$(tailscale status --json | jq -r .Self.DNSName | sed 's/\.$//')"
 ```
 
-`tailscale serve status` shows what is published, and `tailscale serve reset`
+`tailscale serve status` shows what is published, and `tailscale serve --https=443 off`
 takes it down. The page only resolves for devices on the tailnet, which suits
-a private build.
+a private build. Re-run the script after changing `ADHOC_BASE_URL`, since the
+`.ipa` and manifest URLs are written into the files.
 
 Collecting a UDID from someone else's device can be done with a `.mobileconfig`
 that asks iOS to post just the UDID to a URL you control. Nothing in this repo
