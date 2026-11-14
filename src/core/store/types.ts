@@ -14,7 +14,10 @@ export interface SqlDriver {
     sql: string,
     params?: unknown[],
   ): Promise<T[]>;
-  /** Serialized transaction. Nested calls are an error. */
+  /** Serialized transaction. Nested calls are an error. Only sound on a
+   *  driver with one connection: the tauri-plugin-sql driver refuses it
+   *  outright, because each execute() takes a pooled connection, so BEGIN's
+   *  lock and the callback's statements would land on different ones. */
   transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 

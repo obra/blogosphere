@@ -12,6 +12,7 @@ import { createTransactionRunner } from "./transactionRunner";
 
 const ANSWER = 42;
 const NESTED_TX_ERROR_RE = /nested transactions/i;
+const ROLLBACK_FAILED_RE = /rolling it back also failed/;
 
 function fakeExecute(calls: string[]) {
   return vi.fn(async (sql: string): Promise<{ rowsAffected: number }> => {
@@ -46,6 +47,33 @@ describe("createTransactionRunner: commit/rollback", () => {
       }),
     ).rejects.toBe(boom);
 
+    expect(calls).toEqual(["BEGIN IMMEDIATE", "fn", "ROLLBACK"]);
+  });
+
+  it("reports both errors when ROLLBACK itself fails, keeping the original first", async () => {
+    const calls: string[] = [];
+    const boom = new Error("database is locked");
+    const rollbackFailure = new Error("cannot rollback - no transaction is active");
+    const execute = vi.fn(async (sql: string): Promise<{ rowsAffected: number }> => {
+      calls.push(sql);
+      if (sql === "ROLLBACK") {
+        throw rollbackFailure;
+      }
+      return { rowsAffected: 0 };
+    });
+    const transaction = createTransactionRunner(execute);
+
+    const failure = await transaction(async () => {
+      calls.push("fn");
+      throw boom;
+    }).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(Error);
+    // The original failure stays reachable as `cause`; the rollback's own
+    // error is in the message, so neither reason is lost.
+    expect((failure as Error).cause).toBe(boom);
+    expect((failure as Error).message).toMatch(ROLLBACK_FAILED_RE);
+    expect((failure as Error).message).toContain("no transaction is active");
     expect(calls).toEqual(["BEGIN IMMEDIATE", "fn", "ROLLBACK"]);
   });
 });
