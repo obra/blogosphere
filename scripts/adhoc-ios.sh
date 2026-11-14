@@ -155,21 +155,26 @@ if [[ "$do_build" -eq 1 ]]; then
 </plist>
 PLIST
 
-  archive_path="$PWD/$out_dir/$app_name.xcarchive"
+  archive_dir="$PWD/src-tauri/gen/apple/build"
+  archive_path="$archive_dir/app_iOS.xcarchive"
   export_path="$PWD/$out_dir/export"
   rm -rf "$archive_path" "$export_path"
 
+  # The archive has to be driven by `tauri ios build`, not `xcodebuild`
+  # directly: the project's pre-build script calls back into the tauri CLI
+  # over a socket the CLI only opens for a build it started. A bare
+  # `xcodebuild archive` dies there with "Connection refused".
+  #
+  # The .ipa this would export needs an Xcode account, so the export is
+  # skipped and done below with the ad-hoc options instead.
   echo "==> Archiving"
-  ( cd src-tauri/gen/apple
-    xcodebuild archive \
-      -project app.xcodeproj \
-      -scheme app_iOS \
-      -configuration Release \
-      -destination 'generic/platform=iOS' \
-      -archivePath "$archive_path" \
-      -allowProvisioningUpdates \
-      DEVELOPMENT_TEAM="$team_id"
+  ( cd "$repo_root"
+    npx tauri ios build --ci --build-number "$build_number"
   )
+  [[ -d "$archive_path" ]] || {
+    echo "error: tauri ios build left no archive at $archive_path." >&2
+    exit 1
+  }
 
   echo "==> Exporting the .ipa"
   xcodebuild -exportArchive \
