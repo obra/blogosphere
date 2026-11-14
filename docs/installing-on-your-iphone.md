@@ -62,11 +62,14 @@ not need a development Mac attached.
 
 | | |
 |---|---|
-| Version | 0.1.0, build 0.1.0.3 |
+| Version | 0.1.0, build 0.1.0.4 |
 | Device | Jesse iPhone Duo (`00008160-000E68263A58000A`) |
 | Profile expires | 2027-10-29 |
 | Served from | `m5max.trout-rigel.ts.net`, port 8088 behind `tailscale serve` |
 
-Nobody has tapped Install on a physical device yet, so the on-device flow above is
-unverified. The three files behind the link are confirmed reachable over HTTPS and the
-`.ipa` passes `codesign --verify --deep --strict`.
+Build 0.1.0.3 installed on the phone and crashed on launch: it was built against the
+iOS 27 SDK without the UIScene lifecycle, so UIKit trapped before any app code ran.
+Build 0.1.0.4 fixes that by moving to tauri 2.12 (see
+`Fix iOS launch crash by moving to tauri 2.12`). The fix is verified in the iPhone Duo
+simulator, where the app stays running and logs an active scene. It has not yet been
+launched on the physical phone.

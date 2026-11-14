@@ -31,7 +31,7 @@ tauri-build = { version = "2.6.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.3", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2.12.5", features = ["macos-private-api", "protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 tauri-plugin-http = "2.5.9"
@@ -87,7 +87,7 @@ tauri-plugin-mcp-bridge = "0.13.0"
 
 # tauri::test's mock runtime, for settings_window's tests.
 [dev-dependencies]
-tauri = { version = "2.11.3", features = ["test"] }
+tauri = { version = "2.12.5", features = ["test"] }
 
 # Pulled in by tauri-utils to link the Swift side of Tauri. 1.0.9 is the first
 # release that copes with Xcode 27's SwiftPM layout and its internalized
