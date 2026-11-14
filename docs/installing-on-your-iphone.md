@@ -38,6 +38,10 @@ and installed to keep using it.
 The build also stops working if the profile is revoked, or if the phone is removed
 from the device list. Either way the fix is the same: a fresh build and a fresh install.
 
+If the app opens to a screen headed **"Couldn't start"** and stays there, that is the
+app failing, not the install. Note the message under the heading, tap **Try again**
+once, and send the message along; reinstalling will not change it.
+
 ## Removing it
 
 Delete Blogosphere from the Home Screen like any other app. That removes the app and
@@ -62,14 +66,20 @@ not need a development Mac attached.
 
 | | |
 |---|---|
-| Version | 0.1.0, build 0.1.0.4 |
+| Version | 0.1.0, build 0.1.0.5 |
 | Device | Jesse iPhone Duo (`00008160-000E68263A58000A`) |
 | Profile expires | 2027-10-29 |
 | Served from | `m5max.trout-rigel.ts.net`, port 8088 behind `tailscale serve` |
 
 Build 0.1.0.3 installed on the phone and crashed on launch: it was built against the
 iOS 27 SDK without the UIScene lifecycle, so UIKit trapped before any app code ran.
-Build 0.1.0.4 fixes that by moving to tauri 2.12 (see
-`Fix iOS launch crash by moving to tauri 2.12`). The fix is verified in the iPhone Duo
-simulator, where the app stays running and logs an active scene. It has not yet been
-launched on the physical phone.
+Build 0.1.0.4 fixed that by moving to tauri 2.12 (see `Fix iOS launch crash by moving to
+tauri 2.12`), and it got past the crash on the phone.
+
+Build 0.1.0.4 then stopped at startup with `database is locked`, on a screen headed
+"Couldn't start". That was a bug in how the app created its database, not a problem
+with signing. Build 0.1.0.5 fixes it (see `Fix "database is locked" when creating the
+schema on iOS`). The database fix is verified by installing build 0.1.0.5 on a clean
+simulator, where it reaches the app's normal first-run screen, and by reproducing the
+old failure against the same SQLite version the app ships. Build 0.1.0.5 has not been
+launched on the physical phone yet.
